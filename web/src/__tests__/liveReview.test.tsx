@@ -2,7 +2,7 @@
 // use their charts, ranking totals and colors, follow-up filtering, the scroll button, and the hub map.
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { UIMessage } from 'ai'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { AnswerCard } from '../components/AnswerCard'
 import { AssistantMessage, answerUses, normalizeQuestion } from '../components/AssistantMessage'
 import type { ToolPartView } from '../components/ai-elements/tool-steps'
@@ -11,14 +11,16 @@ import { RING_MILES, ringRadius, zoomFilter } from '../components/HubMap'
 import { ScoresView } from '../components/ScoresView'
 import { DebugProvider } from '../lib/debug'
 import { LOST_DAYS, bandGapLine } from '../lib/explain'
-import { FAMILY_LABEL, fmt, shortHubName } from '../lib/format'
+import { FAMILY_LABEL, fmt, hubName, shortHubName } from '../lib/format'
 import type { ChatResponse, Hub, HubComparison, HubScore, Ranking, ScoreRow } from '../lib/types'
 import hubScoresJson from '../mocks/hub-scores.json'
 import hubsJson from '../mocks/hubs.json'
 import scoresJson from '../mocks/scores.json'
-import { ComparisonCards, exposureAbovePriority } from '../widgets/ComparisonCards'
+import { ComparisonCards, exposureAbovePriority, verdict } from '../widgets/ComparisonCards'
 import { HubBreakdown } from '../widgets/HubBreakdown'
 import { RankingWidget, coverage } from '../widgets/RankingWidget'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { sseEvents, toolOutput } from './fixtures'
 
 const scores = scoresJson as ScoreRow[]
@@ -206,12 +208,55 @@ describe('Scores page', () => {
     expect(screen.queryByRole('region', { name: 'Miami risk breakdown' })).not.toBeInTheDocument()
   })
 
+  it('map panel: opens over the map, focus moves in, another hub swaps it, Escape closes and refocuses the dot', async () => {
+    serve()
+    const original = Element.prototype.scrollIntoView
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    onTestFinished(() => {
+      Element.prototype.scrollIntoView = original
+    })
+    await view()
+    const map = await screen.findByRole('region', { name: 'Hub map' }, { timeout: 3000 })
+    expect(within(map).getByTestId('map-frame').className).toMatch(/h-\[50vh\].*sm:h-\[60vh\]|sm:h-\[60vh\].*h-\[50vh\]/) // the tall hero frame
+    const miami = within(map).getByRole('button', { name: /^Miami: biggest risk/ })
+    fireEvent.click(miami)
+    const panel = within(map).getByRole('dialog', { name: 'Miami breakdown' }) // docked inside the map frame
+    expect(await within(panel).findByRole('region', { name: 'Miami risk breakdown' })).toBeInTheDocument()
+    await waitFor(() => expect(within(panel).getByRole('button', { name: 'Close hub breakdown' })).toHaveFocus())
+    expect(scroll).not.toHaveBeenCalled() // no auto-scroll to the table any more
+    expect(within(map).getByTestId('map-legend')).toBeInTheDocument()
+
+    fireEvent.click(within(map).getByRole('button', { name: /^Houston: biggest risk/ }))
+    const swapped = within(map).getByRole('dialog', { name: 'Houston breakdown' })
+    expect(await within(swapped).findByRole('region', { name: 'Houston risk breakdown' })).toBeInTheDocument()
+    expect(within(map).getAllByRole('dialog')).toHaveLength(1)
+    expect(document.getElementById('hub-row-houston')).toHaveAttribute('data-selected', 'true')
+    expect(document.getElementById('hub-row-miami')).toHaveAttribute('data-selected', 'false')
+
+    fireEvent.click(within(swapped).getByRole('button', { name: 'Show in table' }))
+    expect(scroll).toHaveBeenCalledTimes(1)
+    expect(scroll.mock.contexts[0]).toBe(document.getElementById('hub-row-houston'))
+
+    fireEvent.keyDown(within(swapped).getByRole('button', { name: 'Close hub breakdown' }), { key: 'Escape' })
+    expect(within(map).queryByRole('dialog')).not.toBeInTheDocument()
+    const houston = within(map).getByRole('button', { name: /^Houston: biggest risk/ })
+    await waitFor(() => expect(houston).toHaveFocus())
+  })
+
   it('map: rings in map units, zoom buttons and reset, and Ctrl/⌘ for wheel zoom', async () => {
     serve()
     await view()
     const map = await screen.findByRole('region', { name: 'Hub map' }, { timeout: 3000 })
     expect(map.querySelectorAll('[data-ring]')).toHaveLength(hubs.length)
-    expect(within(map).getByText('Ring: area whose local floods, tornadoes, wind and hail count toward the hub.')).toBeInTheDocument()
+    expect(within(map).getByTestId('map-legend')).toHaveTextContent(
+      'Dot color: biggest risk · Dot size: lost operating days in a bad year · Ring: 18-mile local-hazard area (local floods, tornadoes, wind and hail count toward the hub)',
+    )
+    // The legend sits below the map frame, not over it.
+    const frame = within(map).getByTestId('map-frame')
+    expect(frame.contains(within(map).getByTestId('map-legend'))).toBe(false)
+    expect(frame.compareDocumentPosition(within(map).getByTestId('map-legend')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(map).getByTestId('map-legend')).toHaveTextContent('Drag to move; zoom with the buttons, a pinch, or Ctrl/⌘ + scroll.')
     const zoomIn = within(map).getByRole('button', { name: 'Zoom in' })
     const out = within(map).getByRole('button', { name: 'Zoom out' })
     expect(out).toBeDisabled()
@@ -251,58 +296,82 @@ describe('chat layout', () => {
   })
 })
 
-describe('comparison table (approved design)', () => {
-  const cmp = toolOutput('chat-stream-compare.sse', 'compare_hubs') as HubComparison
-  const ROWS = [
-    'Typical year (days/yr)',
-    'Bad year (days/yr)',
-    'Exposure score (0-100)',
-    'Exposure level',
-    'Screening priority (0-100)',
-    'Priority level',
-    'Biggest risk',
-  ]
+describe('comparison table: hubs as rows, sortable measures, a verdict', () => {
+  const cmp = toolOutput('chat-stream-compare.sse', 'compare_hubs') as HubComparison // Houston and Dallas
+  const HEADERS = ['Typical year', 'Bad year', 'Exposure score', 'Screening priority', 'Biggest risk']
+  const firstColumn = () => screen.getAllByRole('rowheader').map((th) => th.textContent)
 
-  it('fixed rows in order, one column per hub, the same number of cells in every row', () => {
+  it('one row per hub, one sortable column per measure, the same number of cells in every row', () => {
     render(<ComparisonCards data={{ ...cmp, hazards: ['overall'] }} />)
     expect(screen.getByRole('heading')).toHaveTextContent(`Comparing ${cmp.hubs.length} hubs`)
-    expect(screen.getByText(/Lost operating days a year from weather \(modeled estimate\)\. Highest in each row is highlighted\. Data as of/)).toBeInTheDocument()
     const table = screen.getByRole('table')
-    expect(table.className).toContain('table-fixed')
-    expect(within(table).getAllByRole('rowheader').map((th) => th.textContent)).toEqual(ROWS)
-    const heads = within(table).getAllByRole('columnheader')
-    expect(heads).toHaveLength(cmp.hubs.length + 1)
-    for (const h of heads.slice(1)) expect(h.className).toContain('text-right')
-    for (const tr of within(table).getAllByRole('row')) expect(tr.children).toHaveLength(cmp.hubs.length + 1)
+    expect(firstColumn()).toHaveLength(cmp.hubs.length)
+    expect(within(table).getAllByRole('button', { name: /^Sort hubs by / }).map((b) => b.getAttribute('aria-label'))).toEqual(HEADERS.map((h) => `Sort hubs by ${h}`))
+    for (const tr of within(table).getAllByRole('row')) expect(tr.children).toHaveLength(HEADERS.length + 1)
   })
 
-  it('numbers are right-aligned tabular digits, units only in the row labels', () => {
+  it('says which measure decides: a verdict line, and the deciding headers are marked', () => {
+    render(<ComparisonCards data={cmp} />)
+    const [houston, dallas] = ['houston', 'dallas'].map((id) => cmp.hubs.find((h) => h.hub_id === id)!)
+    expect(screen.getByTestId('compare-verdict')).toHaveTextContent(
+      `More exposed: Dallas (exposure score ${fmt(dallas.exposure)} vs ${fmt(houston.exposure)}).`,
+    )
+    expect(screen.getByTestId('compare-verdict')).toHaveTextContent(`Higher screening priority: Dallas (priority ${fmt(dallas.priority)} vs ${fmt(houston.priority)}).`)
+    const deciding = [...document.querySelectorAll('th[data-decides]')].map((th) => th.textContent)
+    expect(deciding).toEqual([expect.stringContaining('Exposure score'), expect.stringContaining('Screening priority')])
+    expect(screen.getByTestId('compare-caption')).toHaveTextContent('Highlighted = the highest, riskiest value in each column.')
+    expect(verdict([{ ...houston, exposure: 50 }, { ...dallas, exposure: 50 }])[0]).toBe('More exposed: a tie on exposure score (50).')
+  })
+
+  it('click a header to sort (highest first, click again for lowest first)', () => {
+    render(<ComparisonCards data={cmp} />)
+    expect(firstColumn()[0]).toBe('Dallas') // default: most exposed first
+    const bad = screen.getByRole('button', { name: 'Sort hubs by Bad year' })
+    fireEvent.click(bad)
+    const order = [...cmp.hubs].sort((a, b) => b.bad_year_days - a.bad_year_days).map((h) => hubName(h.hub_id))
+    expect(firstColumn()).toEqual(order)
+    expect(bad.closest('th')).toHaveAttribute('aria-sort', 'descending')
+    fireEvent.click(bad)
+    expect(firstColumn()).toEqual([...order].reverse())
+    expect(bad.closest('th')).toHaveAttribute('aria-sort', 'ascending')
+  })
+
+  it('numbers are right-aligned tabular digits; the column maximum is highlighted, nothing when all are equal', () => {
     render(<ComparisonCards data={cmp} />)
     for (const td of document.querySelectorAll('td[data-kind="number"]')) {
       expect(td.className).toContain('text-right')
       expect(td.className).toContain('tabular-nums')
-      expect(td.textContent).toMatch(/^(\d+(\.\d)?|n\/a)$/) // no "d/yr" after numbers
+      expect(td.textContent).toMatch(/^((Low|Medium|High))?(\d+(\.\d)?|n\/a)$/)
+    }
+    // Each score shows its level beside it, in the same cell.
+    for (const h of cmp.hubs) {
+      const row = screen.getByRole('rowheader', { name: hubName(h.hub_id) }).closest('tr')!
+      expect(row.querySelector('td[data-column="exposure"] [data-level]')).toHaveAttribute('data-level', h.exposure_band)
+      expect(row.querySelector('td[data-column="priority"] [data-level]')).toHaveAttribute('data-level', h.priority_band)
+    }
+    const typical = document.querySelectorAll('td[data-column="typical"] [data-max]')
+    expect(typical).toHaveLength(1)
+    expect(typical[0].textContent).toBe(fmt(Math.max(...cmp.hubs.map((h) => h.exposure_days_per_year))))
+    cleanup()
+    render(<ComparisonCards data={{ ...cmp, hubs: cmp.hubs.map((h) => ({ ...h, priority: 50 })) }} />)
+    expect(document.querySelectorAll('td[data-column="priority"] [data-max]')).toHaveLength(0)
+  })
+
+  it('long hub names wrap in full (no "Kansas…"), with three hubs', () => {
+    const three = { ...cmp, hubs: ['kansas_city', 'indianapolis', 'houston'].map((id) => hubScores[id]) }
+    render(<ComparisonCards data={three} />)
+    expect(firstColumn()).toEqual(expect.arrayContaining(['Kansas City', 'Indianapolis', 'Houston']))
+    for (const th of screen.getAllByRole('rowheader')) {
+      expect(th.className).not.toMatch(/truncate|text-ellipsis/)
+      expect(th.className).toContain('break-words')
     }
   })
 
-  it('highlights the highest value in each numeric row, and nothing when all are equal', () => {
-    render(<ComparisonCards data={cmp} />)
-    const row = screen.getByRole('rowheader', { name: 'Typical year (days/yr)' }).closest('tr')!
-    const max = Math.max(...cmp.hubs.map((h) => h.exposure_days_per_year))
-    const marked = row.querySelectorAll('[data-max]')
-    expect(marked).toHaveLength(1)
-    expect(marked[0].textContent).toBe(fmt(max))
-    cleanup()
-    const same = { ...cmp, hubs: cmp.hubs.map((h) => ({ ...h, priority: 50 })) }
-    render(<ComparisonCards data={same} />)
-    expect(screen.getByRole('rowheader', { name: 'Screening priority (0-100)' }).closest('tr')!.querySelectorAll('[data-max]')).toHaveLength(0)
-  })
-
-  it('asked hazards get their own rows after the fixed ones', () => {
+  it('asked hazards get their own columns after the fixed ones', () => {
     render(<ComparisonCards data={{ ...cmp, hazards: ['flood', 'hurricane'] }} />)
-    const labels = screen.getAllByRole('rowheader').map((th) => th.textContent)
-    expect(labels.slice(0, 7)).toEqual(ROWS)
-    expect(labels.slice(7)).toEqual(['Flood (days/yr)', 'Hurricane, 10-yr chance (%)'])
+    const labels = screen.getAllByRole('button', { name: /^Sort hubs by / }).map((b) => b.getAttribute('aria-label')!.replace('Sort hubs by ', ''))
+    expect(labels.slice(0, 5)).toEqual(HEADERS)
+    expect(labels.slice(5)).toEqual(['Flood', 'Hurricane'])
   })
 
   it('the "High exposure but Medium priority" footer only when such a hub is present', () => {
@@ -318,11 +387,11 @@ describe('comparison table (approved design)', () => {
     expect(exposureAbovePriority({ exposure_band: 'medium', priority_band: 'high' })).toBe(false)
   })
 
-  it('narrow screens: the same table scrolls sideways with the label column pinned', () => {
+  it('narrow screens: the table scrolls sideways with the hub column pinned', () => {
     render(<ComparisonCards data={cmp} />)
     expect(screen.getByTestId('compare-scroll').className).toContain('overflow-x-auto')
     for (const th of screen.getAllByRole('rowheader')) expect(th.className).toContain('sticky')
-    expect(screen.getByRole('table').style.minWidth).toMatch(/rem/) // a floor per hub column, so cells never squeeze
+    expect(screen.getByRole('table').style.minWidth).toMatch(/rem/)
   })
 })
 
@@ -345,5 +414,63 @@ describe('plain words', () => {
     cleanup()
     render(<HowScoresWork rows={scores} />)
     expect(document.body.textContent).toContain(`Lost operating days are ${LOST_DAYS}`)
+  })
+})
+
+describe('map colors in both themes', () => {
+  const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8') // vitest runs from web/
+  /** The value of a custom property inside one theme block of index.css. */
+  function token(block: 'light' | 'dark', name: string): string {
+    const start = block === 'light' ? css.indexOf(':root {') : css.indexOf(":root[data-theme='dark'] {")
+    const body = css.slice(start, css.indexOf('}', start))
+    return new RegExp(`${name}:\\s*([^;]+);`).exec(body)?.[1].trim() ?? ''
+  }
+  const luminance = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+
+  it('state borders are an opaque color that stands out from the land, in light and in dark', () => {
+    for (const theme of ['light', 'dark'] as const) {
+      const border = token(theme, '--map-border')
+      const land = token(theme, '--map-land')
+      expect(border, theme).toMatch(/^#[0-9a-f]{6}$/i) // solid, never transparent
+      expect(land, theme).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(contrast(border, land), theme).toBeGreaterThan(1.5)
+    }
+  })
+
+  it('every state path uses the tokens with a crisp 0.75 px stroke that does not scale with zoom', async () => {
+    vi.stubEnv('VITE_USE_MOCKS', '')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const path = new URL(url, 'http://test').pathname
+        if (path === '/scores') return Response.json(scores)
+        if (path === '/hubs') return Response.json(hubs)
+        return Response.json({ detail: 'not found' }, { status: 404 })
+      }),
+    )
+    render(
+      <DebugProvider debug={false}>
+        <ScoresView />
+      </DebugProvider>,
+    )
+    const map = await screen.findByRole('region', { name: 'Hub map' }, { timeout: 3000 })
+    const states = await waitFor(() => {
+      const found = map.querySelectorAll('[data-state]')
+      expect(found.length).toBeGreaterThan(48)
+      return found
+    })
+    for (const path of states) {
+      expect(path.getAttribute('stroke')).toBe('var(--map-border)')
+      expect(path.getAttribute('fill')).toBe('var(--map-land)')
+      expect(path.getAttribute('stroke-width')).toBe('0.75')
+      expect(path.getAttribute('vector-effect')).toBe('non-scaling-stroke')
+    }
   })
 })

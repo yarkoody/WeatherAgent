@@ -77,7 +77,7 @@ describe('Scores table', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sort by Hub' }))
     const alpha = [...scores].map(short).sort((a, b) => a.localeCompare(b))
     expect(hubOrder()[0]).toContain(alpha[0])
-    expect(screen.getByRole('button', { name: 'Sort by Hurricane 10 yr' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sort by Hurricane chance' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sort by Biggest risk' })).toBeInTheDocument()
   })
 
@@ -99,6 +99,25 @@ describe('Scores table', () => {
       if (th.className.includes('text-right')) rightAligned++
     }
     expect(rightAligned).toBeGreaterThan(0) // numeric columns are covered too
+  })
+
+  it('units are written once in the headers; cells hold bare right-aligned numbers', async () => {
+    await view()
+    for (const [name, unit] of [
+      ['Typical year', '(days/yr)'],
+      ['Bad year', '(days/yr)'],
+      ['Hurricane chance', '(10 yr, %)'],
+      ['Screening priority', '(0-100)'],
+    ]) {
+      const th = screen.getByRole('button', { name: `Sort by ${name}` }).closest('th')!
+      expect(th).toHaveTextContent(`${name}(${unit.slice(1)}`)
+    }
+    const row = screen.getAllByRole('row')[1]
+    for (const td of within(row).getAllByRole('cell').slice(1, 5)) {
+      expect(td.className).toContain('text-right')
+      expect(td.className).toContain('tabular-nums')
+      expect(td.textContent).not.toMatch(/\d\s*(d|%|days)\b/)
+    }
   })
 
   it('the sort arrow sorts too', async () => {

@@ -1,4 +1,4 @@
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, DownloadIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, DownloadIcon, SearchIcon, SlidersHorizontalIcon } from 'lucide-react'
 import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { HowScoresWork } from '@/components/HowScoresWork'
 import { lazyWithReload } from '@/lib/chunkReload'
@@ -11,7 +11,7 @@ import { downloadCsv } from '@/lib/exportCsv'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { LOST_DAYS } from '@/lib/explain'
-import { BAND_COLOR, FAMILY_LABEL, fmt, pct, shortHubName } from '@/lib/format'
+import { BAND_COLOR, FAMILY_LABEL, fmt, shortHubName } from '@/lib/format'
 import { USE_MOCKS, apiFetch } from '@/lib/mockFetch'
 import type { Band, Hub, HubScore, Region, ScoreRow } from '@/lib/types'
 
@@ -42,6 +42,8 @@ type Dir = 'asc' | 'desc'
 interface Column {
   key: SortKey
   label: string
+  /** Written-out unit, shown once in the header (cells hold bare numbers). */
+  unit?: string
   align: 'left' | 'right'
   /** Direction on first click: numbers start high-to-low, names start A to Z. */
   first: Dir
@@ -54,6 +56,7 @@ const COLUMNS: Column[] = [
   {
     key: 'typical',
     label: 'Typical year',
+    unit: 'days/yr',
     align: 'right',
     first: 'desc',
     value: (r) => r.exposure_days_per_year,
@@ -65,6 +68,7 @@ const COLUMNS: Column[] = [
   {
     key: 'bad_year',
     label: 'Bad year',
+    unit: 'days/yr',
     align: 'right',
     first: 'desc',
     value: (r) => r.bad_year_days,
@@ -72,7 +76,8 @@ const COLUMNS: Column[] = [
   },
   {
     key: 'hurricane',
-    label: 'Hurricane 10 yr',
+    label: 'Hurricane chance',
+    unit: '10 yr, %',
     align: 'right',
     first: 'desc',
     value: (r) => r.hurricane_10yr_probability_pct,
@@ -83,7 +88,8 @@ const COLUMNS: Column[] = [
   },
   {
     key: 'priority',
-    label: 'Priority',
+    label: 'Screening priority',
+    unit: '0-100',
     align: 'right',
     first: 'desc',
     value: (r) => r.priority,
@@ -131,7 +137,6 @@ export function ScoresView() {
   const select = useCallback((id: string) => {
     setSelected(id)
     setDetail({ id, score: null })
-    requestAnimationFrame(() => document.getElementById(`hub-row-${id}`)?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }))
     apiFetch(`/hubs/${encodeURIComponent(id)}/score`)
       .then(async (r) => {
         if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { detail?: string } | null)?.detail ?? `HTTP ${r.status}`)
@@ -139,6 +144,16 @@ export function ScoresView() {
       })
       .then((score) => setDetail((d) => (d?.id === id ? { id, score } : d)))
       .catch((e: Error) => setDetail((d) => (d?.id === id ? { id, score: null, error: e.message } : d)))
+  }, [])
+  const closeDetail = useCallback(() => {
+    setSelected(null)
+    setDetail(null)
+  }, [])
+  // "Show in table": the detail lives in the map panel, so the table row is reached on request only.
+  const showInTable = useCallback((id: string) => {
+    const row = document.getElementById(`hub-row-${id}`)
+    row?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+    row?.querySelector<HTMLElement>('th')?.focus({ preventScroll: true })
   }, [])
 
   useEffect(() => {
@@ -189,6 +204,25 @@ export function ScoresView() {
         </p>
         <HowScoresWork rows={rows} />
 
+        {/* The map leads the page; a selected hub's breakdown opens as a panel docked inside the map frame. */}
+        <div className="mt-4">
+          {hubs && rows ? (
+            <Suspense fallback={<Skeleton className="h-[50vh] min-h-[420px] w-full rounded-3xl sm:h-[60vh]" />}>
+              <HubMap
+                hubs={hubs}
+                rows={rows}
+                selected={selected}
+                onSelect={select}
+                onClose={closeDetail}
+                panel={detail && <HubDetail detail={detail} onShowInTable={showInTable} />}
+                panelTitle={detail ? `${hubs.find((h) => h.id === detail.id)?.city ?? detail.id} breakdown` : undefined}
+              />
+            </Suspense>
+          ) : (
+            <Skeleton className="h-[50vh] min-h-[420px] w-full rounded-3xl sm:h-[60vh]" aria-label="Loading map" />
+          )}
+        </div>
+
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant={whatIf ? 'secondary' : 'outline'} size="sm" aria-expanded={whatIf} onClick={() => setWhatIf((v) => !v)}>
             <SlidersHorizontalIcon />
@@ -213,20 +247,7 @@ export function ScoresView() {
           count={shown ? `Showing ${shown.length} of ${rows?.length ?? 0} hubs` : ''}
         />
 
-        {/* Map next to the table when there is room (container width), stacked above it otherwise. */}
-        <div className="@container mt-4">
-          <div className="grid items-start gap-4 @min-[1100px]:grid-cols-[minmax(320px,1fr)_minmax(760px,1.7fr)]">
-            <div className="flex min-w-0 flex-col gap-4">
-              {hubs && rows ? (
-                <Suspense fallback={<Skeleton className="aspect-[975/610] w-full rounded-3xl" />}>
-                  <HubMap hubs={hubs} rows={rows} selected={selected} onSelect={select} />
-                </Suspense>
-              ) : (
-                <Skeleton className="aspect-[975/610] w-full rounded-3xl" aria-label="Loading map" />
-              )}
-              {detail && <HubDetail detail={detail} onClose={() => (setSelected(null), setDetail(null))} />}
-            </div>
-            <div className="min-w-0">
+        <div className="mt-4">
           {error && (
             <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-band-high-soft px-4 py-3 text-sm text-band-high-text" role="alert">
               Scores could not be loaded ({error}).
@@ -266,17 +287,17 @@ export function ScoresView() {
                         className="scroll-mt-12 even:bg-foreground/[0.025] hover:bg-isobar/[0.05] data-[selected=true]:bg-isobar/[0.12]"
                       >
                         <td className="border-b border-border/50 px-3 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
-                        <th scope="row" className="border-b border-border/50 px-3 py-2.5 text-left font-semibold">
+                        <th scope="row" tabIndex={-1} className="border-b border-border/50 px-3 py-2.5 text-left font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/30">
                           {shortHubName(r.name)}
                           <span className="block text-xs font-normal text-muted-foreground">{r.region}</span>
                         </th>
                         <Num>
-                          <Metered text={`${fmt(r.exposure_days_per_year)} d`} meter={r.exposure} band={r.exposure_band} />
+                          <Metered text={fmt(r.exposure_days_per_year)} meter={r.exposure} band={r.exposure_band} />
                         </Num>
                         <Num>
-                          <span className="font-semibold">{fmt(r.bad_year_days)} d</span>
+                          <span className="font-semibold">{fmt(r.bad_year_days)}</span>
                         </Num>
-                        <Num>{pct(r.hurricane_10yr_probability_pct)}</Num>
+                        <Num>{fmt(r.hurricane_10yr_probability_pct)}</Num>
                         <Num>
                           <Metered text={fmt(r.priority)} meter={r.priority} band={r.priority_band} />
                         </Num>
@@ -294,21 +315,16 @@ export function ScoresView() {
               {shown.length === 0 && <p className="px-4 py-8 text-center text-sm text-muted-foreground">No hubs match these filters.</p>}
             </div>
           )}
-            </div>
-          </div>
         </div>
       </div>
     </div>
   )
 }
 
-/** The selected hub's breakdown (GET /hubs/{id}/score), with a close button. */
-function HubDetail({ detail, onClose }: { detail: { id: string; score: HubScore | null; error?: string }; onClose: () => void }) {
+/** The selected hub's breakdown (GET /hubs/{id}/score), shown in the map panel. */
+function HubDetail({ detail, onShowInTable }: { detail: { id: string; score: HubScore | null; error?: string }; onShowInTable: (id: string) => void }) {
   return (
-    <div className="relative" aria-live="polite">
-      <Button variant="ghost" size="icon-sm" className="absolute top-3 right-3 z-10" aria-label="Close hub breakdown" onClick={onClose}>
-        <XIcon />
-      </Button>
+    <div aria-live="polite">
       {detail.score ? (
         <HubBreakdown data={detail.score} />
       ) : detail.error ? (
@@ -318,6 +334,9 @@ function HubDetail({ detail, onClose }: { detail: { id: string; score: HubScore 
       ) : (
         <Skeleton className="h-72 w-full rounded-3xl" aria-label="Loading hub breakdown" />
       )}
+      <Button variant="link" size="sm" className="mt-1 px-1" onClick={() => onShowInTable(detail.id)}>
+        Show in table
+      </Button>
     </div>
   )
 }
@@ -346,6 +365,8 @@ function SortHeader({ column, sort, onSort }: { column: Column; sort: { key: Sor
           className={`rounded-md py-1 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none ${tone}`}
         >
           {column.label}
+          {/* The unit, written out once: inline on very wide screens, otherwise a smaller muted second line. */}
+          {column.unit && <span className="block text-[0.65rem] font-normal text-muted-foreground 2xl:ml-1 2xl:inline 2xl:text-xs">({column.unit})</span>}
         </button>
         <InfoTip subject={column.label} title={column.tip.title} steps={column.tip.steps} />
         {/* The arrow sorts too (pointer only; the label button is the keyboard target). */}
@@ -441,10 +462,10 @@ function exportCsv(rows: ScoreRow[]) {
     'Rank',
     'Hub',
     'Region',
-    'Typical year (lost operating days)',
-    'Bad year (lost operating days)',
-    'Hurricane 10-yr chance (%)',
-    'Screening priority',
+    'Typical year (days/yr)',
+    'Bad year (days/yr)',
+    'Hurricane chance (10 yr, %)',
+    'Screening priority (0-100)',
     'Priority level',
     'Exposure level',
     'Biggest risk',

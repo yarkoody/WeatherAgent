@@ -9,7 +9,7 @@ import { AssistantMessage } from '../components/AssistantMessage'
 import { ScoresView } from '../components/ScoresView'
 import { DebugProvider } from '../lib/debug'
 import * as explain from '../lib/explain'
-import { FAMILIES, fmt } from '../lib/format'
+import { FAMILIES, fmt, hubName } from '../lib/format'
 import { normalizeHub } from '../lib/normalize'
 import type { HubScore, ScoreRow, ToolName, WeatherStat, WhatIfResult } from '../lib/types'
 import scoresJson from '../mocks/scores.json'
@@ -223,10 +223,13 @@ describe('cards: one "How to read this" per widget, no (i) per field, units and 
       const { container, unmount } = render(<ComparisonCards data={c.output as never} />)
       expect(within(container).getAllByRole('button', { name: 'How to read this' })).toHaveLength(1)
       const table = within(container).getByRole('table')
-      expect(within(table).queryAllByRole('button')).toHaveLength(0)
+      // The only buttons in the table are the column sort controls (no (i) tips inside).
+      for (const b of within(table).queryAllByRole('button')) expect(b.getAttribute('aria-label')).toMatch(/^Sort hubs by /)
       const hubs = (c.output as unknown as { hubs: HubScore[] }).hubs
-      const score = within(table).getByRole('rowheader', { name: 'Exposure score (0-100)' }).closest('tr')!
-      hubs.forEach((h, i) => expect(within(score).getAllByRole('cell')[i].textContent).toBe(fmt(h.exposure)))
+      for (const h of hubs) {
+        const row = within(table).getByRole('rowheader', { name: hubName(h.hub_id) }).closest('tr')!
+        expect(row.querySelector('td[data-column="exposure"] [data-max], td[data-column="exposure"] span.rounded-md')!.textContent).toBe(fmt(h.exposure))
+      }
       unmount()
     }
   })

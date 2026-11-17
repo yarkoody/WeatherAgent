@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ScoresView } from '../components/ScoresView'
 import { DebugProvider } from '../lib/debug'
 import { LENS_EXPLAINER, badYearLines, hurricaneLines } from '../lib/explain'
-import { pct } from '../lib/format'
+import { fmt } from '../lib/format'
 import type { HubComparison, HubScore, Ranking, ScoreRow } from '../lib/types'
 import scoresJson from '../mocks/scores.json'
 import { ComparisonCards } from '../widgets/ComparisonCards'
@@ -83,21 +83,18 @@ describe('history saved before formula v2', () => {
     const cmp = structuredClone(comparison)
     for (const h of cmp.hubs) delete (h as Partial<HubScore>).bad_year_days
     render(<ComparisonCards data={cmp} />)
-    const row = screen.getByRole('rowheader', { name: 'Bad year (days/yr)' }).closest('tr')!
-    for (const td of row.querySelectorAll('td')) expect(td).toHaveTextContent('n/a')
+    for (const td of document.querySelectorAll('td[data-column="bad"]')) expect(td).toHaveTextContent('n/a')
   })
 })
 
 describe('comparison table', () => {
-  it('shows typical and bad-year days for every hub, in its own column', () => {
+  it('shows typical and bad-year days for every hub, in its own row', () => {
     render(<ComparisonCards data={comparison} />)
-    const heads = screen.getAllByRole('columnheader').slice(1)
-    const row = screen.getByRole('rowheader', { name: 'Bad year (days/yr)' }).closest('tr')!
-    const cells = within(row).getAllByRole('cell')
-    comparison.hubs.forEach((h, i) => {
-      expect(heads[i]).toHaveTextContent(new RegExp(h.hub_id.replace('_', ' '), 'i'))
-      expect(cells[i]).toHaveTextContent(String(h.bad_year_days))
-    })
+    for (const h of comparison.hubs) {
+      const row = screen.getByRole('rowheader', { name: new RegExp(h.hub_id.replace('_', ' '), 'i') }).closest('tr')!
+      expect(row.querySelector('td[data-column="bad"]')).toHaveTextContent(String(h.bad_year_days))
+      expect(row.querySelector('td[data-column="typical"]')).toHaveTextContent(String(h.exposure_days_per_year))
+    }
   })
 })
 
@@ -152,7 +149,7 @@ describe('scores table', () => {
     await waitFor(() => expect(firstHub()).toHaveTextContent(top('exposure_days_per_year').name.replace(/ Hub$/, '')))
 
     const miami = screen.getByRole('row', { name: /Miami/ })
-    expect(miami).toHaveTextContent(pct(scores.find((r) => r.hub_id === 'miami')!.hurricane_10yr_probability_pct))
+    expect(within(miami).getAllByRole('cell')[3]).toHaveTextContent(new RegExp(`^${fmt(scores.find((r) => r.hub_id === 'miami')!.hurricane_10yr_probability_pct)}$`)) // bare number; the unit is in the header
   })
 
   it('shows no JEV second opinion anywhere', async () => {

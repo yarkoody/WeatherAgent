@@ -1,7 +1,7 @@
 // Print reports (rendered by ExportReportButton). Plain HTML for paper: no glass, no charts, no motion.
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { FAMILIES, FAMILY_LABEL, formatDate, formatValue, hubName, pct } from '@/lib/format'
+import { FAMILIES, FAMILY_LABEL, formatDate, formatValue, hubName } from '@/lib/format'
 import type { ChatResponse, HubScore } from '@/lib/types'
 
 const STATUS = { pass: 'Figures checked', retried: 'Figures checked after retry', failed: 'Unverified' } as const
@@ -82,23 +82,23 @@ export function HubReport({ hub }: { hub: HubScore }) {
       <table>
         <tbody>
           <tr>
-            <th>Lost days, typical year</th>
+            <th>Typical year (lost operating days/yr)</th>
             <td>{hub.exposure_days_per_year}</td>
           </tr>
           {typeof hub.bad_year_days === 'number' && (
             <tr>
-              <th>Lost days, worst 1 year in 20</th>
+              <th>Bad year, worst 1 year in 20 (days/yr)</th>
               <td>{hub.bad_year_days}</td>
             </tr>
           )}
           <tr>
-            <th>Exposure score</th>
+            <th>Exposure score (0-100)</th>
             <td>
               {hub.exposure} ({hub.exposure_band})
             </td>
           </tr>
           <tr>
-            <th>Screening priority</th>
+            <th>Screening priority (0-100)</th>
             <td>
               {hub.priority} ({hub.priority_band})
             </td>
@@ -109,8 +109,8 @@ export function HubReport({ hub }: { hub: HubScore }) {
           </tr>
           {typeof hub.hurricane_10yr_probability_pct === 'number' && (
             <tr>
-              <th>Hurricane chance, 10 years</th>
-              <td>{pct(hub.hurricane_10yr_probability_pct)}</td>
+              <th>Hurricane chance (10 yr, %)</th>
+              <td>{hub.hurricane_10yr_probability_pct}</td>
             </tr>
           )}
         </tbody>
@@ -120,8 +120,8 @@ export function HubReport({ hub }: { hub: HubScore }) {
         <thead>
           <tr>
             <th>Hazard</th>
-            <th>Lost days a year</th>
-            <th>In a bad year</th>
+            <th>Typical year (days/yr)</th>
+            <th>Bad year (days/yr)</th>
             <th>Level</th>
           </tr>
         </thead>

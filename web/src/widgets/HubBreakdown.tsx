@@ -112,7 +112,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
           <HistoryTab hubId={data.hub_id} name={name} />
         </div>
       ) : (
-      <div role="tabpanel" id={`${data.hub_id}-panel-overview`} aria-labelledby={`${data.hub_id}-tab-overview`}>
+      <div role="tabpanel" id={`${data.hub_id}-panel-overview`} aria-labelledby={`${data.hub_id}-tab-overview`} className="@container">
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <Lenses data={data} />
         <dl className="flex gap-6 text-sm">
@@ -177,7 +177,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
         {cutoffs && ` Dashed lines: medium level from ${fmt(mediumDays, 2)} days, high from ${fmt(highDays, 2)} days a year.`}
       </p>
 
-      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
+      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm @lg:grid-cols-4">
         {FAMILIES.map((f) => {
           const fam = data.families[f]
           if (!fam) return null

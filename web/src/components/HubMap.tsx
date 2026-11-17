@@ -1,8 +1,9 @@
 // Scores tab map: the 15 hubs on an offline US states map (us-atlas TopoJSON bundled; no tile service).
 // Dot color = the hub's top hazard, dot size = bad-year lost days, faint ring = the model's local-hazard area
 // (a 1,000 sq mi circle: scoring.reference_area_sq_mi), drawn in map units so it scales with the projection and zoom.
-import { MinusIcon, PlusIcon, RotateCcwIcon } from 'lucide-react'
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { MinusIcon, PlusIcon, RotateCcwIcon, XIcon } from 'lucide-react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup, useMapContext } from 'react-simple-maps'
 import states from 'us-atlas/states-10m.json'
 import { HAZARD_ICON, HazardIcon } from '@/components/HazardIcon'
@@ -44,7 +45,42 @@ function Ring({ hub }: { hub: Hub }) {
   return <circle data-ring r={r} fill="currentColor" fillOpacity={0.07} stroke="currentColor" strokeOpacity={0.35} strokeWidth={0.75} vectorEffect="non-scaling-stroke" />
 }
 
-export function HubMap({ hubs, rows, selected, onSelect }: { hubs: Hub[]; rows: ScoreRow[]; selected: string | null; onSelect: (id: string) => void }) {
+export function HubMap({
+  hubs,
+  rows,
+  selected,
+  onSelect,
+  onClose,
+  panel,
+  panelTitle,
+}: {
+  hubs: Hub[]
+  rows: ScoreRow[]
+  selected: string | null
+  onSelect: (id: string) => void
+  /** Closes the hub panel; focus then returns to that hub's dot. */
+  onClose?: () => void
+  /** The selected hub's detail, docked inside the map frame (right side; a bottom sheet on phones). */
+  panel?: ReactNode
+  panelTitle?: string
+}) {
+  const wide = useMediaQuery('(min-width: 640px)')
+  const open = Boolean(panel)
+  const closeButton = useRef<HTMLButtonElement>(null)
+  const lastSelected = useRef<string | null>(null)
+  // Focus moves into the panel when a hub opens it (or swaps it).
+  useEffect(() => {
+    if (open && selected) {
+      lastSelected.current = selected
+      closeButton.current?.focus({ preventScroll: true })
+    }
+  }, [open, selected])
+  const close = () => {
+    const id = lastSelected.current
+    onClose?.()
+    // Back to the hub dot that opened the panel.
+    requestAnimationFrame(() => document.querySelector<SVGGElement>(`[data-hub="${id}"]`)?.focus())
+  }
   const [view, setView] = useState(HOME)
   const [hover, setHover] = useState<string | null>(null)
   const byId = new Map(rows.map((r) => [r.hub_id, r]))
@@ -67,8 +103,23 @@ export function HubMap({ hubs, rows, selected, onSelect }: { hubs: Hub[]; rows: 
   }
 
   return (
-    <section aria-label="Hub map" className="glass relative overflow-hidden rounded-3xl">
-      <ComposableMap projection="geoAlbersUsa" projectionConfig={{ scale: 1250 }} width={WIDTH} height={HEIGHT} className="block h-auto w-full" role="group" aria-label="Map of the 15 hubs">
+    <section
+      aria-label="Hub map"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation()
+          close()
+        }
+      }}
+    >
+      <div data-testid="map-frame" className="glass relative h-[50vh] min-h-[420px] overflow-hidden rounded-3xl sm:h-[60vh]">
+      {/* The map shrinks beside the panel (desktop) or above the sheet (phone), so every hub stays reachable. */}
+      <div
+        data-testid="map-layer"
+        className="absolute inset-0 transition-[right,bottom] duration-300 ease-out motion-reduce:transition-none"
+        style={open ? (wide ? { right: 'min(424px, 46%)' } : { bottom: '58%' }) : undefined}
+      >
+      <ComposableMap projection="geoAlbersUsa" projectionConfig={{ scale: 1250 }} width={WIDTH} height={HEIGHT} className="block h-full w-full" role="group" aria-label="Map of the 15 hubs">
         <ZoomableGroup
           center={view.center}
           zoom={view.zoom}
@@ -84,7 +135,10 @@ export function HubMap({ hubs, rows, selected, onSelect }: { hubs: Hub[]; rows: 
                   key={geo.rsmKey}
                   geography={geo}
                   tabIndex={-1}
-                  className="fill-foreground/[0.06] stroke-background outline-none"
+                  data-state
+                  className="outline-none"
+                  fill="var(--map-land)"
+                  stroke="var(--map-border)"
                   strokeWidth={0.75}
                   vectorEffect="non-scaling-stroke"
                 />
@@ -142,8 +196,9 @@ export function HubMap({ hubs, rows, selected, onSelect }: { hubs: Hub[]; rows: 
           })}
         </ZoomableGroup>
       </ComposableMap>
+      </div>
 
-      <div className="absolute top-3 right-3 flex flex-col gap-1" role="group" aria-label="Map zoom">
+      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1" role="group" aria-label="Map zoom">
         <Button variant="outline" size="icon-sm" className="bg-background/85" aria-label="Zoom in" onClick={() => zoomBy(1.6)} disabled={view.zoom >= MAX_ZOOM}>
           <PlusIcon />
         </Button>
@@ -155,19 +210,42 @@ export function HubMap({ hubs, rows, selected, onSelect }: { hubs: Hub[]; rows: 
         </Button>
       </div>
 
-      <div className="border-t border-border/60 px-4 py-3 text-xs text-muted-foreground">
-        <ul aria-label="Biggest risk colors" className="flex flex-wrap gap-x-3 gap-y-1">
-          {FAMILIES.map((f) => (
-            <li key={f} className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full" style={{ background: FAMILY_COLOR[f] }} aria-hidden="true" />
-              <HazardIcon hazard={f} className="size-3.5" />
-              {FAMILY_LABEL[f]}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-1.5">Dot color: the hub's biggest risk. Dot size: lost operating days in a bad year.</p>
-        <p className="mt-0.5">Ring: area whose local floods, tornadoes, wind and hail count toward the hub.</p>
-        <p className="mt-0.5">Drag to move. Zoom with the buttons, a pinch, or Ctrl/⌘ + scroll. Select a hub to open its breakdown.</p>
+      {open && (
+        <div
+          role="dialog"
+          aria-modal="false"
+          aria-label={panelTitle ?? 'Hub breakdown'}
+          data-testid="map-panel"
+          className="absolute z-20 overflow-y-auto overscroll-contain rounded-3xl max-sm:inset-x-2 max-sm:bottom-2 max-sm:h-[calc(58%-0.5rem)] sm:top-3 sm:right-3 sm:bottom-3 sm:w-[min(400px,calc(46%-1.5rem))]"
+        >
+          <div className="sticky top-0 z-10 -mb-12 flex justify-end p-2.5">
+            <Button ref={closeButton} variant="outline" size="icon-sm" className="bg-background/90" aria-label="Close hub breakdown" onClick={close}>
+              <XIcon />
+            </Button>
+          </div>
+          {panel}
+        </div>
+      )}
+      </div>
+
+      {/* Legend under the map: one row of hazard keys and what dots and rings mean (wraps on phones), then the hint. */}
+      <div data-testid="map-legend" className="mt-2.5 px-1 text-xs leading-relaxed text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <ul aria-label="Biggest risk colors" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {FAMILIES.map((f) => (
+              <li key={f} className="inline-flex items-center gap-1.5 text-foreground">
+                <span className="size-2.5 rounded-full" style={{ background: FAMILY_COLOR[f] }} aria-hidden="true" />
+                <HazardIcon hazard={f} className="size-3.5" />
+                {FAMILY_LABEL[f]}
+              </li>
+            ))}
+          </ul>
+          <p title="The ring is a 1,000 sq mi circle around the hub">
+            Dot color: biggest risk · Dot size: lost operating days in a bad year · Ring: 18-mile local-hazard area (local floods, tornadoes, wind and
+            hail count toward the hub)
+          </p>
+        </div>
+        <p className="mt-1 text-[0.7rem] text-muted-foreground/80">Drag to move; zoom with the buttons, a pinch, or Ctrl/⌘ + scroll.</p>
       </div>
     </section>
   )
