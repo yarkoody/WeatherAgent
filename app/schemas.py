@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 Region = Literal["Midwest", "South", "West", "Northeast"]
 Family = Literal["winter", "flood", "hurricane", "severe_storm"]
 Hazard = Literal["overall", "winter", "flood", "hurricane", "severe_storm"]
-ScoreKind = Literal["exposure", "priority", "bad_year", "people_impact"]  # bad_year = 1-in-20-year disruption days (tail lens)
+ScoreKind = Literal["exposure", "priority", "bad_year", "people_impact", "people_served"]  # bad_year = 1-in-20-year disruption days (tail lens)
 Band = Literal["low", "medium", "high"]
 Metric = Literal[
     "snow_days_pct",
