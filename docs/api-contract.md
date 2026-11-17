@@ -43,6 +43,8 @@ The request is a `ChatRequest`: `{ "session_id": string | null, "message": strin
 
 `ranking` is `null` unless a ranking was asked for.
 
+`follow_ups` holds up to three suggested next questions. They are built by code from the turn (the answer's hubs, its ranking and the tools that ran), never by the model, so each one is in scope and answerable and none contains a number. The UI shows them as one-click chips under the answer.
+
 The UI handles these states:
 
 | Condition | UI state |

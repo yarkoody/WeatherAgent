@@ -78,18 +78,28 @@ class Oracle:
         s = self.scores[hub_id]
         return s.exposure_band if kind == "exposure" else s.priority_band
 
+    def signal_raw(self, hub_id: str, prefix: str) -> float:
+        """Raw value of a priority signal, e.g. 'people served' (county population)."""
+        return next(s.raw for s in self.scores[hub_id].priority_signals if s.name.startswith(prefix))
+
     def score_values(self, spec: dict[str, Any]) -> list[float]:
         """Values a correct answer may cite: a family's index, share (%) or days per year, or a score."""
         s = self.scores[spec["hub_id"]]
         if "family" in spec:
             fam = s.families[spec["family"]]
-            return [fam.score, s.family_weights[spec["family"]], fam.days_per_year]
+            return [fam.score, s.family_weights[spec["family"]], fam.days_per_year, fam.bad_year_days]
         if spec["score"] == "exposure":
             return [s.exposure, s.exposure_days_per_year]
+        if spec["score"] == "bad_year":
+            return [s.bad_year_days]
         return [s.priority]
 
-    def top_driver(self, hub_id: str) -> tuple[str, float]:
+    def top_driver(self, hub_id: str, lens: str = "typical") -> tuple[str, float]:
+        """(family, share %) of the typical year (top_driver) or of the bad year (largest family bad_year_days)."""
         s = self.scores[hub_id]
+        if lens == "bad_year":
+            fam = max(s.families, key=lambda f: (s.families[f].bad_year_days, f))
+            return fam, round(100 * s.families[fam].bad_year_days / s.bad_year_days, 1)
         return s.top_driver, s.family_weights[s.top_driver]
 
     def judge_hub(self, spec: dict[str, Any]) -> str:
@@ -256,6 +266,19 @@ def check_run(run: Run, case: dict, oracle: Oracle) -> None:
         what = spec.get("family") or spec.get("score")
         add(("score_figure", ok, "" if ok else f"no figure for {spec['hub_id']} {what} matching the code values {values}"))
 
+    if "compact_figure" in expect:
+        from app.grounding import cites_compact
+
+        spec = expect["compact_figure"]
+        value = oracle.signal_raw(spec["hub_id"], spec["signal"])
+        exact = any(f.hub_id == spec["hub_id"] and f.value == value for f in answer.figures)
+        compact = cites_compact(text, value)
+        add(("compact_figure", exact and compact,
+             "" if exact and compact else f"{value:,.0f}: exact in figures {exact}, compact in text {compact}"))
+
+    if expect.get("grounding_first_try"):
+        add(("grounding_first_try", resp.grounding.status == "pass", f"status {resp.grounding.status}"))
+
     if "states_band" in expect:
         spec = expect["states_band"]
         band = oracle.band(spec["hub_id"], spec["kind"])
@@ -302,16 +325,19 @@ async def judge_run(run: Run, case: dict, oracle: Oracle, model, sem: asyncio.Se
     if not case.get("judge") or run.last.response is None:
         return
     hub_id = oracle.judge_hub(case["judge"])
-    family, share = oracle.top_driver(hub_id)
+    lens = case["judge"].get("lens", "typical")
+    family, share = oracle.top_driver(hub_id, lens)
     async with sem:
         try:
-            verdict = await judge_top_driver(model, run.last.response.answer.answer, oracle.by_id[hub_id].name, family, share)
+            verdict = await judge_top_driver(model, run.last.response.answer.answer, oracle.by_id[hub_id].name,
+                                             family, share, lens)
         except Exception as exc:  # noqa: BLE001
             verdict = {"passed": None, "reason": f"judge error: {type(exc).__name__}", "input_tokens": 0, "output_tokens": 0}
     verdict.update(hub_id=hub_id, family=family)
     run.judge = verdict
     ok = verdict["passed"] is True
-    run.checks.append(("judge_top_driver", ok, "" if ok else f"expected {family} for {hub_id}: {verdict['reason']}"))
+    run.checks.append(("judge_top_driver", ok,
+                       "" if ok else f"expected {family} ({lens}) for {hub_id}: {verdict['reason']}"))
 
 
 # ---------- report ----------

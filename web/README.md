@@ -31,14 +31,21 @@ npm run build      # outputs web/dist, which FastAPI serves at /
 - Errors: 422, 429 (no retry offered) and 503 from `/chat` get their own message. A turn that ends without a `data-answer` (Stop, cut-off stream, reload mid-turn) shows its unfinished steps as stopped and a "No answer received" notice.
 - Each widget and the whole thread sit inside error boundaries; restored history is validated loosely.
 - Each request sends only the chat id and the newest user message (the server keeps the history).
+- "Ask next": the latest finished answer ends with its `follow_ups` (0-3, built by the backend) as one-click Suggestion chips; a click sends the question. Hidden while a turn streams.
 - The chat id is the backend `session_id`. It and the messages are kept in `localStorage`. "New conversation" starts a new id.
 - Voice: the mic uses the Web Speech API (disabled, with a tooltip, where unsupported); the speaker toggle reads each new answer aloud.
+
+## Formula v2: typical and bad years
+
+Wherever a hub's exposure appears (hub breakdown, comparison cards, Scores table) it shows two lenses: typical-year lost days and the bad year (the average across the worst 1 year in 20, TVaR95), with one (i) explaining both. The hub breakdown draws typical and bad year as two bars split by hazard, so it shows what drives the bad year (older data without the per-hazard split falls back to a hatched extension), and gives each hazard its own band chip (by days; hurricane by its 10-year chance). The Scores table has typical-year, bad-year and hurricane 10-year columns and sorts by Typical year, Bad year or Priority. A `bad_year` ranking is labelled "Bad-year disruption days (1 in 20)" and drawn in days in one neutral color: it has no bands (`band` is null). Conversations saved before v2 still render: the widgets drop the fields they do not have. When a tool resolved a city to a hub through a nickname or its metro area ("New York" -> Newark), its `resolution_notes` text is shown once, above the answer.
 
 ## Analyst and developer views
 
 The default view is for analysts: plain-language progress steps, and figures with label, hub and value plus the grounding badge. Add `?debug=1` to the URL for the developer view (remembered in `localStorage`; `?debug=0` turns it off): a "Developer view" pill, source-tool citations on each figure, expandable tool names and arguments, the trace id and grounding errors.
 
-Every score has an (i) button ("How is this calculated?"). It opens on click, tap or Enter. Its text is built only from the tool output (`src/lib/explain.ts`): each signal's raw value, unit, weight and contribution, then one line on the index (days ÷ `days_cap` × 100, bands at `medium_from_days` and `high_from_days`).
+Every score has an (i) button ("How is this calculated?"). It opens on click, tap or Enter and shows at most five short plain-language steps; "More detail" reveals the technical breakdown (each signal's raw value, weight and contribution). All numbers come from the tool output (`src/lib/explain.ts`).
+
+Large numbers display compact (472K, 2.6M, 1.2B), days and scores with one decimal, percentages as "95%"; cited figures keep their exact value for verification. In the analyst view the answer comes first: the agent's steps fold into one line, and the numbers, assumptions and data limits are collapsed. Widgets fade in, bars grow, the ring fills and headline numbers count up once (150-400 ms); nothing moves under `prefers-reduced-motion`, and conversations restored from history render without replaying animations.
 
 ## JEV second opinion (Scores view)
 
@@ -46,4 +53,4 @@ Every score has an (i) button ("How is this calculated?"). It opens on click, ta
 
 ## Mocks
 
-`src/mocks/chat-stream*.sse` were recorded from `app.agent.stream_turn` with `ai.testing.FakeModel` and the real tools (NWS alerts stubbed). Scenarios: ranking, compare, weather, alerts, no data, out of scope, and failed grounding (ask "How exposed is Houston?"). `scores.json` is the real `/scores` output. `second-opinion.json` is synthetic (real formula bands, made-up JEV scores with six deliberate disagreements); the mock re-run returns 503. The mock transport is the real `DefaultChatTransport` with a replaying `fetch`, so the mocks go through the same parser as the live stream. Mock code is dropped from production builds.
+`src/mocks/chat-stream*.sse` were recorded from `app.agent.stream_turn` with `ai.testing.FakeModel` and the real tools (NWS alerts stubbed). Scenarios: ranking, compare, weather, alerts, no data, out of scope, failed grounding (ask "How exposed is Houston?"), metro-area resolution ("How exposed is New York?") and a bad-year ranking ("Which hubs have the worst bad years?"). All are recorded from the formula-v2 backend; `scores.json` and `chat-response.json` are real v2 output too. `second-opinion.json` is synthetic (real formula bands, made-up JEV scores with six deliberate disagreements); the mock re-run returns 503. The mock transport is the real `DefaultChatTransport` with a replaying `fetch`, so the mocks go through the same parser as the live stream. Mock code is dropped from production builds.

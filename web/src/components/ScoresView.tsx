@@ -8,14 +8,20 @@ import { fetchSecondOpinion, rerunSecondOpinion } from '@/lib/secondOpinion'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { BAND_COLOR, FAMILY_LABEL, fmt, shortHubName } from '@/lib/format'
+import { BAND_COLOR, FAMILY_LABEL, fmt, pct, shortHubName } from '@/lib/format'
 import { USE_MOCKS, apiFetch } from '@/lib/mockFetch'
 import type { Band, ScoreRow, SecondOpinion } from '@/lib/types'
-import { BandPill } from '@/widgets/WidgetFrame'
+import { BandText } from '@/widgets/WidgetFrame'
 
 const THRESHOLDS = { medium: 35, high: 60 }
 
-type SortKey = 'priority' | 'exposure'
+type SortKey = 'typical' | 'bad_year' | 'priority'
+
+const SORT: Record<SortKey, { label: string; field: 'exposure_days_per_year' | 'bad_year_days' | 'priority' }> = {
+  typical: { label: 'Typical year', field: 'exposure_days_per_year' },
+  bad_year: { label: 'Bad year', field: 'bad_year_days' },
+  priority: { label: 'Priority', field: 'priority' },
+}
 
 /** 0-100 ruler with the band cut-offs marked: the same scale every widget uses. */
 export function BandMeter({ value, band }: { value: number; band: Band }) {
@@ -63,26 +69,26 @@ export function ScoresView() {
   }, [attempt])
 
   const sorted = useMemo(
-    () => (rows ? [...rows].sort((a, b) => b[sort] - a[sort] || a.hub_id.localeCompare(b.hub_id)) : null),
+    () => (rows ? [...rows].sort((a, b) => b[SORT[sort].field] - a[SORT[sort].field] || a.hub_id.localeCompare(b.hub_id)) : null),
     [rows, sort],
   )
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-wide text-2xl font-semibold tracking-tight">All hubs</h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Exposure is a 0 to 100 index of expected weather-disruption days a year. Priority adds people served and the resilience gap.
-              Bands: medium from 35, high from 60.
+              Lost days are the weather-disruption days a hub can expect: in a typical year, and in a bad year (about 1 in 20). The bar is the 0 to 100 exposure score. Investment priority says where upgrades would help most.
+             
               {USE_MOCKS && ' Mock mode: showing recorded snapshot scores.'}
             </p>
           </div>
           <div className="inline-flex gap-1 rounded-2xl bg-card p-1 ring-1 ring-border/60" role="group" aria-label="Sort by">
-            {(['priority', 'exposure'] as const).map((k) => (
+            {(['typical', 'bad_year', 'priority'] as const).map((k) => (
               <Button key={k} size="sm" variant={sort === k ? 'default' : 'ghost'} aria-pressed={sort === k} onClick={() => setSort(k)}>
-                {k === 'priority' ? 'Sort by priority' : 'Sort by exposure'}
+                {SORT[k].label}
               </Button>
             ))}
           </div>
@@ -110,14 +116,17 @@ export function ScoresView() {
 
         {sorted && (
           <div className="mt-5 rounded-2xl bg-card px-2 ring-1 ring-border/60">
-            <Table className={jevColumn ? 'min-w-[860px]' : 'min-w-[720px]'}>
+            <Table className={jevColumn ? 'min-w-[900px]' : 'min-w-[780px]'}>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10">#</TableHead>
                   <TableHead>Hub</TableHead>
-                  <TableHead>Region</TableHead>
-                  <TableHead className="w-[24%]">Exposure</TableHead>
-                  <TableHead className="w-[24%]">Investment priority</TableHead>
+                  <TableHead className="w-[22%]">Typical year (lost days)</TableHead>
+                  <TableHead>
+                    Bad year<span className="font-normal"> (1 in 20)</span>
+                  </TableHead>
+                  <TableHead>Hurricane chance, 10 yr</TableHead>
+                  <TableHead className="w-[22%]">Investment priority</TableHead>
                   <TableHead>Top driver</TableHead>
                   {jevColumn && <TableHead>Second opinion (JEV)</TableHead>}
                 </TableRow>
@@ -128,16 +137,40 @@ export function ScoresView() {
                     <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                     <TableHead scope="row" className="font-semibold text-foreground">
                       <span className="inline-flex items-center gap-1.5">
-                        {shortHubName(r.name)}
+                        <span>
+                          {shortHubName(r.name)}
+                          <span className="block text-xs font-normal text-muted-foreground">{r.region}</span>
+                        </span>
                         {opinion && narrow && jevByHub.get(r.hub_id) && <SecondOpinionCell hub={jevByHub.get(r.hub_id)!} />}
                       </span>
                     </TableHead>
-                    <TableCell className="text-muted-foreground">{r.region}</TableCell>
                     <TableCell>
-                      <ScoreCell value={r.exposure} band={r.exposure_band} info={<InfoTip subject={`${shortHubName(r.name)} exposure index`} lines={rowLines(r, 'exposure')} />} />
+                      <ScoreCell
+                        text={`${fmt(r.exposure_days_per_year)} d`}
+                        meter={r.exposure}
+                        band={r.exposure_band}
+                        info={<InfoTip subject={`${shortHubName(r.name)} typical year`} steps={rowLines(r, 'typical')} />}
+                      />
                     </TableCell>
                     <TableCell>
-                      <ScoreCell value={r.priority} band={r.priority_band} info={<InfoTip subject={`${shortHubName(r.name)} investment priority`} lines={rowLines(r, 'priority')} />} />
+                      <span className="inline-flex items-center gap-0.5 font-semibold">
+                        {fmt(r.bad_year_days)} d
+                        <InfoTip subject={`${shortHubName(r.name)} bad year`} steps={rowLines(r, 'bad_year')} />
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-0.5">
+                        {pct(r.hurricane_10yr_probability_pct)}
+                        <InfoTip subject={`${shortHubName(r.name)} hurricane chance`} steps={rowLines(r, 'hurricane')} />
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <ScoreCell
+                        text={fmt(r.priority)}
+                        meter={r.priority}
+                        band={r.priority_band}
+                        info={<InfoTip subject={`${shortHubName(r.name)} investment priority`} steps={rowLines(r, 'priority')} />}
+                      />
                     </TableCell>
                     <TableCell className="text-muted-foreground">{FAMILY_LABEL[r.top_driver]}</TableCell>
                     {jevColumn && (
@@ -157,30 +190,47 @@ export function ScoresView() {
 }
 
 /** A /scores row has no signals, so the text explains in words and points to the per-hub breakdown. */
-function rowLines(r: ScoreRow, kind: 'exposure' | 'priority'): string[] {
+function rowLines(r: ScoreRow, kind: 'typical' | 'bad_year' | 'hurricane' | 'priority'): string[] {
   const hub = shortHubName(r.name)
-  return kind === 'exposure'
-    ? [
-        `${hub}: exposure index ${r.exposure} (${r.exposure_band}).`,
-        'The index turns expected weather-disruption days a year into a 0 to 100 scale; more days means a higher index.',
-        `Top driver: ${FAMILY_LABEL[r.top_driver].toLowerCase()}. Ask "Break down ${hub}'s risk" in chat for each hazard's days and the formula.`,
+  const ask = `Ask "Break down ${hub}'s risk" in chat for the details.`
+  switch (kind) {
+    case 'typical':
+      return [
+        `${hub} loses about ${fmt(r.exposure_days_per_year)} days a year to weather in a typical year.`,
+        `That gives an exposure score of ${fmt(r.exposure)} of 100 (${r.exposure_band}).`,
+        `Main driver: ${FAMILY_LABEL[r.top_driver].toLowerCase()}. ${ask}`,
       ]
-    : [
-        `${hub}: investment priority ${r.priority} (${r.priority_band}).`,
-        'Priority blends overall exposure with people served and the resilience gap.',
-        `Ask "Break down ${hub}'s risk" in chat for each signal, its weight and its contribution.`,
+    case 'bad_year':
+      return [
+        `In a bad year (about 1 year in 20) ${hub} could lose about ${fmt(r.bad_year_days)} days, because rare events like hurricanes are much worse than average.`,
+        `In a typical year it loses about ${fmt(r.exposure_days_per_year)} days.`,
       ]
+    case 'hurricane':
+      return [
+        `${hub} has a ${pct(r.hurricane_10yr_probability_pct)} chance of at least one hurricane in the next 10 years.`,
+        'Hurricanes are rare but severe, so they are judged by this chance rather than by average days.',
+      ]
+    case 'priority':
+      return [
+        `Investment priority ${fmt(r.priority)} of 100 (${r.priority_band}): where upgrades would help most.`,
+        'It mixes the exposure score with people served and the resilience gap.',
+        ask,
+      ]
+  }
 }
 
-function ScoreCell({ value, band, info }: { value: number; band: Band; info?: ReactNode }) {
+/** A value, its (i), and the 0-100 band ruler (the exposure index or the priority score). */
+function ScoreCell({ text, meter, band, info }: { text: string; meter: number; band: Band; info?: ReactNode }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex w-14 items-center justify-end gap-0.5 font-semibold">
-        {fmt(value)}
+      <span className="flex w-16 shrink-0 items-center justify-end gap-0.5 font-semibold whitespace-nowrap">
+        {text}
         {info}
       </span>
-      <BandMeter value={value} band={band} />
-      <BandPill band={band} />
+      <BandMeter value={meter} band={band} />
+      <span className="w-14 shrink-0">
+        <BandText band={band} />
+      </span>
     </div>
   )
 }
@@ -215,10 +265,11 @@ function SecondOpinionSummary({ opinion, onRerun }: { opinion: SecondOpinion; on
           <span className="text-foreground">
             JEV agrees with the formula on {opinion.agree_count} of {opinion.total} ratings ({opinion.agreement_pct}%).
           </span>{' '}
+          {typeof opinion.rank_correlation === 'number' && <>Rank agreement {opinion.rank_correlation} (1 means the same order). </>}
           Run {formatDate(opinion.run_at)} on data as of {opinion.data_as_of}.
           {debug && <span className="ml-1 text-xs">Model: {opinion.model}.</span>}
         </span>
-        <InfoTip subject="JEV second opinion" title="About the JEV second opinion" lines={[JEV_EXPLAINER]} />
+        <InfoTip subject="JEV second opinion" title="About the JEV second opinion" steps={[JEV_EXPLAINER]} />
       </p>
       {debug && (
         <div className="flex items-center gap-2">

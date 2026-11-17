@@ -1,4 +1,4 @@
-# Scheduled score-change alert: fetch fresh weather for the last 36 complete months,
+# Scheduled score-change alert: fetch weather after the snapshot end for the 132-month (11-year) window,
 # rescore, compare with the committed baseline, and post changes to the webhook.
 name: score-change-alerts
 on:

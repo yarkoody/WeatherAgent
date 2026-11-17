@@ -6,7 +6,7 @@ changed. Also reports active Severe or Extreme NWS alerts at the hubs. Delivery:
 POST to ALERT_WEBHOOK_URL, or a line in logs/alerts.jsonl when no URL is set (or the
 webhook fails).
 
-    python -m app.alerts                       # fresh weather, rolling last 36 complete months
+    python -m app.alerts                       # fresh weather, rolling window as long as the scoring window
     python -m app.alerts --snapshot            # committed snapshot as is
     python -m app.alerts --demo-window 2015-2017   # snapshot rescored on another window (live demo)
     python -m app.alerts --update-baseline     # also replace the baseline with this run's scores
@@ -37,6 +37,9 @@ ROOT = Path(__file__).resolve().parent.parent
 BASELINE_PATH = ROOT / "data" / "snapshot" / "score_baseline.json"
 LOG_PATH = ROOT / "logs" / "alerts.jsonl"
 POINTS_THRESHOLD = 5.0
+BAND_HYSTERESIS = 2.0  # a band change alerts only when the new score is this far past the cut-off
+BAD_YEAR_DAYS_THRESHOLD = 3.0
+HURRICANE_PCT_THRESHOLD = 10.0
 NWS_SEVERITIES = {"Severe", "Extreme"}
 # Scoring config fields that hold the observed weather window (Track A's ScoringConfig).
 WINDOW_FIELDS = ("observed_start", "observed_end")
@@ -59,6 +62,23 @@ def write_baseline(path: Path, rows: list[ScoreRow], computed_at: str) -> None:
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
+_BAND_ORDER = ("low", "medium", "high")
+
+
+def _band_change_is_clear(band_a: str, band_b: str, value: float) -> bool:
+    """Hysteresis: the new score must be BAND_HYSTERESIS points past the cut-off it crossed.
+
+    Stops a hub that hovers around a cut-off (59.7 -> 60.1 -> 59.8) from alerting on every run.
+    """
+    from app import scoring
+
+    cut = {"medium": scoring.DEFAULT_CONFIG.medium_from, "high": scoring.DEFAULT_CONFIG.high_from}
+    if _BAND_ORDER.index(band_b) > _BAND_ORDER.index(band_a):  # moved up: past the new band's lower cut-off
+        return value >= cut[band_b] + BAND_HYSTERESIS
+    upper = _BAND_ORDER[_BAND_ORDER.index(band_b) + 1]  # moved down: below the cut-off of the band above
+    return value <= cut[upper] - BAND_HYSTERESIS
+
+
 def compare(old: ScoreRow, new: ScoreRow) -> dict[str, Any] | None:
     """The change record for one hub, or None if nothing crossed a threshold."""
     reasons: list[tuple[str, str, float, float]] = []  # (metric, reason, old, new)
@@ -68,8 +88,16 @@ def compare(old: ScoreRow, new: ScoreRow) -> dict[str, Any] | None:
         if abs(delta) >= POINTS_THRESHOLD:
             reasons.append((metric, f"{metric} {delta:+.1f} ({a:.1f} -> {b:.1f})", a, b))
         band_a, band_b = getattr(old, f"{metric}_band"), getattr(new, f"{metric}_band")
-        if band_a != band_b:
+        if band_a != band_b and _band_change_is_clear(band_a, band_b, b):
             reasons.append((metric, f"{metric} band {band_a} -> {band_b} ({a:.1f} -> {b:.1f})", a, b))
+    for metric, label, threshold, unit in (
+        ("bad_year_days", "bad-year days", BAD_YEAR_DAYS_THRESHOLD, ""),
+        ("hurricane_10yr_probability_pct", "hurricane 10-year probability", HURRICANE_PCT_THRESHOLD, " points"),
+    ):
+        a, b = getattr(old, metric), getattr(new, metric)
+        delta = round(b - a, 2)
+        if abs(delta) >= threshold:
+            reasons.append((metric, f"{label} {delta:+.1f}{unit} ({a:.1f} -> {b:.1f})", a, b))
     if not reasons:
         return None
     return {
@@ -183,23 +211,57 @@ def snapshot_rows() -> list[ScoreRow]:
     return list(_cached_snapshot_rows())
 
 
-def rolling_window(today: date) -> tuple[str, str]:
-    """The last 36 complete calendar months before today."""
+def window_months() -> int:
+    """Length of the scoring config's observed window in months (2015-01..2025-12 = 132)."""
+    from app import scoring
+
+    a = date.fromisoformat(scoring.DEFAULT_CONFIG.observed_start)
+    b = date.fromisoformat(scoring.DEFAULT_CONFIG.observed_end)
+    return (b.year * 12 + b.month) - (a.year * 12 + a.month) + 1
+
+
+def rolling_window(today: date, months: int | None = None) -> tuple[str, str]:
+    """The last `months` complete calendar months before today (default: as long as the scoring window).
+
+    Same length as the baseline's window, so a fresh run differs from the baseline only by the months
+    that rolled in and out, not by a different averaging period.
+    """
+    months = months or window_months()
     end = today.replace(day=1) - timedelta(days=1)
-    months = end.year * 12 + end.month - 36  # month index of the first month, 0-based
-    start = date(months // 12, months % 12 + 1, 1)
+    first = end.year * 12 + end.month - months  # month index of the first month, 0-based
+    start = date(first // 12, first % 12 + 1, 1)
     return start.isoformat(), end.isoformat()
 
 
+def _window_series(series: dict[str, list], start: str, end: str) -> dict[str, list]:
+    keep = [i for i, t in enumerate(series["time"]) if start <= t <= end]
+    return {k: [v[i] for i in keep] for k, v in series.items()}
+
+
 def fresh_rows(today: date | None = None) -> list[ScoreRow]:
-    """Fetch weather for the rolling window and rescore on it (NRI stays from the snapshot)."""
+    """Rescore on the rolling window (NRI stays from the snapshot).
+
+    Days inside the committed snapshot are reused; only the days after the snapshot's end are
+    fetched from Open-Meteo, which keeps the scheduled job well under its rate limit.
+    """
     from app import data, scoring
 
     start, end = rolling_window(today or datetime.now(UTC).date())
     snapshot = scoring.load_snapshot()
     hubs = scoring.load_hubs()
+    snap_end = snapshot.weather["end"]
+    fetch_from = max(start, (date.fromisoformat(snap_end) + timedelta(days=1)).isoformat())
+    merged = {}
+    for hub in hubs:
+        series = _window_series(snapshot.weather["hubs"][hub.id], start, end)
+        if fetch_from <= end:
+            new = data.fetch_weather(hub, fetch_from, end)
+            series = {k: series[k] + list(new[k]) for k in series}
+        merged[hub.id] = series
     weather = dict(snapshot.weather)
-    weather.update(fetched_at=_now(), start=start, end=end, hubs={h.id: data.fetch_weather(h, start, end) for h in hubs})
+    weather.update(start=start, end=end, hubs=merged)
+    if fetch_from <= end:
+        weather["fetched_at"] = _now()
     return _score_rows(dataclasses.replace(snapshot, weather=weather), (start, end))
 
 

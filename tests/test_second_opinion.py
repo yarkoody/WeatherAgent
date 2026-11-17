@@ -60,7 +60,8 @@ def _fake_evaluate(scores_by_family: dict[str, float], seen: list, model_id: str
 def _our_bands() -> dict[str, dict[str, str]]:
     hubs, snapshot = scoring.load_hubs(), scoring.load_snapshot()
     scores = scoring.score_all(hubs, snapshot)
-    return {h: {f: scoring.band(s.families[f].score) for f in FAMILIES} for h, s in scores.items()}
+    # v2: each family has its own band (days per year; hurricane by 10-year probability)
+    return {h: {f: s.families[f].band for f in FAMILIES} for h, s in scores.items()}
 
 
 def test_agreement_math_with_fake_jev():
@@ -145,9 +146,45 @@ def test_crosscheck_writes_json_and_report(monkeypatch, tmp_path):
 
 
 def test_spearman_handles_order_ties_and_constant_input():
-    from evals.jev_crosscheck import spearman
+    from app.second_opinion import spearman
 
     assert spearman([1, 2, 3], [10, 20, 30]) == 1.0
     assert spearman([1, 2, 3], [30, 20, 10]) == -1.0
     assert spearman([1, 1, 2], [5, 5, 9]) == 1.0
     assert spearman([1, 2, 3], [7, 7, 7]) is None
+
+
+def test_rank_correlation_per_family_against_our_family_days():
+    from app.second_opinion import spearman
+
+    hubs, snapshot = scoring.load_hubs(), scoring.load_snapshot()
+    scores = scoring.score_all(hubs, snapshot)
+    order = sorted(scores)
+
+    def evaluate(model, state, questions):
+        # Vary JEV's score by hub: winter follows our winter days, flood runs against them, the rest are constant.
+        i = len(seen)
+        seen.append(i)
+        hub = order[i]
+        w = scores[hub].families["winter"].days_per_year
+        vals = {"winter": min(w / 10, 2.0), "flood": 2.0 - min(w / 10, 2.0), "hurricane": 0.5, "severe_storm": 0.5}
+        return _item(vals)
+
+    seen: list = []
+
+    async def sequential(model, state, questions):
+        return evaluate(model, state, questions)
+
+    result = asyncio.run(second_opinion.build_second_opinion(evaluate_fn=sequential, model=object(), concurrency=1))
+    rc = result.rank_correlation
+    days = [scores[h].families["winter"].days_per_year for h in order]
+    jev = {h.hub_id: {f.family: f.jev_score_pct for f in h.families} for h in result.hubs}
+    assert rc["winter"] == spearman(days, [jev[h]["winter"] for h in order])
+    assert rc["winter"] > 0.9
+    assert set(rc) <= set(FAMILIES)
+    assert "hurricane" not in rc  # constant JEV scores have no rank correlation
+
+
+def _item(vals):
+    return type("Item", (), {"value": {f: ScoreAnswer(type="score", score=v) for f, v in vals.items()},
+                             "usage": None, "provider_metadata": None})()

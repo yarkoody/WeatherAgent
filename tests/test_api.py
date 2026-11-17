@@ -22,6 +22,7 @@ def rows():
         return ScoreRow(
             hub_id=hub, name=hub.title(), region="South", exposure=50.0, exposure_band="medium",
             priority=priority, priority_band=band, top_driver="flood",
+            exposure_days_per_year=12.5, bad_year_days=20.0, hurricane_10yr_probability_pct=0.0,
         )
 
     return [r("dallas", 44.9, "medium"), r("miami", 63.5, "high"), r("houston", 58.2, "medium"), r("atlanta", 58.2, "medium")]
@@ -69,6 +70,8 @@ def test_chat_json_returns_chat_response(tmp_path):
     assert res.status_code == 200
     body = ChatResponse.model_validate(res.json())
     assert body.grounding.status == "pass" and body.answer.figures[0].value == 66.0
+    assert 1 <= len(body.follow_ups) <= 3
+    assert not any(ch.isdigit() for s in body.follow_ups for ch in s)
 
 
 def test_chat_stream_has_tool_parts_and_one_data_answer_and_no_text_deltas(tmp_path):

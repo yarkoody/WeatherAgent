@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/message-scroller'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { chatFetch, describeChatError } from '@/lib/chatErrors'
+import { NoMotion } from '@/lib/motion'
 import { loadMessages, saveMessages } from '@/lib/session'
 import { answerSpeech, speak } from '@/lib/voice'
 import { AssistantMessage, NoAnswer, answerPart } from './AssistantMessage'
@@ -72,6 +73,8 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
   const initial = useMemo(() => loadMessages(sessionId), [sessionId])
   const { messages, sendMessage, status, error, stop, regenerate } = useChat({ id: sessionId, messages: initial, transport })
   const busy = status === 'submitted' || status === 'streaming'
+  // Messages restored from history render without animation; only new results animate in.
+  const restored = useMemo(() => new Set(initial.map((m) => m.id)), [initial])
 
   useEffect(() => {
     if (status === 'ready' || status === 'error') saveMessages(sessionId, messages)
@@ -137,7 +140,13 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
                       </MessageScrollerItem>
                     ) : (
                       <MessageScrollerItem key={m.id} messageId={m.id}>
-                        <AssistantMessage message={m} streaming={busy && m.id === lastId} />
+                        {restored.has(m.id) ? (
+                          <NoMotion>
+                            <AssistantMessage message={m} streaming={false} latest={!busy && m.id === lastId} onFollowUp={send} />
+                          </NoMotion>
+                        ) : (
+                          <AssistantMessage message={m} streaming={busy && m.id === lastId} latest={!busy && m.id === lastId} onFollowUp={send} />
+                        )}
                       </MessageScrollerItem>
                     ),
                   )}

@@ -8,7 +8,11 @@ import pytest
 import respx
 
 from app import data
-from app.data import NRI_URL, NWS_URL, OPEN_METEO_URL, UpstreamError
+import io
+import zipfile
+from xml.sax.saxutils import escape
+
+from app.data import METRO_LIST1_URL, METRO_LIST2_URL, NRI_URL, NWS_URL, OPEN_METEO_URL, UpstreamError
 from app.schemas import Hub
 
 FIX = Path(__file__).parent / "fixtures"
@@ -38,6 +42,7 @@ def test_fetch_nri_parses_fields():
     assert out["12086"]["HRCN_AFREQ"] == pytest.approx(0.305, abs=1e-3)
     assert out["12086"]["ISTM_AFREQ"] is None  # null in NRI is kept as null, not 0
     assert out["48201"]["POPULATION"] == 4726200
+    assert out["12086"]["CFLD_EXP_AREA"] == pytest.approx(134.45, abs=0.01)  # sq mi exposed to coastal flood
 
 
 @respx.mock
@@ -154,9 +159,87 @@ def test_refresh_writes_both_snapshot_files(tmp_path, monkeypatch):
     snap = _hubs_dir(tmp_path)
     respx.get(NRI_URL).mock(return_value=httpx.Response(200, json=_fixture("nri_query.json")))
     respx.get(OPEN_METEO_URL).mock(return_value=httpx.Response(200, json=_fixture("openmeteo_archive.json")))
+    _mock_metro_lists()
     data.refresh(tmp_path)
+    metro = json.loads((tmp_path / "metro_cities.json").read_text())
+    assert metro["cbsas"]["33100"]["hub_id"] == "miami"
     nri = json.loads((snap / "nri.json").read_text())
     weather = json.loads((snap / "weather.json").read_text())
     assert nri["fetched_at"] == weather["fetched_at"]
     assert "12086" in nri["counties"] and "miami" in weather["hubs"]
     assert sorted(p.name for p in snap.iterdir()) == ["nri.json", "weather.json"]
+
+
+# ---------- OMB metro delineations ----------
+
+LIST1 = [
+    ["List 1. CORE BASED STATISTICAL AREAS (CBSAs)..."],
+    ["CBSA Code", "Metropolitan Division Code", "CSA Code", "CBSA Title", "Metropolitan/Micropolitan Statistical Area",
+     "Metropolitan Division Title", "CSA Title", "County/County Equivalent", "State Name", "FIPS State Code",
+     "FIPS County Code", "Central/Outlying County"],
+    ["33100", None, None, "Miami-Fort Lauderdale-West Palm Beach, FL", "Metropolitan Statistical Area", None, None,
+     "Miami-Dade County", "Florida", "12", "086", "Central"],
+    ["14460", None, None, "Boston-Cambridge-Newton, MA-NH", "Metropolitan Statistical Area", None, None,
+     "Suffolk County", "Massachusetts", "25", "025", "Central"],
+    ["Source: File prepared by U.S. Census Bureau"],
+]
+LIST2 = [
+    ["List 2. PRINCIPAL CITIES..."],
+    ["CBSA Code", "CBSA Title", "Metropolitan/Micropolitan Statistical Area", "Principal City Name", "FIPS State Code",
+     "FIPS Place Code"],
+    ["33100", "Miami-Fort Lauderdale-West Palm Beach, FL", "Metropolitan Statistical Area", "Miami", "12", "45000"],
+    ["33100", "Miami-Fort Lauderdale-West Palm Beach, FL", "Metropolitan Statistical Area", "Fort Lauderdale", "12", "24000"],
+    ["14460", "Boston-Cambridge-Newton, MA-NH", "Metropolitan Statistical Area", "Boston", "25", "07000"],
+    ["38860", "Portland-South Portland, ME", "Metropolitan Statistical Area", "Portland", "23", "60545"],
+    ["Note: The Office of Management and Budget's (OMB's) 2020 Standards"],
+]
+
+
+def _xlsx(rows):
+    """A minimal .xlsx (inline strings) like the Census files, built in memory."""
+    cols = "ABCDEFGHIJKL"
+    body = "".join(
+        f'<row r="{i}">' + "".join(
+            f'<c r="{cols[j]}{i}" t="inlineStr"><is><t>{escape(v)}</t></is></c>'
+            for j, v in enumerate(row) if v is not None) + "</row>"
+        for i, row in enumerate(rows, start=1))
+    sheet = ('<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+             f"<sheetData>{body}</sheetData></worksheet>")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("xl/worksheets/sheet1.xml", sheet)
+    return buf.getvalue()
+
+
+def _mock_metro_lists():
+    respx.get(METRO_LIST1_URL).mock(return_value=httpx.Response(200, content=_xlsx(LIST1)))
+    respx.get(METRO_LIST2_URL).mock(return_value=httpx.Response(200, content=_xlsx(LIST2)))
+
+
+def test_xlsx_table_reads_rows_under_the_header():
+    rows = data.xlsx_table(_xlsx(LIST2), first_header="CBSA Code")
+    assert len(rows) == 4  # title, header, note and source lines are skipped
+    assert rows[0]["Principal City Name"] == "Miami" and rows[0]["FIPS State Code"] == "12"
+
+
+def test_build_metro_cities_links_hub_cbsas():
+    list1 = data.xlsx_table(_xlsx(LIST1), first_header="CBSA Code")
+    list2 = data.xlsx_table(_xlsx(LIST2), first_header="CBSA Code")
+    out = data.build_metro_cities(list1, list2, [MIAMI])
+    assert out["cbsas"]["33100"] == {"title": "Miami-Fort Lauderdale-West Palm Beach, FL", "type": "Metropolitan",
+                                     "hub_id": "miami"}
+    assert out["cbsas"]["14460"]["hub_id"] is None
+    assert {"name": "Fort Lauderdale", "state": "FL", "cbsa": "33100"} in out["cities"]
+    assert {"name": "Portland", "state": "ME", "cbsa": "38860"} in out["cities"]
+    assert out["source"]["list1"] == METRO_LIST1_URL and "July 2023" in out["source"]["delineation"]
+
+
+@respx.mock
+def test_refresh_metro_writes_only_the_metro_file(tmp_path):
+    _hubs_dir(tmp_path)
+    _mock_metro_lists()
+    data.refresh_metro(tmp_path)
+    metro = json.loads((tmp_path / "metro_cities.json").read_text())
+    assert metro["cbsas"]["33100"]["hub_id"] == "miami"
+    assert sorted(p.name for p in (tmp_path / "snapshot").iterdir()) == []
+    assert (tmp_path / "metro_cities.json").stat().st_mode & 0o777 == 0o644  # readable data file, like a normal write

@@ -37,7 +37,7 @@ export default function App() {
     <TooltipProvider>
       <div className="flex h-dvh flex-col">
         <header className="border-b bg-background">
-          <div className="mx-auto flex w-full max-w-5xl items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6">
+          <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6">
             <a href="/" className="flex shrink-0 items-center gap-2" aria-label="Hub Weather Risk" onClick={(e) => (e.preventDefault(), setView('chat'))}>
               <img src="/favicon.svg" alt="" width={26} height={26} />
               <span className="font-wide hidden text-[0.95rem] font-bold tracking-tight whitespace-nowrap md:inline">Hub Weather Risk</span>

@@ -41,6 +41,8 @@ describe('developer flag', () => {
 describe('analyst view (default)', () => {
   it('answer card shows label, hub, value and the badge, but no tool names or trace id', () => {
     asUser(<AnswerCard response={failed} />)
+    expect(screen.queryByRole('table')).not.toBeInTheDocument() // folded by default
+    fireEvent.click(screen.getByRole('button', { name: /Numbers behind this answer/ }))
     const table = screen.getByRole('table')
     expect(within(table).queryByText('Source')).not.toBeInTheDocument()
     for (const f of response.answer.figures) expect(screen.queryByText(f.source_tool)).not.toBeInTheDocument()
@@ -94,12 +96,18 @@ describe('How is this calculated?', () => {
 
   it('the winter (i) button opens the calculation and is keyboard reachable', async () => {
     asUser(<HubBreakdown data={hub} />)
-    const button = screen.getByRole('button', { name: 'How is the Winter score calculated?' })
+    const button = screen.getByRole('button', { name: 'How is the Winter band calculated?' })
     button.focus()
     expect(button).toHaveFocus()
     fireEvent.click(button)
     const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('FEMA expects about 16.6 winter weather')
+    expect(dialog).not.toHaveTextContent(`${hub.families.winter.signals[0].raw} events/year`)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'More detail' }))
     expect(dialog).toHaveTextContent(`${hub.families.winter.signals[0].raw} events/year`)
-    expect(dialog).toHaveTextContent(`÷ ${hub.band_thresholds.days_cap} × 100`)
+    // v2: a family is banded by its own days (medium from 2, high from 5), not by the overall index
+    expect(dialog).toHaveTextContent(
+      `medium from ${hub.band_thresholds.family_medium_from_days} days a year and high from ${hub.band_thresholds.family_high_from_days}`,
+    )
   })
 })

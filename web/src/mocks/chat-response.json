@@ -1,19 +1,63 @@
 {
   "session_id": "mock-session-1",
-  "trace_id": "mock-trace-1",
-  "grounding": { "status": "pass", "errors": [] },
   "answer": {
-    "answer": "**Minneapolis** ranks highest for winter exposure among Midwest hubs (winter score 88.0), followed by **Chicago** (84.5) and **Detroit** (79.2). Minneapolis leads on cold waves and snowfall days.",
-    "hubs": ["minneapolis", "chicago", "detroit"],
-    "ranking": ["minneapolis", "chicago", "detroit"],
-    "figures": [
-      { "hub_id": "minneapolis", "label": "winter exposure score", "value": 88.0, "unit": "score 0-100", "source_tool": "rank_hubs" },
-      { "hub_id": "chicago", "label": "winter exposure score", "value": 84.5, "unit": "score 0-100", "source_tool": "rank_hubs" },
-      { "hub_id": "detroit", "label": "winter exposure score", "value": 79.2, "unit": "score 0-100", "source_tool": "rank_hubs" }
+    "answer": "**Minneapolis Hub** has the highest winter exposure among Midwest hubs (92.1), followed by **Chicago Hub** (43.6) and **Detroit Hub** (39.4). Its overall investment priority is 66.7 (high).",
+    "hubs": [
+      "minneapolis",
+      "chicago",
+      "detroit"
     ],
-    "assumptions": ["Midwest follows US Census regions.", "Exposure blends FEMA event frequency (0.6) and observed weather 2023-2025 (0.4)."],
-    "uncertainty": "FEMA data is county-level and modeled; observed weather is reanalysis grid data, not station observations.",
+    "ranking": [
+      "minneapolis",
+      "chicago",
+      "detroit"
+    ],
+    "figures": [
+      {
+        "hub_id": "minneapolis",
+        "label": "winter exposure score",
+        "value": 92.1,
+        "unit": "score 0-100",
+        "source_tool": "rank_hubs"
+      },
+      {
+        "hub_id": "chicago",
+        "label": "winter exposure score",
+        "value": 43.6,
+        "unit": "score 0-100",
+        "source_tool": "rank_hubs"
+      },
+      {
+        "hub_id": "detroit",
+        "label": "winter exposure score",
+        "value": 39.4,
+        "unit": "score 0-100",
+        "source_tool": "rank_hubs"
+      },
+      {
+        "hub_id": "minneapolis",
+        "label": "investment priority",
+        "value": 66.7,
+        "unit": "score 0-100",
+        "source_tool": "get_hub_risk"
+      }
+    ],
+    "assumptions": [
+      "Midwest follows US Census regions.",
+      "Winter exposure blends FEMA event frequency and observed snow and freezing days."
+    ],
+    "uncertainty": "Scores use the committed snapshot (FEMA NRI and Open-Meteo 2015-2025).",
     "data_available": true,
     "in_scope": true
-  }
+  },
+  "grounding": {
+    "status": "pass",
+    "errors": []
+  },
+  "trace_id": "mock-trace-1",
+  "follow_ups": [
+    "Why is Minneapolis ranked first?",
+    "Compare Minneapolis and Chicago",
+    "Show the bad-year ranking"
+  ]
 }

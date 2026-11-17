@@ -164,3 +164,60 @@ def test_ranking_may_be_an_ordered_subset_or_reversed():
     assert check(filtered, [RANKING], None) == []
     assert check(answer("", ranking=["miami", "miami"]), [RANKING], None) != []
     assert check(answer("", ranking=["miami", "denver"]), [RANKING], None) != []
+
+
+# ---------- compact numbers in text ("472K", "2.6M", "1.2 billion") ----------
+
+POP = {"hub_id": "dallas", "population": 2607218, "small": 472113, "round": 1000000, "near": 1050000,
+       "big": 1234567890, "gust": 60.0, "cost_musd": 40.0}
+
+
+def pop_answer(text, *values):
+    return AgentAnswer(answer=text, hubs=["dallas"], ranking=None,
+                       figures=[Figure(hub_id="dallas", label="n", value=v, unit="people", source_tool="get_hub_risk")
+                                for v in values],
+                       assumptions=[], uncertainty="", data_available=True, in_scope=True)
+
+
+def test_compact_thousands_match_within_displayed_precision():
+    assert check(pop_answer("Serves about 472K people.", 472113), [POP], None) == []
+    assert check(pop_answer("Serves about 471K people.", 472113), [POP], None) != []
+
+
+def test_compact_millions_match_within_displayed_precision():
+    assert check(pop_answer("Serves 2.6M people.", 2607218), [POP], None) == []
+    assert check(pop_answer("Serves 2.6 million people.", 2607218), [POP], None) == []
+    assert check(pop_answer("Serves 2.7M people.", 2607218), [POP], None) != []
+
+
+def test_compact_one_significant_digit_needs_an_exact_value():
+    assert check(pop_answer("About 1 million people.", 1050000), [POP], None) != []
+    assert check(pop_answer("Exactly 1M people.", 1000000), [POP], None) == []
+
+
+def test_compact_wrong_magnitude_fails_and_is_not_exempt():
+    # "3" alone would be an exempt small count; "3M" is a figure and must match one.
+    errors = check(pop_answer("About 3M people.", 2607218), [POP], None)
+    assert len(errors) == 1 and "3M" in errors[0]
+
+
+def test_compact_billions():
+    assert check(pop_answer("1.2 billion in total.", 1234567890), [POP], None) == []
+    assert check(pop_answer("1.2bn in total.", 1234567890), [POP], None) == []
+
+
+def test_unit_letters_are_not_suffixes():
+    assert check(pop_answer("Gusts of 60 km/h.", 60.0), [POP], None) == []
+
+
+def test_usd_millions_still_match_the_plain_value():
+    # what_if costs are in USD millions: "$40M" cites cost_musd 40.
+    assert check(pop_answer("Chicago costs $40M.", 40.0), [POP], None) == []
+
+
+def test_cites_compact_helper():
+    from app.grounding import cites_compact
+
+    assert cites_compact("Dallas serves about 2.6M people.", 2607218)
+    assert not cites_compact("Dallas serves 2,607,218 people.", 2607218)  # exact, not compact
+    assert not cites_compact("Dallas serves 3M people.", 2607218)

@@ -1,8 +1,20 @@
 import { FAMILY_LABEL, HAZARD_LABEL, fmt, hubName } from '@/lib/format'
 import type { Hazard, HubComparison, HubScore } from '@/lib/types'
 import { InfoTip } from '@/components/InfoTip'
-import { exposureLines, familyLines, indexLine, priorityLines } from '@/lib/explain'
-import { BandPill, WidgetFrame } from './WidgetFrame'
+import {
+  LENS_EXPLAINER,
+  badYearLines,
+  badYearSteps,
+  exposureLines,
+  exposureSteps,
+  familyBandLine,
+  familyLines,
+  familySteps,
+  indexLine,
+  priorityLines,
+  prioritySteps,
+} from '@/lib/explain'
+import { BandText, WidgetFrame } from './WidgetFrame'
 
 function hazardValue(s: HubScore, h: Hazard): { score: number; days: number } {
   if (h === 'overall') return { score: s.exposure, days: s.exposure_days_per_year }
@@ -19,13 +31,33 @@ export function ComparisonCards({ data }: { data: HubComparison }) {
     <WidgetFrame
       label="Hub comparison"
       title={names.length === 2 ? `${names[0]} and ${names[1]}` : `Comparing ${names.length} hubs`}
-      note={`Higher score means more exposed. Data as of ${data.data_as_of}.`}
+      note={`More lost days means more exposed. Data as of ${data.data_as_of}.`}
     >
-      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 200px), 1fr))` }}>
+      <div
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 200px), 1fr))`,
+        }}
+      >
         {data.hubs.map((s) => (
-          <div key={s.hub_id} className="rounded-xl bg-background/60 px-3.5 py-3 ring-1 ring-border/60">
+          <div key={s.hub_id} role="group" aria-label={hubName(s.hub_id)} className="rounded-2xl bg-background/60 px-4 py-3.5 ring-1 ring-border/60">
             <p className="font-wide font-semibold">{hubName(s.hub_id)}</p>
             <p className="text-xs text-muted-foreground">Top driver: {FAMILY_LABEL[s.top_driver]}</p>
+            <dl className="mt-2.5 grid grid-cols-2 gap-2 border-b border-border/60 pb-2.5 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">Typical year</dt>
+                <dd className="font-semibold">{fmt(s.exposure_days_per_year)} d</dd>
+              </div>
+              {typeof s.bad_year_days === 'number' && (
+                <div>
+                  <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+                    Bad year (1 in 20)
+                    <InfoTip subject="typical and bad years" title="About typical and bad years" steps={badYearSteps(s)} detail={[LENS_EXPLAINER, ...badYearLines(s)]} />
+                  </dt>
+                  <dd className="font-semibold">{fmt(s.bad_year_days)} d</dd>
+                </div>
+              )}
+            </dl>
             <dl className="mt-2.5 space-y-2 text-sm">
               {hazards.map((h) => {
                 const v = hazardValue(s, h)
@@ -33,11 +65,17 @@ export function ComparisonCards({ data }: { data: HubComparison }) {
                 return (
                   <div key={h} className="flex items-center justify-between gap-2">
                     <dt className="flex items-center gap-1 text-muted-foreground">
-                      {h === 'overall' ? 'Overall exposure' : HAZARD_LABEL[h]}
+                      {h === 'overall' ? 'Lost days, typical year' : HAZARD_LABEL[h]}
                       <InfoTip
                         subject={`${hubName(s.hub_id)} ${h === 'overall' ? 'exposure' : HAZARD_LABEL[h]} score`}
-                        lines={h === 'overall' ? exposureLines(s) : s.families[h] ? familyLines(s.families[h]) : []}
-                        note={indexLine(s.band_thresholds)}
+                        steps={h === 'overall' ? exposureSteps(s) : s.families[h] ? familySteps(s.families[h], s.band_thresholds) : []}
+                        detail={
+                          h === 'overall'
+                            ? [...exposureLines(s), indexLine(s.band_thresholds)]
+                            : s.families[h]
+                              ? [...familyLines(s.families[h]), familyBandLine(s.band_thresholds)]
+                              : []
+                        }
                       />
                     </dt>
                     <dd className="text-right">
@@ -48,23 +86,25 @@ export function ComparisonCards({ data }: { data: HubComparison }) {
                 )
               })}
               <div className="flex items-baseline justify-between gap-2 border-t border-border/60 pt-2">
-                <dt className="text-muted-foreground">Exposure band</dt>
-                <dd><BandPill band={s.exposure_band} /></dd>
+                <dt className="text-muted-foreground">Exposure score band</dt>
+                <dd>
+                  <BandText band={s.exposure_band} />
+                </dd>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <dt className="flex items-center gap-1 text-muted-foreground">
                   Investment priority
-                  <InfoTip subject={`${hubName(s.hub_id)} investment priority`} lines={priorityLines(s)} />
+                  <InfoTip subject={`${hubName(s.hub_id)} investment priority`} steps={prioritySteps(s)} detail={priorityLines(s)} />
                 </dt>
                 <dd className="flex items-center gap-1.5">
-                  <span className="font-semibold">{fmt(s.priority)}</span> <BandPill band={s.priority_band} />
+                  <span className="font-semibold">{fmt(s.priority)}</span> <BandText band={s.priority_band} />
                 </dd>
               </div>
             </dl>
           </div>
         ))}
       </div>
-      {data.hubs.length > 1 && <p className="mt-2 text-[0.7rem] text-muted-foreground">Red marks the higher score in each row.</p>}
+      {data.hubs.length > 1 && <p className="mt-2 text-[0.7rem] text-muted-foreground">Red marks the more exposed hub in each row.</p>}
     </WidgetFrame>
   )
 }

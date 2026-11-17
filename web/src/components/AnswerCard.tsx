@@ -1,4 +1,5 @@
-import { TriangleAlertIcon } from 'lucide-react'
+import { ChevronRightIcon, TriangleAlertIcon } from 'lucide-react'
+import { useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -67,11 +68,7 @@ export function AnswerCard({ response }: { response: ChatResponse }) {
         </p>
       )}
 
-      {answer.figures.length > 0 && (
-        <div className="mt-4">
-          <FiguresTable figures={answer.figures} verified={!failed} />
-        </div>
-      )}
+      {answer.figures.length > 0 && <Figures response={response} open={debug} failed={failed} />}
 
       {(answer.assumptions.length > 0 || (kind !== 'out_of_scope' && answer.uncertainty)) && (
         <div className="mt-4 space-y-1 border-t border-rule-soft pt-3 text-sm">
@@ -125,6 +122,30 @@ export function PendingAnswer() {
         <Skeleton className="h-2.5 w-11/12" />
         <Skeleton className="h-2.5 w-8/12" />
       </div>
+    </div>
+  )
+}
+
+/** The cited numbers, folded by default in the analyst view (the answer text comes first). */
+function Figures({ response, open, failed }: { response: ChatResponse; open: boolean; failed: boolean }) {
+  const [shown, setShown] = useState(open)
+  const n = response.answer.figures.length
+  return (
+    <div className="mt-4">
+      <button
+        type="button"
+        aria-expanded={shown}
+        onClick={() => setShown((v) => !v)}
+        className="group inline-flex items-center gap-1 rounded-md text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronRightIcon className={`size-4 transition-transform motion-reduce:transition-none ${shown ? 'rotate-90' : ''}`} />
+        Numbers behind this answer ({n})
+      </button>
+      {shown && (
+        <div className="mt-2 animate-in fade-in duration-200 motion-reduce:animate-none">
+          <FiguresTable figures={response.answer.figures} verified={!failed} />
+        </div>
+      )}
     </div>
   )
 }

@@ -34,36 +34,6 @@ def _write_atomic(path: Path, text: str) -> None:
     tmp.replace(path)
 
 
-def _ranks(values: list[float]) -> list[float]:
-    order = sorted(range(len(values)), key=lambda i: values[i])
-    ranks = [0.0] * len(values)
-    i = 0
-    while i < len(order):
-        j = i
-        while j + 1 < len(order) and values[order[j + 1]] == values[order[i]]:
-            j += 1
-        for k in range(i, j + 1):
-            ranks[order[k]] = (i + j) / 2 + 1  # ties share the average rank
-        i = j + 1
-    return ranks
-
-
-def spearman(a: list[float], b: list[float]) -> float | None:
-    """Rank correlation; None when either side has no variation."""
-    ra, rb = _ranks(a), _ranks(b)
-    ma, mb = sum(ra) / len(ra), sum(rb) / len(rb)
-    cov = sum((x - ma) * (y - mb) for x, y in zip(ra, rb))
-    va, vb = sum((x - ma) ** 2 for x in ra), sum((y - mb) ** 2 for y in rb)
-    return round(cov / (va * vb) ** 0.5, 2) if va and vb else None
-
-
-def our_family_index() -> dict[tuple[str, str], float]:
-    from app import scoring
-
-    scores = scoring.score_all(scoring.load_hubs(), scoring.load_snapshot())
-    return {(h, f): s.families[f].score for h, s in scores.items() for f in FAMILIES}
-
-
 def build_report(op: SecondOpinion, stats: list[dict], elapsed_s: float | None) -> str:
     rows = [(h, f) for h in op.hubs for f in h.families]
     lines = [
@@ -89,18 +59,18 @@ def build_report(op: SecondOpinion, stats: list[dict], elapsed_s: float | None) 
             tout = sum(u.get("output_tokens") or 0 for u in usage)
             lines.append(f"Tokens reported by the provider: {tin:,} input / {tout:,} output (cost is not reported).")
     lines += ["", "## Agreement by family", "",
-              "Rank correlation compares the order of hubs (Spearman, JEV score vs our family index), which band "
+              "Our band is the formula's per-family band (by days per year; hurricane by 10-year probability). "
+              "Rank correlation compares the order of hubs (Spearman, JEV score vs our family days per year), which band "
               "agreement cannot: two raters can order hubs the same way and still put the cut-offs in different places.",
               "",
               "| Family | Agree | JEV rates higher | JEV rates lower | Rank correlation |", "|---|---|---|---|---|"]
-    ours = our_family_index()
+    rc = op.rank_correlation or {}
     for fam in FAMILIES:
         fr = [f for _, f in rows if f.family == fam]
         agree = sum(f.agrees for f in fr)
         higher = sum(_ORDER[f.jev_band] > _ORDER[f.our_band] for f in fr)
         lower = sum(_ORDER[f.jev_band] < _ORDER[f.our_band] for f in fr)
-        pairs = [(ours[(h.hub_id, fam)], f.jev_score_pct) for h, f in rows if f.family == fam]
-        rho = spearman([a for a, _ in pairs], [b for _, b in pairs])
+        rho = rc.get(fam)
         lines.append(f"| {fam} | {agree}/{len(fr)} ({100 * agree / len(fr):.0f}%) | {higher} | {lower} | "
                      f"{'n/a' if rho is None else f'{rho:+.2f}'} |")
 

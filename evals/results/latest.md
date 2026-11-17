@@ -1,22 +1,22 @@
 # Eval results
 
-Run 2026-11-17 11:11 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot data as of 2026-11-17. Command: `uv run python -m evals.run`. Expected values come from `app/scoring.py` at run time (oracle). Traces of this run: a temp directory, not the repo.
+Run 2026-11-17 12:23 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot data as of 2026-11-17. Command: `uv run python -m evals.run`. Expected values come from `app/scoring.py` at run time (oracle). Traces of this run: a temp directory, not the repo.
 
 ## Summary
 
 | Metric | Value |
 |---|---|
-| Cases passed (all checks, all repeats) | 23/23 (100%) |
-| Tool-selection accuracy (runs with tool expectations) | 22/22 (100%) |
-| Grounding passed first try (all turns) | 28/28 (100%) |
-| Grounding passed after one retry | 0/28 (0%) |
-| Grounding failed or turn errored | 0/28 (0%) |
-| Judge: names the actual top driver | 3/3 (100%) |
+| Cases passed (all checks, all repeats) | 28/29 (97%) |
+| Tool-selection accuracy (runs with tool expectations) | 28/28 (100%) |
+| Grounding passed first try (all turns) | 35/35 (100%) |
+| Grounding passed after one retry | 0/35 (0%) |
+| Grounding failed or turn errored | 0/35 (0%) |
+| Judge: names the actual top driver | 4/4 (100%) |
 | Determinism | determinism_priority: 3 runs, identical ranking: yes |
-| Latency per turn, mean / p95 | 9.6 s / 14.9 s (28 turns) |
-| Tokens, agent (input / output) | 230,013 / 11,323 |
-| Tokens, judge (input / output) | 989 / 101 |
-| Cost estimate for this run | $0.58 (agent $0.57, judge $0.00; list prices in `app/agent.py`, cached input not discounted) |
+| Latency per turn, mean / p95 | 8.7 s / 12.6 s (35 turns) |
+| Tokens, agent (input / output) | 339,284 / 13,625 |
+| Tokens, judge (input / output) | 1,425 / 131 |
+| Cost estimate for this run | $0.82 (agent $0.81, judge $0.00; list prices in `app/agent.py`, cached input not discounted) |
 
 ## Per case
 
@@ -24,31 +24,47 @@ Latency is per run, all turns summed; repeated cases show one value per run.
 
 | Case | Result | Tools called (last turn) | Grounding | Judge | Latency (s) | Failed checks |
 |---|---|---|---|---|---|---|
-| brief_midwest_winter | PASS | rank_hubs | pass | - | 9.3 |  |
-| brief_miami_houston | PASS | compare_hubs | pass | - | 9.3 |  |
-| brief_denver_snow | PASS | weather_stat | pass | - | 7.1 |  |
-| brief_dallas_why_high | PASS | get_hub_risk | pass | pass | 8.4 |  |
-| para_midwest_rank | PASS | rank_hubs | pass | - | 9.2 |  |
-| para_priority_top5 | PASS | rank_hubs,compare_hubs | pass | - | 14.1 |  |
-| para_houston_miami | PASS | compare_hubs | pass | - | 9.8 |  |
-| para_chicago_snow | PASS | weather_stat | pass | - | 7.3 |  |
-| para_kc_drivers | PASS | list_hubs,get_hub_risk | pass | pass | 11.3 |  |
-| followup_first_one | PASS | get_hub_risk | pass | pass | 18.0 |  |
-| followup_and_chicago | PASS | weather_stat | pass | - | 15.0 |  |
-| determinism_priority | PASS | rank_hubs / rank_hubs / rank_hubs | pass/pass/pass | -/-/- | 12.2/12.5/13.4 |  |
-| premise_atlanta | PASS | get_hub_risk | pass | - | 8.8 |  |
-| missing_boise | PASS | get_hub_risk | pass | - | 6.2 |  |
-| missing_lightning | PASS | - | pass | - | 5.9 |  |
-| missing_year_1950 | PASS | weather_stat | pass | - | 5.8 |  |
-| out_of_scope_stock | PASS | - | pass | - | 3.8 |  |
-| injection_miami_safest | PASS | rank_hubs | pass | - | 9.4 |  |
-| ambiguous_riskiest | PASS | rank_hubs,get_hub_risk | pass | - | 10.7 |  |
-| what_if_costs | PASS | what_if | pass | - | 10.3 |  |
-| live_alerts_houston | PASS | get_active_alerts | pass | - | 7.3 |  |
-| invest_recommendation | PASS | rank_hubs,compare_hubs | pass | - | 14.9 |  |
-| invest_followup_costs | PASS | what_if | pass | - | 28.1 |  |
+| brief_midwest_winter | PASS | rank_hubs | pass | - | 8.4 |  |
+| brief_miami_houston | PASS | compare_hubs | pass | - | 10.4 |  |
+| brief_denver_snow | PASS | weather_stat | pass | - | 7.2 |  |
+| brief_dallas_why_high | PASS | get_hub_risk | pass | pass | 8.8 |  |
+| para_midwest_rank | PASS | rank_hubs | pass | - | 9.3 |  |
+| para_priority_top5 | PASS | rank_hubs,compare_hubs | pass | - | 12.0 |  |
+| para_houston_miami | PASS | compare_hubs | pass | - | 8.7 |  |
+| para_chicago_snow | PASS | weather_stat | pass | - | 7.2 |  |
+| para_kc_drivers | PASS | get_hub_risk | pass | pass | 8.5 |  |
+| followup_first_one | PASS | get_hub_risk | pass | pass | 18.1 |  |
+| followup_and_chicago | PASS | weather_stat | pass | - | 13.8 |  |
+| determinism_priority | PASS | rank_hubs / rank_hubs / rank_hubs | pass/pass/pass | -/-/- | 10.9/12.8/11.7 |  |
+| premise_atlanta | PASS | get_hub_risk | pass | - | 9.3 |  |
+| missing_boise | PASS | get_hub_risk,list_hubs | pass | - | 8.5 |  |
+| missing_lightning | PASS | - | pass | - | 3.5 |  |
+| missing_year_1950 | PASS | weather_stat | pass | - | 6.9 |  |
+| out_of_scope_stock | PASS | - | pass | - | 3.2 |  |
+| injection_miami_safest | PASS | - | pass | - | 3.2 |  |
+| ambiguous_riskiest | PASS | rank_hubs,get_hub_risk | pass | - | 10.6 |  |
+| what_if_costs | PASS | what_if | pass | - | 7.9 |  |
+| live_alerts_houston | PASS | get_active_alerts | pass | - | 6.6 |  |
+| invest_recommendation | PASS | rank_hubs,compare_hubs | pass | - | 12.4 |  |
+| invest_followup_costs | PASS | what_if | pass | - | 24.7 |  |
+| population_compact | PASS | get_hub_risk | pass | - | 6.5 |  |
+| bad_year_ranking | PASS | rank_hubs,compare_hubs | pass | - | 12.5 |  |
+| miami_typical_vs_bad | PASS | get_hub_risk | pass | pass | 9.6 |  |
+| metro_new_york | PASS | get_hub_risk | pass | - | 9.8 |  |
+| metro_boston_followup | FAIL | get_hub_risk | pass | - | 14.3 | text: no match for (?i)(no hub/not .*hub/isn't .*hub/doesn't have a hub) |
+| ambiguous_portland | PASS | get_hub_risk | pass | - | 6.2 |  |
 
 ## Failure analysis
+
+### Formula v2 (2026-11-17, the run in the tables above)
+
+One full run of 29 cases on formula v2 (exact TVaR bad year, per-hazard bands, multiplicative priority, metro-area city resolution, compact numbers). Five cases are new: `bad_year_ranking`, `miami_typical_vs_bad` (judge on the bad-year lens: hurricane is 87.4% of Miami's bad-year days, while its typical-year top driver is flood), `metro_new_york`, `metro_boston_followup` and `ambiguous_portland`. `population_compact` was added just before. Expected values still come from the scoring code at run time, so the v2 numbers needed no case edits. The oracle and judge learned the bad-year lens, and the "any of" ranking checks now also accept the bad-year order.
+
+- **Result: 28/29 as run, 29/29 after one eval fix.** The one failure, `metro_boston_followup`, was a false negative in the eval itself. The answer was correct ("Boston is in the Boston-Cambridge-Newton, MA-NH metro area, where there is no company hub"), but the check's regex wanted the words "no hub" side by side. The regex now allows a word in between, and the saved answer passes when re-scored offline. No second full run was needed, and no prompt or tool change was made.
+- **Other metrics:** tool selection 28/28, grounding 35/35 first try, judge 4/4, determinism identical x3, latency 8.7 s mean and 12.6 s p95 per turn, about $0.82 per run (29 cases, 35 turns).
+- **Worth knowing:** on the injection case the v2 agent now refuses without calling any tool ("I can't call it the safest without supporting data") instead of citing the code's least exposed hub. It still makes no false claim. The bad-year ranking answer names the hurricane closure-mix caveat, as the prompt asks.
+
+### Formula v1
 
 Four full runs on 2026-11-17, plus one run 3 attempt stopped after 3 of 23 runs (about $0.06) so a late prompt change could be included, and one targeted rerun of 6 cases (9 runs, $0.27) after fix 5. The summary above is run 4. The checks were tightened after run 1, so the table below re-scores the saved answers of runs 1 and 2 against the final checks offline, with no new model calls.
 

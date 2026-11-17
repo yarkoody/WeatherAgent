@@ -10,10 +10,13 @@ from app.store import Store
 URL = "https://hooks.example.test/alerts"
 
 
-def row(hub="dallas", exposure=50.0, priority=40.0, exposure_band="medium", priority_band="medium"):
+def row(hub="dallas", exposure=50.0, priority=40.0, exposure_band="medium", priority_band="medium",
+        bad_year_days=None, hurricane_pct=0.0):
     return ScoreRow(
         hub_id=hub, name=hub.title(), region="South", exposure=exposure, exposure_band=exposure_band,
         priority=priority, priority_band=priority_band, top_driver="severe_storm",
+        exposure_days_per_year=exposure / 4, bad_year_days=exposure / 2 if bad_year_days is None else bad_year_days,
+        hurricane_10yr_probability_pct=hurricane_pct,
     )
 
 
@@ -50,8 +53,8 @@ def test_change_of_5_points_alerts(tmp_path):
 
 def test_band_change_alerts(tmp_path):
     run(tmp_path, [row(exposure=58.0)])
-    result = run(tmp_path, [row(exposure=60.0, exposure_band="high")])
-    assert result["changes"][0]["reasons"] == ["exposure band medium -> high (58.0 -> 60.0)"]
+    result = run(tmp_path, [row(exposure=62.0, exposure_band="high")])  # 2 points past the 60 cut-off
+    assert result["changes"][0]["reasons"] == ["exposure band medium -> high (58.0 -> 62.0)"]
 
 
 def test_no_change_no_alert(tmp_path):
@@ -90,20 +93,64 @@ def test_webhook_failure_falls_back_to_jsonl(tmp_path):
 
 def test_no_webhook_writes_jsonl(tmp_path):
     run(tmp_path, [row()])
-    result = run(tmp_path, [row(priority=34.0, priority_band="low")])
+    result = run(tmp_path, [row(priority=33.0, priority_band="low")])  # 2 points below the 35 cut-off
     assert result["delivered"] == "jsonl"
     lines = [json.loads(line) for line in (tmp_path / "alerts.jsonl").read_text().splitlines()]
     assert lines[0]["changes"][0]["hub_id"] == "dallas"
-    assert len(lines[0]["changes"][0]["reasons"]) == 2  # -6.0 points and band medium -> low
+    assert len(lines[0]["changes"][0]["reasons"]) == 2  # -7.0 points and band medium -> low
 
 
-def test_rolling_window_is_last_36_complete_months():
+def test_rolling_window_matches_the_scoring_window_length():
+    # Scoring uses 2015-2025 (132 months); the scheduled job rescores on the last 132 complete months,
+    # so a fresh run differs from the baseline only by the months that rolled in and out.
     from datetime import date
 
-    from app.alerts import rolling_window
+    from app.alerts import rolling_window, window_months
 
-    assert rolling_window(date(2026, 11, 17)) == ("2023-11-01", "2026-10-31")
-    assert rolling_window(date(2026, 1, 1)) == ("2023-01-01", "2025-12-31")
+    assert window_months() == 132
+    assert rolling_window(date(2026, 11, 17)) == ("2015-11-01", "2026-10-31")
+    assert rolling_window(date(2026, 1, 1)) == ("2015-01-01", "2025-12-31")
+    assert rolling_window(date(2026, 11, 17), months=36) == ("2023-11-01", "2026-10-31")
+
+
+def test_fresh_rows_fetch_only_days_after_the_snapshot(monkeypatch):
+    from datetime import date, timedelta
+
+    from app import alerts, data
+
+    calls = []
+
+    def fake_fetch(hub, start, end):
+        calls.append((hub.id, start, end))
+        d, last, out = date.fromisoformat(start), date.fromisoformat(end), {"time": []}
+        for var in data.DAILY_VARS:
+            out[var] = []
+        while d <= last:
+            out["time"].append(d.isoformat())
+            for var in data.DAILY_VARS:
+                out[var].append(0.0)
+            d += timedelta(days=1)
+        return out
+
+    monkeypatch.setattr(data, "fetch_weather", fake_fetch)
+    rows = alerts.fresh_rows(date(2026, 2, 10))  # window 2015-02-01 .. 2026-01-31
+    assert len(rows) == 15
+    assert len(calls) == 15
+    assert {(start, end) for _, start, end in calls} == {("2026-01-01", "2026-01-31")}
+
+
+def test_fresh_rows_on_snapshot_window_fetches_nothing(monkeypatch):
+    from datetime import date
+
+    from app import alerts, data
+
+    def no_fetch(*args, **kwargs):
+        raise AssertionError("nothing to fetch: the window is inside the snapshot")
+
+    monkeypatch.setattr(data, "fetch_weather", no_fetch)
+    fresh = {r.hub_id: r for r in alerts.fresh_rows(date(2026, 1, 15))}  # window 2015-01-01 .. 2025-12-31
+    base = {r.hub_id: r for r in alerts.snapshot_rows()}
+    assert fresh == base
 
 
 def test_invalid_webhook_url_falls_back_to_jsonl(tmp_path, monkeypatch):
@@ -125,3 +172,42 @@ def test_only_new_nws_alerts_are_reported(tmp_path):
     assert [a["event"] for a in run(tmp_path, [row()], nws=[tornado, flood])["nws"]] == ["Flash Flood Warning"]
     run(tmp_path, [row()], nws=[])
     assert [a["event"] for a in run(tmp_path, [row()], nws=[tornado])["nws"]] == ["Tornado Warning"]  # expired, then new again
+
+
+# ---------- hysteresis and the extra triggers ----------
+
+
+def test_band_flapping_near_a_cut_off_does_not_alert():
+    from app.alerts import compare
+
+    # 59.7 medium -> 60.1 high crosses 60 by only 0.1: no alert (needs 62.0)
+    assert compare(row(exposure=59.7, exposure_band="medium"), row(exposure=60.1, exposure_band="high")) is None
+    # and back down: 60.1 high -> 59.7 medium is not 2 points below 60 either
+    assert compare(row(exposure=60.1, exposure_band="high"), row(exposure=59.7, exposure_band="medium")) is None
+
+
+def test_band_change_two_points_past_the_cut_off_alerts():
+    from app.alerts import compare
+
+    up = compare(row(exposure=59.7, exposure_band="medium"), row(exposure=62.0, exposure_band="high"))
+    assert up and any("band medium -> high" in r for r in up["reasons"])
+    down = compare(row(exposure=60.1, exposure_band="high"), row(exposure=58.0, exposure_band="medium"))
+    assert down and any("band high -> medium" in r for r in down["reasons"])
+    low = compare(row(priority=36.0, priority_band="medium"), row(priority=33.0, priority_band="low"))
+    assert low and any("priority band medium -> low" in r for r in low["reasons"])
+
+
+def test_bad_year_change_of_3_days_alerts():
+    from app.alerts import compare
+
+    assert compare(row(bad_year_days=20.0), row(bad_year_days=22.9)) is None
+    out = compare(row(bad_year_days=20.0), row(bad_year_days=23.0))
+    assert out and any("bad-year days +3.0" in r for r in out["reasons"])
+
+
+def test_hurricane_probability_change_of_10_points_alerts():
+    from app.alerts import compare
+
+    assert compare(row(hurricane_pct=60.0), row(hurricane_pct=69.9)) is None
+    out = compare(row(hurricane_pct=60.0), row(hurricane_pct=70.0))
+    assert out and any("hurricane 10-year probability +10.0" in r for r in out["reasons"])

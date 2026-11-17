@@ -58,8 +58,22 @@ export const METRIC_LABEL: Record<Metric, string> = {
   total_precip_mm: 'total precipitation',
 }
 
+const COMPACT = new Intl.NumberFormat('en-US', { notation: 'compact', maximumSignificantDigits: 3 })
+
+/** Large numbers for display: 472K, 2.6M, 1.2B. */
+export function compact(value: number): string {
+  return COMPACT.format(value)
+}
+
+/** Display number: compact when large, otherwise at most one decimal (days, scores). Display only, never for verification. */
 export function fmt(value: number, digits = 1): string {
-  return Number.isInteger(value) ? value.toLocaleString('en-US') : value.toLocaleString('en-US', { maximumFractionDigits: digits })
+  if (Math.abs(value) >= 10_000) return compact(value)
+  return value.toLocaleString('en-US', { maximumFractionDigits: digits })
+}
+
+/** Percent for display: "95%", "10%", "2.4%" (one decimal only below 10). */
+export function pct(value: number): string {
+  return `${value.toLocaleString('en-US', { maximumFractionDigits: Math.abs(value) < 10 ? 1 : 0 })}%`
 }
 
 /** A cited figure exactly as the tool returned it: no rounding. */
@@ -67,10 +81,12 @@ export function exact(value: number): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: 10 })
 }
 
+/** A cited figure: its given precision, but large numbers compact (1.28M). Display only. */
 export function formatValue(value: number, unit: string): string {
-  if (unit === '%') return `${exact(value)}%`
-  if (unit === 'score 0-100') return exact(value)
-  return `${exact(value)} ${unit}`
+  const v = Math.abs(value) >= 10_000 ? compact(value) : exact(value)
+  if (unit === '%') return `${v}%`
+  if (unit === 'score 0-100') return v
+  return `${v} ${unit}`
 }
 
 export function formatDateTime(iso: string): string {
