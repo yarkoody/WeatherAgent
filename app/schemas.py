@@ -143,6 +143,34 @@ class WeatherStat(Strict):
     data_as_of: str
 
 
+class YearDays(Strict):
+    year: int
+    days: dict[Family, float]  # observed disruption days that calendar year, per family (hurricane is not observed: 0)
+    total: float
+
+
+class MonthDays(Strict):
+    month: int  # 1-12
+    days: dict[Family, float]  # average observed disruption days in that month across the window
+    total: float
+
+
+class HubHistory(Strict):
+    """Observed weather history at the hub point (Open-Meteo, daily). Shows variability and seasonality."""
+
+    hub_id: str
+    name: str
+    start_year: int
+    end_year: int
+    years: list[YearDays]
+    months: list[MonthDays]
+    worst_year: int  # year with the most observed disruption days
+    peak_months: list[int]  # months with the highest average, most first (up to 3)
+    thresholds: dict[str, str]  # family -> plain-language disruption-day rule, e.g. "snow >= 5 cm or min temp <= -18 °C"
+    note: str  # data limits: reanalysis grid, hurricanes not captured by daily data, observed signal only
+    data_as_of: str
+
+
 class NwsAlert(Strict):
     """Live NWS alert. Free-text description and instructions are dropped on purpose (prompt-injection surface)."""
 
