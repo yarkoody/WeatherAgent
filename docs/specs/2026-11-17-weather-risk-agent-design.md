@@ -92,7 +92,7 @@ Data handling:
 - `make data` (run by the developer or a scheduled job, never by end users) fetches everything for all hubs and writes a committed snapshot `data/snapshot/*.json`. Scoring, tests and evals read the snapshot, so results are reproducible and the demo does not depend on third-party uptime.
 - Open-Meteo window: the last three full calendar years (2023-2025) for scoring; `weather_stat` answers any year 2015-2025 from the snapshot (no live weather calls at question time); other years get an honest "not available".
 - NWS alerts are always live and never part of the scores: investment is a multi-year decision, and today's storm should not change it.
-- Each API client (the module calling one external API) has a 10 s timeout and 2 retries with backoff. On failure it falls back to the snapshot where one exists and marks data as stale; staleness reaches the answer's uncertainty field.
+- Each API client (the module calling one external API) has a 10 s timeout and 2 retries with backoff on 5xx and transport errors only (4xx is not retried); the live NWS tool uses a 5 s timeout and 1 retry so a chat turn cannot hang. On failure it falls back to the snapshot where one exists and marks data as stale; staleness reaches the answer's uncertainty field.
 
 ## 6. Scoring (deterministic, `scoring.py`)
 
@@ -138,7 +138,7 @@ priority = 0.6 × exposure index + 0.25 × people served + 0.15 × resilience ga
 ### 6.4 What-if (analyst inputs)
 `what_if` recomputes the priority ranking with analyst-supplied overrides: family weights (how much one disruption day from each family counts; default equal, renormalized to sum 1), and optional upgrade cost per hub (USD millions), in which case it also ranks by priority per million. (Signal-level weight overrides are out of scope.) Inputs are validated (ranges, known hubs) and echoed back; answers must label them "analyst-supplied".
 
-Known limitations (README): NRI is county-level and modeled; Open-Meteo is reanalysis grid data, not station observations; population is a county proxy; weights are judgment calls not fitted to loss data (no loss data exists for us).
+Known limitations (README): NRI is county-level and modeled; Open-Meteo is reanalysis grid data, not station observations; population is a county proxy; weights are judgment calls not fitted to loss data (no loss data exists for us). Known overlap (Eden's decision: documented, not corrected): coastal flood is largely hurricane storm surge, so for coastal hubs (Miami, Houston, Newark) the same storm can count under both hurricane (10 days per event) and coastal flood (2 days per event); coastal flood also gets no county-area adjustment. This is why Miami's top driver is flood (5.8 days per year) rather than hurricane (3.0). Fix with more time: count max(hurricane, coastal flood) per hub, or model surge explicitly.
 
 ## 7. Agent
 
