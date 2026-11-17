@@ -14,16 +14,20 @@ export function InfoTip({
   detail,
   title,
   icon,
+  legend,
 }: {
   subject: string
-  steps: string[]
+  steps?: string[]
+  /** Term and meaning pairs, shown as a short glossary ("How to read this"). */
+  legend?: { term: string; text: string }[]
   detail?: string[]
   title?: string
   /** Optional glyph before the title, e.g. a HazardIcon. */
   icon?: ReactNode
 }) {
   const [more, setMore] = useState(false)
-  const numbered = steps.length > 1
+  const lines = steps ?? []
+  const numbered = lines.length > 1
   return (
     <Popover onOpenChange={(open) => !open && setMore(false)}>
       <PopoverTrigger
@@ -43,14 +47,24 @@ export function InfoTip({
           {icon}
           {title ?? `How the ${subject} is calculated`}
         </p>
+        {legend && legend.length > 0 && (
+          <dl className="space-y-1.5">
+            {legend.map((e) => (
+              <div key={e.term}>
+                <dt className="inline font-medium text-foreground">{e.term}: </dt>
+                <dd className="inline text-muted-foreground">{e.text}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
         {numbered ? (
           <ol className="list-decimal space-y-1.5 pl-5 text-muted-foreground marker:text-foreground/60">
-            {steps.map((l) => (
+            {lines.map((l) => (
               <li key={l}>{l}</li>
             ))}
           </ol>
         ) : (
-          <p className="text-muted-foreground">{steps[0]}</p>
+          lines[0] && <p className="text-muted-foreground">{lines[0]}</p>
         )}
         {detail && detail.length > 0 && (
           <div className="border-t pt-2">

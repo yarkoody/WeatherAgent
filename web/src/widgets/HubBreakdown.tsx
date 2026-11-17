@@ -1,21 +1,7 @@
 import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts'
-import { InfoTip } from '@/components/InfoTip'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
-import {
-  LENS_EXPLAINER,
-  badYearLines,
-  badYearSteps,
-  exposureLines,
-  exposureSteps,
-  familyBandLine,
-  familyLines,
-  familySteps,
-  hurricaneLines,
-  hurricaneSteps,
-  indexLine,
-  priorityLines,
-  prioritySteps,
-} from '@/lib/explain'
+import { ReadingGuide } from '@/components/ReadingGuide'
+import { LENS_EXPLAINER, badYearSteps, hubDetail, readingGuide } from '@/lib/explain'
 import { HazardIcon } from '@/components/HazardIcon'
 import { ExportReportButton } from '@/components/PrintReport'
 import { HubReport } from '@/components/reports'
@@ -38,7 +24,7 @@ function CountUp({ value }: { value: number }) {
   return <>{fmt(useCountUp(value))}</>
 }
 
-/** Typical year and bad year side by side; one (i) explains both. Saved pre-v2 data has no bad year. */
+/** Typical year and bad year side by side (the widget's "How to read this" explains both). Saved pre-v2 data has no bad year. */
 export function Lenses({ data: raw }: { data: HubScore }) {
   const data = useMemo(() => normalizeHub(raw), [raw])
   const number = 'heading-tight text-3xl leading-none font-semibold tracking-tight tabular-nums'
@@ -48,22 +34,14 @@ export function Lenses({ data: raw }: { data: HubScore }) {
         <p className={number}>
           <CountUp value={data.exposure_days_per_year} />
         </p>
-        <p className="mt-1.5 text-xs text-muted-foreground">modeled lost days, typical year (estimate)</p>
+        <p className="mt-1.5 text-xs text-muted-foreground">modeled lost days/yr, typical year (estimate)</p>
       </div>
       {typeof data.bad_year_days === 'number' && (
         <div role="group" aria-label="Bad year (1 in 20)">
           <p className={number}>
             <CountUp value={data.bad_year_days} />
           </p>
-          <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
-            in a bad year (1 in 20)
-            <InfoTip
-              subject="typical and bad years"
-              title="About typical and bad years"
-              steps={badYearSteps(data)}
-              detail={[LENS_EXPLAINER, ...badYearLines(data)]}
-            />
-          </p>
+          <p className="mt-1.5 text-xs text-muted-foreground">days in a bad year (1 in 20)</p>
         </div>
       )}
     </div>
@@ -92,7 +70,16 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
   const [tab, setTab] = useState<'overview' | 'history'>('overview')
 
   return (
-    <WidgetFrame label={`${name} risk breakdown`} title={`${name} risk breakdown`} note={`Data as of ${formatDate(data.data_as_of)}.`}>
+    <WidgetFrame
+      label={`${name} risk breakdown`}
+      title={
+        <span className="flex items-center gap-1">
+          {name} risk breakdown
+          <ReadingGuide legend={readingGuide(t)} steps={[...badYearSteps(data).slice(0, 1), LENS_EXPLAINER]} detail={hubDetail(data)} />
+        </span>
+      }
+      note={`Data as of ${formatDate(data.data_as_of)}.`}
+    >
       <div className="-mt-1 mb-3 flex items-center justify-between gap-2">
         <div role="tablist" aria-label={`${name} views`} className="inline-flex gap-1 rounded-xl bg-foreground/5 p-1">
           {(['overview', 'history'] as const).map((v) => (
@@ -122,21 +109,19 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
         <Lenses data={data} />
         <dl className="flex gap-6 text-sm">
           <div>
-            <dt className="flex items-center gap-1 text-xs text-muted-foreground">
-              Exposure score
-              <InfoTip subject="exposure score" steps={exposureSteps(data)} detail={[...exposureLines(data), indexLine(t)]} />
-            </dt>
-            <dd className="mt-0.5 flex items-baseline gap-1.5 font-semibold">
-              {fmt(data.exposure)} <BandText band={data.exposure_band} />
+            <dt className="text-xs text-muted-foreground">Exposure score</dt>
+            <dd className="mt-0.5 font-semibold tabular-nums">
+              {fmt(data.exposure)}
+              {data.exposure_band && <span aria-hidden="true" className="font-normal text-muted-foreground">{' · '}</span>}
+              <BandText band={data.exposure_band} />
             </dd>
           </div>
           <div>
-            <dt className="flex items-center gap-1 text-xs text-muted-foreground">
-              Screening priority
-              <InfoTip subject="screening priority" steps={prioritySteps(data)} detail={priorityLines(data)} />
-            </dt>
-            <dd className="mt-0.5 flex items-baseline gap-1.5 font-semibold">
-              {fmt(data.priority)} <BandText band={data.priority_band} />
+            <dt className="text-xs text-muted-foreground">Screening priority</dt>
+            <dd className="mt-0.5 font-semibold tabular-nums">
+              {fmt(data.priority)}
+              {data.priority_band && <span aria-hidden="true" className="font-normal text-muted-foreground">{' · '}</span>}
+              <BandText band={data.priority_band} />
             </dd>
           </div>
         </dl>
@@ -193,18 +178,10 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
             <li key={f} aria-label={fam.band ? `${FAMILY_LABEL[f]}: ${fam.band} band` : FAMILY_LABEL[f]} data-band={fam.band} className="flex items-start gap-2">
               <HazardIcon hazard={f} className="mt-0.5 size-4" />
               <span className="min-w-0">
-                <span className={`flex items-center gap-1 ${top ? 'font-semibold' : ''}`}>
-                  {FAMILY_LABEL[f]}
-                  <InfoTip
-                    subject={`${FAMILY_LABEL[f]} band`}
-                    icon={<HazardIcon hazard={f} />}
-                    steps={isHurricane ? hurricaneSteps(data) : familySteps(fam, t)}
-                    detail={[...(isHurricane ? hurricaneLines(data) : []), ...familyLines(fam), familyBandLine(t)]}
-                  />
-                </span>
+                <span className={`block ${top ? 'font-semibold' : ''}`}>{FAMILY_LABEL[f]}</span>
                 <span className="block text-xs text-muted-foreground">
-                  {isHurricane ? `${pct(data.hurricane_10yr_probability_pct)} chance in 10 years` : `${fmt(fam.days_per_year)} modeled lost days/yr`}
-                  {typeof fam.bad_year_days === 'number' && `, ${fmt(fam.bad_year_days)} in a bad year`}
+                  {isHurricane ? `${pct(data.hurricane_10yr_probability_pct)} chance in 10 years` : `${fmt(fam.days_per_year)} days/yr`}
+                  {typeof fam.bad_year_days === 'number' && `, ${fmt(fam.bad_year_days)} days in a bad year`}
                   {fam.band && (
                     <>
                       {', '}

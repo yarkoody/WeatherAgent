@@ -70,6 +70,8 @@ describe('real tool outputs: every widget renders without throwing', () => {
       const { container } = render(<Widget data={c.output} />)
       await exerciseAll(container)
       expect(container.textContent).not.toMatch(/undefined|NaN/)
+      // No two numbers glued together, e.g. a score and days: "10027.6 d/yr".
+      expect(container.textContent).not.toMatch(/\d{2,}\d+\.\d\s?d(ays)?\/yr/)
     })
   }
 
@@ -212,5 +214,44 @@ describe('real weather_stat: the explanation matches the metric unit', () => {
     const s = of('weather_stat')[0].output as unknown as WeatherStat
     render(<WeatherStatRing data={{ ...s, unit: '%', value: 10.1, numerator: 37, denominator: 366 }} />)
     expect(screen.getByText('10.1%')).toBeInTheDocument()
+  })
+})
+
+describe('cards: one "How to read this" per widget, no (i) per field, units and bands spelled out', () => {
+  it('compare_hubs: the score row reads "100 · High", typical year has its unit, no field-level tips', () => {
+    for (const c of of('compare_hubs')) {
+      const { container, unmount } = render(<ComparisonCards data={c.output as never} />)
+      expect(within(container).getAllByRole('button', { name: 'How to read this' })).toHaveLength(1)
+      for (const card of within(container).getAllByRole('group')) {
+        expect(within(card).queryAllByRole('button')).toHaveLength(0)
+        const score = within(card).getByText('Exposure score').closest('div')!
+        expect(score.querySelector('dd')!.textContent).toMatch(/^\d+(\.\d)? · (Low|Medium|High)$/)
+        expect(card.textContent).toMatch(/\d+(\.\d)? days\/yr/)
+      }
+      unmount()
+    }
+  })
+
+  it('the legend uses the tool thresholds', async () => {
+    const hub = of('get_hub_risk')[0].output as unknown as HubScore
+    const t = hub.band_thresholds
+    const { container } = render(<HubBreakdown data={hub} />)
+    const guides = within(container).getAllByRole('button', { name: 'How to read this' })
+    expect(guides).toHaveLength(1)
+    expect(within(container).queryAllByRole('button', { name: /^How is the/ })).toHaveLength(0)
+    fireEvent.click(guides[0])
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent(`lost days a year ÷ ${t.days_cap} × 100`)
+    expect(dialog).toHaveTextContent(`Medium from ${t.medium_from_days} days a year, high from ${t.high_from_days} days a year`)
+    expect(dialog).toHaveTextContent('A screening aid, not a measured return')
+    expect(dialog).toHaveTextContent(`Medium from ${t.family_medium_from_days} days, high from ${t.family_high_from_days} days`)
+    expect(dialog).toHaveTextContent(`Medium from ${t.hurricane_medium_from_pct}%, high from ${t.hurricane_high_from_pct}%`)
+  })
+
+  it('hazard rankings name each bar band and explain the colors in the subtitle', () => {
+    const c = of('rank_hubs').find((x) => x.input.hazard === 'winter')!
+    const { container } = render(<RankingWidget data={c.output as never} />)
+    expect(container.textContent).toMatch(/Bar color is the hazard's band by lost days a year/)
+    expect(container.textContent).toMatch(/so a short bar can still be High/)
   })
 })

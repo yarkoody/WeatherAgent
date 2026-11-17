@@ -63,7 +63,7 @@ describe('hub breakdown', () => {
     const hurricane = screen.getByRole('listitem', { name: /^Hurricane/ })
     expect(hurricane).toHaveTextContent(`${hub.hurricane_10yr_probability_pct}% chance in 10 years`)
 
-    fireEvent.click(screen.getByRole('button', { name: 'About typical and bad years' }))
+    fireEvent.click(screen.getByRole('button', { name: 'How to read this' }))
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent('worst 1 year in 20')
     fireEvent.click(within(dialog).getByRole('button', { name: 'More detail' }))

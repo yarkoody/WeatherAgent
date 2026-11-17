@@ -51,8 +51,8 @@ describe('bad-year wording (TVaR95)', () => {
 describe('hub breakdown: what drives the bad year', () => {
   it('shows each hazard\'s share of the bad year', () => {
     render(<HubBreakdown data={withShares({ winter: 5, flood: 3, hurricane: 20, severe_storm: 2 })} />)
-    expect(screen.getByRole('listitem', { name: /^Hurricane/ })).toHaveTextContent('20 in a bad year')
-    expect(screen.getByRole('listitem', { name: /^Winter/ })).toHaveTextContent('5 in a bad year')
+    expect(screen.getByRole('listitem', { name: /^Hurricane/ })).toHaveTextContent('20 days in a bad year')
+    expect(screen.getByRole('listitem', { name: /^Winter/ })).toHaveTextContent('5 days in a bad year')
   })
 })
 

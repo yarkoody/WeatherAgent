@@ -209,3 +209,43 @@ export function weatherStatDetail(s: WeatherStat): string[] {
       : `Exact value: ${n(s.value)} ${s.unit} (${n(s.numerator)} of ${n(s.denominator)} days).`
   return [exactLine, `Source: ${s.source}.`]
 }
+
+// ---------- "How to read this": one legend per widget instead of an (i) on every field ----------
+
+export interface LegendEntry {
+  term: string
+  text: string
+}
+
+/** The terms a hub card uses, with the cut-offs from the tool's own thresholds. */
+export function readingGuide(t: BandThresholds | null | undefined): LegendEntry[] {
+  const th = t ?? ({} as BandThresholds)
+  const cut = (a: number | undefined, b: number | undefined, unit: string) => (isNum(a) && isNum(b) ? ` Medium from ${n(a)}${unit}, high from ${n(b)}${unit}.` : '')
+  return [
+    { term: 'Typical year', text: 'modeled lost days in an average year (an estimate).' },
+    { term: 'Bad year (1 in 20)', text: 'average modeled lost days in the worst 1 year in 20.' },
+    {
+      term: 'Exposure score',
+      text: `lost days a year ÷ ${n(th.days_cap)} × 100, capped at 100.${cut(th.medium_from_days, th.high_from_days, ' days a year')}`,
+    },
+    {
+      term: 'Screening priority',
+      text: 'the exposure score, scaled up by the people served and the resilience gap (0 to 100). A screening aid, not a measured return.',
+    },
+    {
+      term: 'Hazard bands',
+      text: `by lost days a year.${cut(th.family_medium_from_days, th.family_high_from_days, ' days')} Hurricane is banded by the chance of at least one in 10 years instead.${cut(th.hurricane_medium_from_pct, th.hurricane_high_from_pct, '%')}`,
+    },
+  ]
+}
+
+/** Hub-specific calculation lines for the guide's "More detail": every number from the tool output. */
+export function hubDetail(s: HubScore): string[] {
+  return [
+    ...exposureLines(s),
+    ...priorityLines(s),
+    ...badYearLines(s),
+    ...hurricaneLines(s),
+    ...FAMILIES.flatMap((f) => (s.families?.[f] ? familyLines(s.families[f]) : [])),
+  ]
+}

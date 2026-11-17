@@ -94,20 +94,18 @@ describe('How is this calculated?', () => {
     expect(priorityLines(hub)[1]).toContain(`÷ cap ${hub.priority_signals[1].cap}`)
   })
 
-  it('the winter (i) button opens the calculation and is keyboard reachable', async () => {
+  it('one "How to read this" button per breakdown: keyboard reachable, legend first, the hub calculation on request', async () => {
     asUser(<HubBreakdown data={hub} />)
-    const button = screen.getByRole('button', { name: 'How is the Winter band calculated?' })
+    expect(screen.queryByRole('button', { name: 'How is the Winter band calculated?' })).not.toBeInTheDocument() // no per-field tips
+    const button = screen.getByRole('button', { name: 'How to read this' })
     button.focus()
     expect(button).toHaveFocus()
     fireEvent.click(button)
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('FEMA estimates about 16.6 winter weather')
+    // v2: a family is banded by its own days, not by the overall index
+    expect(dialog).toHaveTextContent(`Medium from ${hub.band_thresholds.family_medium_from_days} days, high from ${hub.band_thresholds.family_high_from_days} days`)
     expect(dialog).not.toHaveTextContent(`${hub.families.winter.signals[0].raw} events/year`)
     fireEvent.click(within(dialog).getByRole('button', { name: 'More detail' }))
     expect(dialog).toHaveTextContent(`${hub.families.winter.signals[0].raw} events/year`)
-    // v2: a family is banded by its own days (medium from 2, high from 5), not by the overall index
-    expect(dialog).toHaveTextContent(
-      `medium from ${hub.band_thresholds.family_medium_from_days} days a year and high from ${hub.band_thresholds.family_high_from_days}`,
-    )
   })
 })

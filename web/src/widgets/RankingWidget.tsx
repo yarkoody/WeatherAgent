@@ -38,13 +38,20 @@ function rankingLines(r: Ranking): string[] {
   if (r.hazard === 'overall') return ['The score counts modeled lost days a year from all hazards.', ...indexSteps(t)]
   return [
     `The score counts modeled lost days a year from ${HAZARD_LABEL[r.hazard].toLowerCase()} alone.`,
-    `Colors show its band: medium from ${fmt(t.family_medium_from_days)} lost days a year, high from ${fmt(t.family_high_from_days)}.`,
+    `Bar color is its band by lost days a year, not by the score: medium from ${fmt(t.family_medium_from_days)} days, high from ${fmt(t.family_high_from_days)}.`,
   ]
 }
 
 export function RankingWidget({ data }: { data: Ranking }) {
   const reduced = useReducedMotion()
-  const rows = data.items.map((i) => ({ ...i, label: shortHubName(i.name) }))
+  // Hazard rankings: bar length is the 0-100 score, but color is the hazard's band by lost days a year, so a short
+  // bar can be High. Each bar's label names its band ("30.7 · High") and the subtitle says so in plain words.
+  const hazardBands = data.kind !== 'bad_year' && data.hazard !== 'overall'
+  const rows = data.items.map((i) => ({
+    ...i,
+    label: shortHubName(i.name),
+    text: hazardBands && i.band ? `${fmt(i.value)} · ${BAND_LABEL[i.band]}` : fmt(i.value),
+  }))
   const { medium_from, high_from } = data.band_thresholds
   const days = data.kind === 'bad_year' // values are days, not the 0-100 index
   // The 35/60 lines belong to the overall 0-100 index (and priority). A hazard ranking is banded by that hazard's
@@ -59,7 +66,7 @@ export function RankingWidget({ data }: { data: Ranking }) {
         <span className="flex items-center gap-1.5">
           {data.hazard !== 'overall' && data.kind !== 'bad_year' && <HazardIcon hazard={data.hazard} />}
           {rankingTitle(data)}
-          <InfoTip subject={`${rankingTitle(data).toLowerCase()} score`} steps={rankingLines(data)} />
+          <InfoTip subject={`${rankingTitle(data).toLowerCase()} score`} title="How to read this" steps={rankingLines(data)} />
         </span>
       }
       note={
@@ -67,11 +74,11 @@ export function RankingWidget({ data }: { data: Ranking }) {
           ? `Average lost days in the worst 1 year in 20. Data as of ${formatDate(data.data_as_of)}.`
           : indexLines
             ? `Score 0 to 100. Medium from ${fmt(medium_from)}, high from ${fmt(high_from)}. Data as of ${formatDate(data.data_as_of)}.`
-            : `Score 0 to 100. Colors show the hazard's band by lost days a year (medium from ${fmt(data.band_thresholds.family_medium_from_days)}, high from ${fmt(data.band_thresholds.family_high_from_days)}). Data as of ${formatDate(data.data_as_of)}.`
+            : `Bar length is the ${HAZARD_LABEL[data.hazard].toLowerCase()} score (0 to 100). Bar color is the hazard's band by lost days a year: medium from ${fmt(data.band_thresholds.family_medium_from_days)} days, high from ${fmt(data.band_thresholds.family_high_from_days)}, so a short bar can still be High. Data as of ${formatDate(data.data_as_of)}.`
       }
     >
       <ChartContainer config={config} className="aspect-auto w-full" style={{ height }} initialDimension={{ width: 560, height }}>
-        <BarChart data={rows} layout="vertical" margin={{ top: 18, right: 40, bottom: 0, left: 0 }} barCategoryGap={6} accessibilityLayer>
+        <BarChart data={rows} layout="vertical" margin={{ top: 18, right: hazardBands ? 92 : 40, bottom: 0, left: 0 }} barCategoryGap={6} accessibilityLayer>
           <XAxis type="number" domain={days ? [0, Math.ceil(Math.max(...rows.map((r) => r.value), 1))] : [0, 100]} hide />
           <YAxis type="category" dataKey="label" width={104} tickLine={false} axisLine={false} tick={{ fill: 'var(--foreground)', fontSize: 13 }} />
           <ChartTooltip
@@ -93,7 +100,7 @@ export function RankingWidget({ data }: { data: Ranking }) {
             {rows.map((r) => (
               <Cell key={r.hub_id} fill={r.band ? BAND_COLOR[r.band] : NEUTRAL} />
             ))}
-            <LabelList dataKey="value" position="right" fill="var(--foreground)" fontSize={12} fontWeight={600} formatter={(v: unknown) => fmt(Number(v))} />
+            <LabelList dataKey="text" position="right" fill="var(--foreground)" fontSize={12} fontWeight={600} />
           </Bar>
         </BarChart>
       </ChartContainer>
