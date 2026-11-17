@@ -85,6 +85,34 @@ describe('what-if panel', () => {
     expect(within(panel).getByRole('slider', { name: 'Hurricane weight' })).toHaveValue(String(WEIGHT_STEPS.indexOf(1)))
     expect(within(panel).queryByRole('list', { name: 'Priority per $1M' })).not.toBeInTheDocument()
   })
+
+  it('flags a cost outside 0.1 to 1000 and names the hubs left out, instead of dropping it silently', async () => {
+    const posts = serve()
+    await scoresView()
+    fireEvent.click(screen.getByRole('button', { name: 'What if' }))
+    const panel = screen.getByRole('region', { name: 'What if' })
+    const cost = (hub: string) => within(panel).getByLabelText(`Upgrade cost for ${hub} ($M)`)
+
+    fireEvent.change(cost('Miami'), { target: { value: '0' } })
+    fireEvent.change(cost('Dallas'), { target: { value: 'abc' } })
+    expect(cost('Miami')).toHaveAttribute('aria-invalid', 'true')
+    expect(cost('Dallas')).toHaveAttribute('aria-invalid', 'true')
+    expect(within(panel).getByText('Enter a number from 0.1 to 1000 ($M). Left out: Dallas, Miami.')).toBeInTheDocument()
+    await new Promise((r) => setTimeout(r, 400)) // past the debounce
+    expect(posts).toHaveLength(0) // nothing valid to send
+
+    fireEvent.change(cost('Newark'), { target: { value: '1' } })
+    expect(cost('Newark')).not.toHaveAttribute('aria-invalid')
+    await waitFor(() => expect(posts.at(-1)).toEqual({ upgrade_costs: [{ hub_id: 'newark', cost_musd: 1 }] }), { timeout: 1500 })
+
+    fireEvent.change(cost('Miami'), { target: { value: '2' } })
+    expect(cost('Miami')).not.toHaveAttribute('aria-invalid')
+    expect(within(panel).getByText('Enter a number from 0.1 to 1000 ($M). Left out: Dallas.')).toBeInTheDocument()
+
+    fireEvent.change(cost('Dallas'), { target: { value: '' } }) // an empty box is not an error
+    expect(cost('Dallas')).not.toHaveAttribute('aria-invalid')
+    expect(within(panel).queryByText(/Left out:/)).not.toBeInTheDocument()
+  })
 })
 
 describe('history widgets', () => {
