@@ -104,7 +104,7 @@ export function HubReport({ hub }: { hub: HubScore }) {
             </td>
           </tr>
           <tr>
-            <th>Top driver</th>
+            <th>Biggest risk</th>
             <td>{FAMILY_LABEL[hub.top_driver]}</td>
           </tr>
           {typeof hub.hurricane_10yr_probability_pct === 'number' && (
@@ -122,7 +122,7 @@ export function HubReport({ hub }: { hub: HubScore }) {
             <th>Hazard</th>
             <th>Lost days a year</th>
             <th>In a bad year</th>
-            <th>Band</th>
+            <th>Level</th>
           </tr>
         </thead>
         <tbody>

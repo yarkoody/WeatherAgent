@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { shortHubName } from '../lib/format'
+import { BAND_COLOR, BAND_LABEL, shortHubName } from '../lib/format'
 import type { ActiveAlerts, HubScore, Ranking } from '../lib/types'
 import { AlertBanner } from '../widgets/AlertBanner'
 import { HubBreakdown } from '../widgets/HubBreakdown'
@@ -21,11 +21,16 @@ describe('RankingWidget', () => {
     }
     const svgText = container.querySelector('svg.recharts-surface')?.textContent ?? ''
     expect(svgText).toContain(String(ranking.items[0].value))
-    // a hazard ranking is banded by that hazard's lost days, so the 0-100 index lines (35/60) are not drawn
-    expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(0)
-    // bars are colored by band
+    // bars are colored by their own score band, so the 0-100 index lines (35/60) apply and are drawn
+    expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(2)
     const fills = [...container.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))
-    expect(fills[0]).toBe('#C2413B') // first item is in the high band
+    const t = ranking.band_thresholds
+    ranking.items.forEach((item, i) => {
+      const band = item.value >= t.high_from ? 'high' : item.value >= t.medium_from ? 'medium' : 'low'
+      expect(fills[i], item.name).toBe(BAND_COLOR[band])
+    })
+    // the hazard's own band by days is the small word after each value
+    expect(svgText).toContain(`${BAND_LABEL[ranking.items[0].band!]} by days`)
   })
 })
 
@@ -41,11 +46,12 @@ describe('RankingWidget, overall exposure', () => {
 })
 
 describe('HubBreakdown', () => {
-  it('leads with disruption days and highlights the top driver', () => {
+  it('leads with lost operating days and highlights the biggest risk', () => {
     render(<HubBreakdown data={hubScore} />)
     expect(screen.getByText(String(hubScore.exposure_days_per_year))).toBeInTheDocument()
-    expect(screen.getByText('modeled lost days/yr, typical year (estimate)')).toBeInTheDocument()
-    expect(screen.getByText('Top driver')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Typical year' })).toHaveTextContent(`Typical year${hubScore.exposure_days_per_year}days/yr`)
+    expect(screen.getByText('Biggest risk')).toBeInTheDocument()
+    expect(screen.queryByText('Top driver')).not.toBeInTheDocument()
     for (const u of hubScore.upgrade_categories) expect(screen.getByText(u)).toBeInTheDocument()
   })
 })

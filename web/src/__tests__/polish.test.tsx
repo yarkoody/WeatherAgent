@@ -1,4 +1,4 @@
-// UI polish: hazard icons, date formatting, and the rebuilt Scores table (sorting, filters, JEV explainer).
+// UI polish: hazard icons, date formatting, and the rebuilt Scores table (sorting, filters).
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { CloudLightning, CloudRainWind, Snowflake, Waves } from 'lucide-react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,12 +6,10 @@ import { HAZARD_ICON, HazardIcon } from '../components/HazardIcon'
 import { ScoresView } from '../components/ScoresView'
 import { DebugProvider } from '../lib/debug'
 import { formatDate } from '../lib/format'
-import type { ScoreRow, SecondOpinion } from '../lib/types'
+import type { ScoreRow } from '../lib/types'
 import scoresJson from '../mocks/scores.json'
-import opinionJson from '../mocks/second-opinion.json'
 
 const scores = scoresJson as ScoreRow[]
-const opinion = opinionJson as SecondOpinion
 const short = (r: ScoreRow) => r.name.replace(/ Hub$/, '')
 
 describe('HazardIcon', () => {
@@ -45,7 +43,6 @@ describe('Scores table', () => {
       vi.fn(async (url: string) => {
         const path = new URL(url, 'http://test').pathname
         if (path === '/scores') return Response.json(scores)
-        if (path === '/second-opinion') return Response.json(opinion)
         return Response.json({ detail: 'not found' }, { status: 404 })
       }),
     )
@@ -81,7 +78,7 @@ describe('Scores table', () => {
     const alpha = [...scores].map(short).sort((a, b) => a.localeCompare(b))
     expect(hubOrder()[0]).toContain(alpha[0])
     expect(screen.getByRole('button', { name: 'Sort by Hurricane 10 yr' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sort by Top driver' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sort by Biggest risk' })).toBeInTheDocument()
   })
 
   it('every sortable header reads label, then (i), then the sort arrow, whatever the column alignment', async () => {
@@ -118,7 +115,7 @@ describe('Scores table', () => {
     expect(hubOrder()).toHaveLength(south.length)
     expect(screen.getByText(`Showing ${south.length} of ${scores.length} hubs`)).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Exposure band'), { target: { value: 'high' } })
+    fireEvent.change(screen.getByLabelText('Exposure level'), { target: { value: 'high' } })
     expect(hubOrder()).toHaveLength(south.filter((r) => r.exposure_band === 'high').length || 0)
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
@@ -131,16 +128,6 @@ describe('Scores table', () => {
     expect(screen.getByText('No hubs match these filters.')).toBeInTheDocument()
   })
 
-  it('explains why JEV disagrees and shows rank agreement per hazard', async () => {
-    await view()
-    fireEvent.click(screen.getByRole('button', { name: 'About the JEV second opinion' }))
-    expect(await screen.findByRole('dialog')).toHaveTextContent('JEV sees only raw signals')
-    const summary = screen.getByRole('group', { name: 'Rank agreement by hazard' })
-    for (const [family, value] of Object.entries(opinion.rank_correlation ?? {})) {
-      expect(within(summary).getByText(new RegExp(String(value)))).toBeInTheDocument()
-      expect(family).toBeTruthy()
-    }
-  })
 })
 
 describe('filter select pills', () => {
@@ -153,7 +140,7 @@ describe('filter select pills', () => {
       </DebugProvider>,
     )
     await screen.findAllByRole('rowheader')
-    for (const name of ['Region', 'Exposure band']) {
+    for (const name of ['Region', 'Exposure level']) {
       const select = screen.getByLabelText(name)
       expect(select).toHaveClass('appearance-none', 'pr-[30px]')
       const chevron = select.parentElement!.querySelector('svg.lucide-chevron-down')!

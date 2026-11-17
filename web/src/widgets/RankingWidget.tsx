@@ -7,12 +7,12 @@ import type { Band, Ranking } from '@/lib/types'
 /** Bars without a band (bad-year ranking): neutral ink, so color never implies a band. */
 const NEUTRAL = 'var(--color-ink-soft)' // theme token: readable in light and dark
 import { InfoTip } from '@/components/InfoTip'
-import { indexSteps } from '@/lib/explain'
+import { LOST_DAYS, indexSteps } from '@/lib/explain'
 import { useReducedMotion } from '@/lib/motion'
 import { WidgetFrame } from './WidgetFrame'
 
 export function rankingTitle(r: Ranking): string {
-  if (r.kind === 'bad_year') return r.region ? `Bad-year disruption days (1 in 20) in the ${r.region}` : 'Bad-year disruption days (1 in 20)'
+  if (r.kind === 'bad_year') return r.region ? `Bad-year lost operating days in the ${r.region}` : 'Bad-year lost operating days'
   const kind = r.kind === 'priority' ? 'screening priority' : 'exposure'
   const what = r.hazard === 'overall' ? kind[0].toUpperCase() + kind.slice(1) : `${HAZARD_LABEL[r.hazard]} ${kind}`
   return r.region ? `${what} in the ${r.region}` : `${what} across all hubs`
@@ -26,7 +26,8 @@ function rankingLines(r: Ranking): string[] {
   if (r.kind === 'bad_year')
     return [
       'In a bad year (about 1 year in 20) a hub can lose far more days than average, because rare events like hurricanes are much worse.',
-      'These bars show those modeled bad-year lost days (estimates).',
+      'These bars show those modeled bad-year lost operating days (estimates).',
+      `Lost operating days: ${LOST_DAYS}`,
       'Ask about one hub to compare its typical and bad year.',
     ]
   if (r.kind === 'priority')
@@ -35,29 +36,61 @@ function rankingLines(r: Ranking): string[] {
       'It mixes the exposure score with people served and the resilience gap.',
       `Medium from ${fmt(t.medium_from)}, high from ${fmt(t.high_from)} (out of 100).`,
     ]
-  if (r.hazard === 'overall') return ['The score counts modeled lost days a year from all hazards.', ...indexSteps(t)]
+  if (r.hazard === 'overall') return [`Lost operating days: ${LOST_DAYS}`, 'The score counts those days a year from all hazards.', ...indexSteps(t)]
   return [
-    `The score counts modeled lost days a year from ${HAZARD_LABEL[r.hazard].toLowerCase()} alone.`,
-    `Bar color is its band by lost days a year, not by the score: medium from ${fmt(t.family_medium_from_days)} days, high from ${fmt(t.family_high_from_days)}.`,
+    `Lost operating days: ${LOST_DAYS}`,
+    `The score counts those days a year from ${HAZARD_LABEL[r.hazard].toLowerCase()} alone.`,
+    `Bar color is the score's level (medium from ${fmt(t.medium_from)}, high from ${fmt(t.high_from)}); the word after the value is the hazard's own level by lost operating days a year (medium from ${fmt(t.family_medium_from_days)} days, high from ${fmt(t.family_high_from_days)}).`,
   ]
+}
+
+/** The 0-100 score's own band, from the tool's cut-offs (the same 35/60 lines drawn on the chart). */
+function scoreBand(value: number, t: Ranking['band_thresholds']): Band {
+  return value >= t.high_from ? 'high' : value >= t.medium_from ? 'medium' : 'low'
+}
+
+/** Bar label: the value, then (hazard rankings) the hazard's own band by days as a small colored word. */
+function BarLabel(props: { x?: number | string; y?: number | string; width?: number | string; height?: number | string; value?: unknown; index?: number; rows: { text: string; dayBand: Band | null }[] }) {
+  const x = Number(props.x ?? 0) + Number(props.width ?? 0) + 6
+  const y = Number(props.y ?? 0) + Number(props.height ?? 0) / 2
+  const row = props.rows[props.index ?? 0]
+  if (!row) return null
+  return (
+    <text x={x} y={y} dominantBaseline="central" fontSize={12} fill="var(--foreground)">
+      <tspan fontWeight={600}>{row.text}</tspan>
+      {row.dayBand && (
+        <tspan dx={6} fontSize={10.5} fontWeight={600} fill={BAND_LABEL_COLOR[row.dayBand]}>
+          {BAND_LABEL[row.dayBand]} by days
+        </tspan>
+      )}
+    </text>
+  )
+}
+
+/** "Top 5 of 15 hubs." when the ranking is a subset; "All 15 hubs." / "All 6 Midwest hubs." when it covers every match. */
+export function coverage(shown: number, total: number, region: string | null): string {
+  return shown < total ? `Top ${shown} of ${total} hubs.` : `All ${total} ${region ? `${region} ` : ''}hubs.`
 }
 
 export function RankingWidget({ data }: { data: Ranking }) {
   const reduced = useReducedMotion()
-  // Hazard rankings: bar length is the 0-100 score, but color is the hazard's band by lost days a year, so a short
-  // bar can be High. Each bar's label names its band ("30.7 · High") and the subtitle says so in plain words.
-  const hazardBands = data.kind !== 'bad_year' && data.hazard !== 'overall'
+  const t = data.band_thresholds
+  const days = data.kind === 'bad_year' // values are days, not the 0-100 index
+  // Hazard rankings: bar length and color are the hazard's 0-100 score and its band (the same 35/60 cut-offs as every
+  // score); the hazard's own band by lost days a year is the small word after the value ("High by days").
+  const hazardBands = !days && data.hazard !== 'overall'
   const rows = data.items.map((i) => ({
     ...i,
     label: shortHubName(i.name),
-    text: hazardBands && i.band ? `${fmt(i.value)} · ${BAND_LABEL[i.band]}` : fmt(i.value),
+    text: fmt(i.value),
+    color: days ? NEUTRAL : BAND_COLOR[hazardBands ? scoreBand(i.value, t) : (i.band ?? scoreBand(i.value, t))],
+    dayBand: hazardBands ? i.band : null,
   }))
-  const { medium_from, high_from } = data.band_thresholds
-  const days = data.kind === 'bad_year' // values are days, not the 0-100 index
-  // The 35/60 lines belong to the overall 0-100 index (and priority). A hazard ranking is banded by that hazard's
-  // lost days (medium from 2, high from 5), so the lines would contradict the bar colors there.
-  const indexLines = !days && data.hazard === 'overall'
+  const { medium_from, high_from } = t
+  const indexLines = !days
   const height = rows.length * 30 + 34
+  const total = typeof data.total === 'number' && data.total > 0 ? data.total : null
+  const asOf = `Data as of ${formatDate(data.data_as_of)}.`
 
   return (
     <WidgetFrame
@@ -70,15 +103,18 @@ export function RankingWidget({ data }: { data: Ranking }) {
         </span>
       }
       note={
-        days
-          ? `Average lost days in the worst 1 year in 20. Data as of ${formatDate(data.data_as_of)}.`
-          : indexLines
-            ? `Score 0 to 100. Medium from ${fmt(medium_from)}, high from ${fmt(high_from)}. Data as of ${formatDate(data.data_as_of)}.`
-            : `Bar length is the ${HAZARD_LABEL[data.hazard].toLowerCase()} score (0 to 100). Bar color is the hazard's band by lost days a year: medium from ${fmt(data.band_thresholds.family_medium_from_days)} days, high from ${fmt(data.band_thresholds.family_high_from_days)}, so a short bar can still be High. Data as of ${formatDate(data.data_as_of)}.`
+        <>
+          {total !== null && <span className="font-medium text-foreground">{`${coverage(rows.length, total, data.region)} `}</span>}
+          {days
+            ? `Bad year: the average of the worst 1 year in 20. ${asOf}`
+            : hazardBands
+              ? `Bar length and color: the ${HAZARD_LABEL[data.hazard].toLowerCase()} score, 0 to 100 (medium from ${fmt(medium_from)}, high from ${fmt(high_from)}). The word after each value is the hazard's own level by lost operating days a year (medium from ${fmt(t.family_medium_from_days)} days, high from ${fmt(t.family_high_from_days)}). ${asOf}`
+              : `Score 0 to 100. Medium from ${fmt(medium_from)}, high from ${fmt(high_from)}. ${asOf}`}
+        </>
       }
     >
       <ChartContainer config={config} className="aspect-auto w-full" style={{ height }} initialDimension={{ width: 560, height }}>
-        <BarChart data={rows} layout="vertical" margin={{ top: 18, right: hazardBands ? 92 : 40, bottom: 0, left: 0 }} barCategoryGap={6} accessibilityLayer>
+        <BarChart data={rows} layout="vertical" margin={{ top: 18, right: hazardBands ? 112 : 44, bottom: 0, left: 0 }} barCategoryGap={6} accessibilityLayer>
           <XAxis type="number" domain={days ? [0, Math.ceil(Math.max(...rows.map((r) => r.value), 1))] : [0, 100]} hide />
           <YAxis type="category" dataKey="label" width={104} tickLine={false} axisLine={false} tick={{ fill: 'var(--foreground)', fontSize: 13 }} />
           <ChartTooltip
@@ -87,8 +123,10 @@ export function RankingWidget({ data }: { data: Ranking }) {
               <ChartTooltipContent
                 hideIndicator
                 formatter={(v, _n, item) => {
-                  const band = (item.payload as { band: Band | null }).band
-                  return band ? `${fmt(Number(v))} (${BAND_LABEL[band]})` : `${fmt(Number(v))} days`
+                  if (days) return `${fmt(Number(v))} days`
+                  const p = item.payload as { dayBand: Band | null }
+                  const score = `${fmt(Number(v))} (${BAND_LABEL[scoreBand(Number(v), t)]} score)`
+                  return p.dayBand ? `${score}, ${BAND_LABEL[p.dayBand]} by days` : score
                 }}
               />
             }
@@ -98,9 +136,9 @@ export function RankingWidget({ data }: { data: Ranking }) {
           {indexLines && <ReferenceLine x={high_from} stroke={BAND_COLOR.high} strokeDasharray="3 3" label={{ value: fmt(high_from), position: 'top', fill: BAND_LABEL_COLOR.high, fontSize: 11 }} />}
           <Bar dataKey="value" radius={[0, 4, 4, 0]} isAnimationActive={!reduced} animationDuration={400} background={{ fill: 'var(--muted)', radius: 4 }}>
             {rows.map((r) => (
-              <Cell key={r.hub_id} fill={r.band ? BAND_COLOR[r.band] : NEUTRAL} />
+              <Cell key={r.hub_id} fill={r.color} />
             ))}
-            <LabelList dataKey="text" position="right" fill="var(--foreground)" fontSize={12} fontWeight={600} />
+            <LabelList dataKey="text" content={(p) => <BarLabel {...(p as object)} rows={rows} />} />
           </Bar>
         </BarChart>
       </ChartContainer>

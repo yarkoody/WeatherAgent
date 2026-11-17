@@ -1,20 +1,22 @@
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, DownloadIcon, SearchIcon, SlidersHorizontalIcon } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, DownloadIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react'
+import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { HowScoresWork } from '@/components/HowScoresWork'
+import { lazyWithReload } from '@/lib/chunkReload'
+import { HubBreakdown } from '@/widgets/HubBreakdown'
 import { HazardIcon } from '@/components/HazardIcon'
 import { InfoTip } from '@/components/InfoTip'
-import { SecondOpinionCell } from '@/components/SecondOpinionCell'
 import { SelectPill } from '@/components/SelectPill'
 import { WhatIfPanel } from '@/components/WhatIfPanel'
 import { downloadCsv } from '@/lib/exportCsv'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Spinner } from '@/components/ui/spinner'
-import { useDebug } from '@/lib/debug'
-import { BAND_COLOR, FAMILIES, FAMILY_LABEL, fmt, formatDate, pct, shortHubName } from '@/lib/format'
+import { LOST_DAYS } from '@/lib/explain'
+import { BAND_COLOR, FAMILY_LABEL, fmt, pct, shortHubName } from '@/lib/format'
 import { USE_MOCKS, apiFetch } from '@/lib/mockFetch'
-import { fetchSecondOpinion, rerunSecondOpinion } from '@/lib/secondOpinion'
-import type { Band, JevHubOpinion, Region, ScoreRow, SecondOpinion } from '@/lib/types'
-import { useMediaQuery } from '@/lib/useMediaQuery'
+import type { Band, Hub, HubScore, Region, ScoreRow } from '@/lib/types'
+
+// The map (us-atlas TopoJSON + d3) loads on its own, after the table.
+const HubMap = lazyWithReload(() => import('@/components/HubMap').then((m) => ({ default: m.HubMap })))
 import { BandText } from '@/widgets/WidgetFrame'
 
 const THRESHOLDS = { medium: 35, high: 60 }
@@ -34,7 +36,7 @@ export function BandMeter({ value, band }: { value: number; band: Band }) {
 
 // ---------- columns ----------
 
-type SortKey = 'hub' | 'typical' | 'bad_year' | 'hurricane' | 'priority' | 'driver' | 'jev'
+type SortKey = 'hub' | 'typical' | 'bad_year' | 'hurricane' | 'priority' | 'driver'
 type Dir = 'asc' | 'desc'
 
 interface Column {
@@ -44,13 +46,8 @@ interface Column {
   /** Direction on first click: numbers start high-to-low, names start A to Z. */
   first: Dir
   tip: { title: string; steps: string[] }
-  value: (r: ScoreRow, jev?: JevHubOpinion) => number | string
+  value: (r: ScoreRow) => number | string
 }
-
-const JEV_WHY =
-  'JEV sees only raw signals (event counts, observed days), not our downtime-per-event assumptions or band cut-offs. It orders hubs much like the formula but draws band lines differently, and it underrates rare, severe events such as hurricanes. Disagreements are worth a look; they never change scores.'
-const JEV_ABOUT =
-  "An independent rating by TypeSafe's JEV decision model on the same raw signals. It does not affect scores or rankings."
 
 const COLUMNS: Column[] = [
   { key: 'hub', label: 'Hub', align: 'left', first: 'asc', value: (r) => shortHubName(r.name), tip: { title: 'About hubs', steps: ['The 15 US logistics hubs, with their Census region.'] } },
@@ -62,7 +59,7 @@ const COLUMNS: Column[] = [
     value: (r) => r.exposure_days_per_year,
     tip: {
       title: 'About the typical year',
-      steps: ['Modeled lost days in an average year, across all hazards. An estimate, not a forecast.', 'The bar is the 0 to 100 exposure score; the two marks are the medium and high cut-offs.'],
+      steps: [`Lost operating days: ${LOST_DAYS}`, 'Typical year: the average year, across all hazards. An estimate, not a forecast.', 'The bar is the 0 to 100 exposure score; the two marks are the medium and high cut-offs.'],
     },
   },
   {
@@ -71,7 +68,7 @@ const COLUMNS: Column[] = [
     align: 'right',
     first: 'desc',
     value: (r) => r.bad_year_days,
-    tip: { title: 'About the bad year', steps: ['Modeled average lost days in the worst 1 year in 20 (an estimate).', 'Averages hide rare, severe events such as hurricanes; this column shows them.'] },
+    tip: { title: 'About the bad year', steps: ['The average of the worst 1 year in 20, in lost operating days (an estimate).', 'Averages hide rare, severe events such as hurricanes; this column shows them.'] },
   },
   {
     key: 'hurricane',
@@ -94,22 +91,13 @@ const COLUMNS: Column[] = [
   },
   {
     key: 'driver',
-    label: 'Top driver',
+    label: 'Biggest risk',
     align: 'left',
     first: 'asc',
     value: (r) => FAMILY_LABEL[r.top_driver],
-    tip: { title: 'About the top driver', steps: ['The hazard with the most modeled lost days in a typical year.'] },
+    tip: { title: 'About the biggest risk', steps: ['The hazard behind the most lost operating days in a typical year.'] },
   },
 ]
-
-const JEV_COLUMN: Column = {
-  key: 'jev',
-  label: 'JEV',
-  align: 'left',
-  first: 'desc',
-  value: (_r, jev) => jev?.agree_count ?? -1,
-  tip: { title: 'Why JEV can disagree', steps: [JEV_WHY] },
-}
 
 function compare(a: number | string, b: number | string): number {
   return typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b))
@@ -121,19 +109,36 @@ export function ScoresView() {
   const [rows, setRows] = useState<ScoreRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
-  const [opinion, setOpinion] = useState<SecondOpinion | null>(null)
   const [sort, setSort] = useState<{ key: SortKey; dir: Dir }>({ key: 'priority', dir: 'desc' })
   const [query, setQuery] = useState('')
   const [region, setRegion] = useState<Region | ''>('')
   const [band, setBand] = useState<Band | ''>('')
   const [whatIf, setWhatIf] = useState(false)
+  const [hubs, setHubs] = useState<Hub[] | null>(null)
+  const [selected, setSelected] = useState<string | null>(null)
+  const [detail, setDetail] = useState<{ id: string; score: HubScore | null; error?: string } | null>(null)
 
   useEffect(() => {
     const ctl = new AbortController()
-    fetchSecondOpinion(ctl.signal).then((o) => {
-      if (!ctl.signal.aborted) setOpinion(o)
-    })
+    apiFetch('/hubs', { signal: ctl.signal })
+      .then((r) => (r.ok ? (r.json() as Promise<Hub[]>) : null))
+      .then((h) => h && setHubs(h))
+      .catch(() => {}) // no map without hub locations; the table still works
     return () => ctl.abort()
+  }, [])
+
+  // Selecting a hub (map dot or Enter on it): highlight and scroll to its row, and open its breakdown.
+  const select = useCallback((id: string) => {
+    setSelected(id)
+    setDetail({ id, score: null })
+    requestAnimationFrame(() => document.getElementById(`hub-row-${id}`)?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }))
+    apiFetch(`/hubs/${encodeURIComponent(id)}/score`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { detail?: string } | null)?.detail ?? `HTTP ${r.status}`)
+        return r.json() as Promise<HubScore>
+      })
+      .then((score) => setDetail((d) => (d?.id === id ? { id, score } : d)))
+      .catch((e: Error) => setDetail((d) => (d?.id === id ? { id, score: null, error: e.message } : d)))
   }, [])
 
   useEffect(() => {
@@ -151,11 +156,7 @@ export function ScoresView() {
     return () => ctl.abort()
   }, [attempt])
 
-  // Narrow screens: the JEV column collapses into a compact badge next to the hub name.
-  const narrow = useMediaQuery('(max-width: 639px)')
-  const jevColumn = opinion !== null && !narrow
-  const jevByHub = useMemo(() => new Map(opinion?.hubs.map((h) => [h.hub_id, h]) ?? []), [opinion])
-  const columns = jevColumn ? [...COLUMNS, JEV_COLUMN] : COLUMNS
+  const columns = COLUMNS
 
   const filtered = useMemo(() => {
     if (!rows) return null
@@ -165,12 +166,10 @@ export function ScoresView() {
 
   const shown = useMemo(() => {
     if (!filtered) return null
-    const col = [...COLUMNS, JEV_COLUMN].find((c) => c.key === sort.key)!
+    const col = COLUMNS.find((c) => c.key === sort.key)!
     const sign = sort.dir === 'asc' ? 1 : -1
-    return [...filtered].sort(
-      (a, b) => sign * compare(col.value(a, jevByHub.get(a.hub_id)), col.value(b, jevByHub.get(b.hub_id))) || a.hub_id.localeCompare(b.hub_id),
-    )
-  }, [filtered, sort, jevByHub])
+    return [...filtered].sort((a, b) => sign * compare(col.value(a), col.value(b)) || a.hub_id.localeCompare(b.hub_id))
+  }, [filtered, sort])
 
   const filtersOn = query !== '' || region !== '' || band !== ''
   const reset = () => {
@@ -182,15 +181,13 @@ export function ScoresView() {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6">
         <h1 className="heading-tight text-2xl font-semibold tracking-tight">All hubs</h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Lost days are modeled weather-disruption days (estimates), in a typical year and in the worst 1 year in 20. Screening priority suggests where
-          to look first at upgrades; it is not a cost-benefit estimate.
+          Modeled lost days (estimates) and screening priority for 15 US logistics hubs, from a fixed data snapshot.
           {USE_MOCKS && ' Mock mode: showing recorded snapshot scores.'}
         </p>
-
-        {opinion && <SecondOpinionSummary opinion={opinion} onRerun={setOpinion} />}
+        <HowScoresWork rows={rows} />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant={whatIf ? 'secondary' : 'outline'} size="sm" aria-expanded={whatIf} onClick={() => setWhatIf((v) => !v)}>
@@ -216,80 +213,111 @@ export function ScoresView() {
           count={shown ? `Showing ${shown.length} of ${rows?.length ?? 0} hubs` : ''}
         />
 
-        {error && (
-          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-band-high-soft px-4 py-3 text-sm text-band-high-text" role="alert">
-            Scores could not be loaded ({error}).
-            <Button variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
-              Try again
-            </Button>
-          </div>
-        )}
-        {!shown && !error && (
-          <div className="mt-4 space-y-2" aria-label="Loading scores">
-            {Array.from({ length: 6 }, (_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        )}
+        {/* Map next to the table when there is room (container width), stacked above it otherwise. */}
+        <div className="@container mt-4">
+          <div className="grid items-start gap-4 @min-[1100px]:grid-cols-[minmax(320px,1fr)_minmax(760px,1.7fr)]">
+            <div className="flex min-w-0 flex-col gap-4">
+              {hubs && rows ? (
+                <Suspense fallback={<Skeleton className="aspect-[975/610] w-full rounded-3xl" />}>
+                  <HubMap hubs={hubs} rows={rows} selected={selected} onSelect={select} />
+                </Suspense>
+              ) : (
+                <Skeleton className="aspect-[975/610] w-full rounded-3xl" aria-label="Loading map" />
+              )}
+              {detail && <HubDetail detail={detail} onClose={() => (setSelected(null), setDetail(null))} />}
+            </div>
+            <div className="min-w-0">
+          {error && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-band-high-soft px-4 py-3 text-sm text-band-high-text" role="alert">
+              Scores could not be loaded ({error}).
+              <Button variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+                Try again
+              </Button>
+            </div>
+          )}
+          {!shown && !error && (
+            <div className="glass min-h-64 space-y-2 rounded-3xl p-3" aria-label="Loading scores">
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          )}
 
-        {shown && (
-          <div className="glass mt-4 max-h-[calc(100dvh-15rem)] min-h-64 overflow-auto rounded-3xl">
-            <table className={`w-full border-separate border-spacing-0 text-sm ${jevColumn ? 'min-w-[920px]' : 'min-w-[760px]'}`}>
-              <thead>
-                <tr>
-                  <th scope="col" className="sticky top-0 z-10 w-10 border-b border-border bg-header px-3 py-2.5 text-left align-bottom text-xs font-semibold text-muted-foreground">
-                    #
-                  </th>
-                  {columns.map((c) => (
-                    <SortHeader key={c.key} column={c} sort={sort} onSort={() => toggleSort(c)} />
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((r, i) => {
-                  const jev = jevByHub.get(r.hub_id)
-                  return (
-                    <tr key={r.hub_id} className="even:bg-foreground/[0.025] hover:bg-isobar/[0.05]">
-                      <td className="border-b border-border/50 px-3 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
-                      <th scope="row" className="border-b border-border/50 px-3 py-2.5 text-left font-semibold">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span>
-                            {shortHubName(r.name)}
-                            <span className="block text-xs font-normal text-muted-foreground">{r.region}</span>
+          {shown && (
+            <div className="glass max-h-[calc(100dvh-15rem)] min-h-64 overflow-auto rounded-3xl">
+              <table className={`w-full border-separate border-spacing-0 text-sm min-w-[760px]`}>
+                <thead>
+                  <tr>
+                    <th scope="col" className="sticky top-0 z-10 w-10 border-b border-border bg-header px-3 py-2.5 text-left align-bottom text-xs font-semibold text-muted-foreground">
+                      #
+                    </th>
+                    {columns.map((c) => (
+                      <SortHeader key={c.key} column={c} sort={sort} onSort={() => toggleSort(c)} />
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((r, i) => {
+                    return (
+                      <tr
+                        key={r.hub_id}
+                        id={`hub-row-${r.hub_id}`}
+                        data-selected={selected === r.hub_id}
+                        className="scroll-mt-12 even:bg-foreground/[0.025] hover:bg-isobar/[0.05] data-[selected=true]:bg-isobar/[0.12]"
+                      >
+                        <td className="border-b border-border/50 px-3 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
+                        <th scope="row" className="border-b border-border/50 px-3 py-2.5 text-left font-semibold">
+                          {shortHubName(r.name)}
+                          <span className="block text-xs font-normal text-muted-foreground">{r.region}</span>
+                        </th>
+                        <Num>
+                          <Metered text={`${fmt(r.exposure_days_per_year)} d`} meter={r.exposure} band={r.exposure_band} />
+                        </Num>
+                        <Num>
+                          <span className="font-semibold">{fmt(r.bad_year_days)} d</span>
+                        </Num>
+                        <Num>{pct(r.hurricane_10yr_probability_pct)}</Num>
+                        <Num>
+                          <Metered text={fmt(r.priority)} meter={r.priority} band={r.priority_band} />
+                        </Num>
+                        <td className="border-b border-border/50 px-3 py-2.5 text-muted-foreground">
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            <HazardIcon hazard={r.top_driver} />
+                            {FAMILY_LABEL[r.top_driver]}
                           </span>
-                          {opinion && narrow && jev && <SecondOpinionCell hub={jev} />}
-                        </span>
-                      </th>
-                      <Num>
-                        <Metered text={`${fmt(r.exposure_days_per_year)} d`} meter={r.exposure} band={r.exposure_band} />
-                      </Num>
-                      <Num>
-                        <span className="font-semibold">{fmt(r.bad_year_days)} d</span>
-                      </Num>
-                      <Num>{pct(r.hurricane_10yr_probability_pct)}</Num>
-                      <Num>
-                        <Metered text={fmt(r.priority)} meter={r.priority} band={r.priority_band} />
-                      </Num>
-                      <td className="border-b border-border/50 px-3 py-2.5 text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                          <HazardIcon hazard={r.top_driver} />
-                          {FAMILY_LABEL[r.top_driver]}
-                        </span>
-                      </td>
-                      {jevColumn && (
-                        <td className="border-b border-border/50 px-3 py-2.5">
-                          {jev ? <SecondOpinionCell hub={jev} /> : <span className="text-muted-foreground">Not rated</span>}
                         </td>
-                      )}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            {shown.length === 0 && <p className="px-4 py-8 text-center text-sm text-muted-foreground">No hubs match these filters.</p>}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {shown.length === 0 && <p className="px-4 py-8 text-center text-sm text-muted-foreground">No hubs match these filters.</p>}
+            </div>
+          )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
+    </div>
+  )
+}
+
+/** The selected hub's breakdown (GET /hubs/{id}/score), with a close button. */
+function HubDetail({ detail, onClose }: { detail: { id: string; score: HubScore | null; error?: string }; onClose: () => void }) {
+  return (
+    <div className="relative" aria-live="polite">
+      <Button variant="ghost" size="icon-sm" className="absolute top-3 right-3 z-10" aria-label="Close hub breakdown" onClick={onClose}>
+        <XIcon />
+      </Button>
+      {detail.score ? (
+        <HubBreakdown data={detail.score} />
+      ) : detail.error ? (
+        <p className="rounded-3xl bg-band-high-soft px-5 py-3.5 text-sm text-band-high-text" role="alert">
+          The breakdown could not be loaded ({detail.error}).
+        </p>
+      ) : (
+        <Skeleton className="h-72 w-full rounded-3xl" aria-label="Loading hub breakdown" />
+      )}
     </div>
   )
 }
@@ -387,9 +415,9 @@ function Filters(props: {
         </SelectPill>
       </label>
       <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-        Exposure band
-        <SelectPill aria-label="Exposure band" value={props.band} onChange={(e) => props.onBand(e.target.value as Band | '')}>
-          <option value="">All bands</option>
+        Exposure level
+        <SelectPill aria-label="Exposure level" value={props.band} onChange={(e) => props.onBand(e.target.value as Band | '')}>
+          <option value="">All levels</option>
           {BANDS.map((b) => (
             <option key={b} value={b}>
               {b[0].toUpperCase() + b.slice(1)}
@@ -407,75 +435,19 @@ function Filters(props: {
   )
 }
 
-/** One line above the table, rank agreement per hazard, plus the developer-only re-run. */
-function SecondOpinionSummary({ opinion, onRerun }: { opinion: SecondOpinion; onRerun: (o: SecondOpinion) => void }) {
-  const debug = useDebug()
-  const [running, setRunning] = useState(false)
-  const [detail, setDetail] = useState<string | null>(null)
-  const ranks = opinion.rank_correlation ? FAMILIES.filter((f) => typeof opinion.rank_correlation?.[f] === 'number') : []
-
-  async function rerun() {
-    setRunning(true)
-    setDetail(null)
-    const result = await rerunSecondOpinion()
-    setRunning(false)
-    if (result.ok) onRerun(result.opinion)
-    else setDetail(result.detail)
-  }
-
-  return (
-    <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-      <div className="min-w-0 flex-1 basis-80 text-muted-foreground">
-        <p className="flex items-start gap-1">
-          <span>
-            <span className="text-foreground">
-              JEV agrees with the formula on {opinion.agree_count} of {opinion.total} ratings ({opinion.agreement_pct}%).
-            </span>{' '}
-            Run {formatDate(opinion.run_at)} on data as of {formatDate(opinion.data_as_of)}.
-            {debug && <span className="ml-1 text-xs">Model: {opinion.model}.</span>}
-          </span>
-          <InfoTip subject="JEV second opinion" title="About the JEV second opinion" steps={[JEV_ABOUT, JEV_WHY]} />
-        </p>
-        {ranks.length > 0 && (
-          <p role="group" aria-label="Rank agreement by hazard" className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <span>Rank agreement (1 means the same order):</span>
-            {ranks.map((f) => (
-              <span key={f} className="inline-flex items-center gap-1 whitespace-nowrap">
-                <HazardIcon hazard={f} className="size-3.5" />
-                {FAMILY_LABEL[f]} <span className="font-semibold text-foreground tabular-nums">{opinion.rank_correlation![f]}</span>
-              </span>
-            ))}
-          </p>
-        )}
-      </div>
-      {debug && (
-        <Button variant="outline" size="sm" onClick={rerun} disabled={running} aria-busy={running}>
-          {running && <Spinner />}
-          {running ? 'Re-running JEV…' : 'Re-run JEV'}
-        </Button>
-      )}
-      {detail && (
-        <p className="basis-full text-xs text-band-high-text" role="status">
-          {detail}
-        </p>
-      )}
-    </div>
-  )
-}
-
 /** The table as shown (filters and sort applied), one row per hub. */
 function exportCsv(rows: ScoreRow[]) {
   const header = [
     'Rank',
     'Hub',
     'Region',
-    'Typical year (modeled lost days)',
-    'Bad year (modeled lost days)',
+    'Typical year (lost operating days)',
+    'Bad year (lost operating days)',
     'Hurricane 10-yr chance (%)',
     'Screening priority',
-    'Priority band',
-    'Exposure band',
-    'Top driver',
+    'Priority level',
+    'Exposure level',
+    'Biggest risk',
   ]
   const body = rows.map((r, i) => [
     i + 1,

@@ -9,7 +9,7 @@ import { AssistantMessage } from '../components/AssistantMessage'
 import { ScoresView } from '../components/ScoresView'
 import { DebugProvider } from '../lib/debug'
 import * as explain from '../lib/explain'
-import { FAMILIES } from '../lib/format'
+import { FAMILIES, fmt } from '../lib/format'
 import { normalizeHub } from '../lib/normalize'
 import type { HubScore, ScoreRow, ToolName, WeatherStat, WhatIfResult } from '../lib/types'
 import scoresJson from '../mocks/scores.json'
@@ -218,16 +218,15 @@ describe('real weather_stat: the explanation matches the metric unit', () => {
 })
 
 describe('cards: one "How to read this" per widget, no (i) per field, units and bands spelled out', () => {
-  it('compare_hubs: the score row reads "100 · High", typical year has its unit, no field-level tips', () => {
+  it('compare_hubs: an aligned table, one "How to read this", no tips inside', () => {
     for (const c of of('compare_hubs')) {
       const { container, unmount } = render(<ComparisonCards data={c.output as never} />)
       expect(within(container).getAllByRole('button', { name: 'How to read this' })).toHaveLength(1)
-      for (const card of within(container).getAllByRole('group')) {
-        expect(within(card).queryAllByRole('button')).toHaveLength(0)
-        const score = within(card).getByText('Exposure score').closest('div')!
-        expect(score.querySelector('dd')!.textContent).toMatch(/^\d+(\.\d)? · (Low|Medium|High)$/)
-        expect(card.textContent).toMatch(/\d+(\.\d)? days\/yr/)
-      }
+      const table = within(container).getByRole('table')
+      expect(within(table).queryAllByRole('button')).toHaveLength(0)
+      const hubs = (c.output as unknown as { hubs: HubScore[] }).hubs
+      const score = within(table).getByRole('rowheader', { name: 'Exposure score (0-100)' }).closest('tr')!
+      hubs.forEach((h, i) => expect(within(score).getAllByRole('cell')[i].textContent).toBe(fmt(h.exposure)))
       unmount()
     }
   })
@@ -248,10 +247,10 @@ describe('cards: one "How to read this" per widget, no (i) per field, units and 
     expect(dialog).toHaveTextContent(`Medium from ${t.hurricane_medium_from_pct}%, high from ${t.hurricane_high_from_pct}%`)
   })
 
-  it('hazard rankings name each bar band and explain the colors in the subtitle', () => {
+  it('hazard rankings color bars by score band and name the day band after each value', () => {
     const c = of('rank_hubs').find((x) => x.input.hazard === 'winter')!
     const { container } = render(<RankingWidget data={c.output as never} />)
-    expect(container.textContent).toMatch(/Bar color is the hazard's band by lost days a year/)
-    expect(container.textContent).toMatch(/so a short bar can still be High/)
+    expect(container.textContent).toMatch(/Bar length and color: the winter score, 0 to 100 \(medium from 35, high from 60\)/)
+    expect(container.textContent).toMatch(/The word after each value is the hazard's own level by lost operating days a year/)
   })
 })

@@ -159,7 +159,7 @@ describe('export', () => {
     expect(click).toHaveBeenCalled()
     const text = await blob!.text()
     const lines = text.trim().split('\r\n')
-    expect(lines[0]).toBe('Rank,Hub,Region,Typical year (modeled lost days),Bad year (modeled lost days),Hurricane 10-yr chance (%),Screening priority,Priority band,Exposure band,Top driver')
+    expect(lines[0]).toBe('Rank,Hub,Region,Typical year (lost operating days),Bad year (lost operating days),Hurricane 10-yr chance (%),Screening priority,Priority level,Exposure level,Biggest risk')
     const south = scores.filter((r) => r.region === 'South').map((r) => r.name.replace(/ Hub$/, '')).sort((a, b) => a.localeCompare(b))
     expect(lines.slice(1).map((l) => l.split(',')[1])).toEqual(south)
     click.mockRestore()

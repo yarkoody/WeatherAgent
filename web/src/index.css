@@ -87,8 +87,9 @@
   --sky-2: #e2eee8;
   --glass: rgb(255 255 255 / 0.58);
   --glass-strong: rgb(255 255 255 / 0.78);
-  --glass-rim: rgb(255 255 255 / 0.7);
-  --glass-shadow: 0 12px 32px -14px rgb(27 42 53 / 0.22);
+  /* One crisp hairline and one soft shadow with no spread: no rim highlight, no second ring. */
+  --glass-line: rgb(27 42 53 / 0.09);
+  --glass-shadow: 0 4px 16px rgb(27 42 53 / 0.06);
   --background: #eef2f4;
   --foreground: #1b2a35;
   --card: #f8fafb;
@@ -150,8 +151,8 @@
   --sky-2: #14262a;
   --glass: rgb(26 38 49 / 0.62);
   --glass-strong: rgb(24 36 46 / 0.86);
-  --glass-rim: rgb(255 255 255 / 0.09);
-  --glass-shadow: 0 14px 34px -16px rgb(0 0 0 / 0.6);
+  --glass-line: rgb(255 255 255 / 0.08);
+  --glass-shadow: 0 4px 16px rgb(0 0 0 / 0.22);
   --background: #0f1820;
   --foreground: #e6edf2;
   --card: #182430;
@@ -179,14 +180,18 @@
     background: var(--glass);
     -webkit-backdrop-filter: blur(20px) saturate(1.5);
     backdrop-filter: blur(20px) saturate(1.5);
-    box-shadow:
-      inset 0 1px 0 var(--glass-rim),
-      0 0 0 1px color-mix(in oklab, var(--foreground) 6%, transparent),
-      var(--glass-shadow);
+    /* A real border follows the radius exactly; the background stops inside it, and isolation keeps the
+       backdrop blur clipped to the rounded box (no fringe bleeding past the corners in Chromium). */
+    border: 1px solid var(--glass-line);
+    background-clip: padding-box;
+    isolation: isolate;
+    box-shadow: var(--glass-shadow);
   }
   .glass-bar {
     background: var(--glass-strong);
-    box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 8%, transparent);
+    border: 0;
+    border-bottom: 1px solid var(--glass-line);
+    box-shadow: none;
   }
   /* Solid fallback where blur is unsupported or reduced transparency is requested. */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {

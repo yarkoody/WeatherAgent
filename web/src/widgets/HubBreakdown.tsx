@@ -1,7 +1,7 @@
 import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { ReadingGuide } from '@/components/ReadingGuide'
-import { LENS_EXPLAINER, badYearSteps, hubDetail, readingGuide } from '@/lib/explain'
+import { bandGapLine, hubDetail, readingGuide } from '@/lib/explain'
 import { HazardIcon } from '@/components/HazardIcon'
 import { ExportReportButton } from '@/components/PrintReport'
 import { HubReport } from '@/components/reports'
@@ -27,24 +27,32 @@ function CountUp({ value }: { value: number }) {
 /** Typical year and bad year side by side (the widget's "How to read this" explains both). Saved pre-v2 data has no bad year. */
 export function Lenses({ data: raw }: { data: HubScore }) {
   const data = useMemo(() => normalizeHub(raw), [raw])
+  // Same label row, same number size, same unit position: the two headline numbers always sit on one line.
   const number = 'heading-tight text-3xl leading-none font-semibold tracking-tight tabular-nums'
+  const unit = 'ml-1 text-xs font-normal tracking-normal text-muted-foreground'
   return (
-    <div className="flex items-end gap-x-7 gap-y-2">
+    <dl className="grid w-fit grid-cols-[repeat(2,auto)] gap-x-8" aria-label="Lost operating days">
       <div role="group" aria-label="Typical year">
-        <p className={number}>
-          <CountUp value={data.exposure_days_per_year} />
-        </p>
-        <p className="mt-1.5 text-xs text-muted-foreground">modeled lost days/yr, typical year (estimate)</p>
+        <dt className="text-xs text-muted-foreground">Typical year</dt>
+        <dd className={`mt-1.5 ${number}`}>
+          <span>
+            <CountUp value={data.exposure_days_per_year} />
+          </span>
+          <span className={unit}>days/yr</span>
+        </dd>
       </div>
       {typeof data.bad_year_days === 'number' && (
-        <div role="group" aria-label="Bad year (1 in 20)">
-          <p className={number}>
-            <CountUp value={data.bad_year_days} />
-          </p>
-          <p className="mt-1.5 text-xs text-muted-foreground">days in a bad year (1 in 20)</p>
+        <div role="group" aria-label="Bad year">
+          <dt className="text-xs text-muted-foreground">Bad year</dt>
+          <dd className={`mt-1.5 ${number}`}>
+            <span>
+              <CountUp value={data.bad_year_days} />
+            </span>
+            <span className={unit}>days/yr</span>
+          </dd>
         </div>
       )}
-    </div>
+    </dl>
   )
 }
 
@@ -75,7 +83,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
       title={
         <span className="flex items-center gap-1">
           {name} risk breakdown
-          <ReadingGuide legend={readingGuide(t)} steps={[...badYearSteps(data).slice(0, 1), LENS_EXPLAINER]} detail={hubDetail(data)} />
+          <ReadingGuide legend={readingGuide(t)} detail={hubDetail(data)} />
         </span>
       }
       note={`Data as of ${formatDate(data.data_as_of)}.`}
@@ -126,6 +134,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
           </div>
         </dl>
       </div>
+      {bandGapLine(data) && <p className="mt-2 text-xs text-muted-foreground">{bandGapLine(data)}</p>}
 
       <ChartContainer config={config} className="mt-4 aspect-auto w-full" style={{ height }} initialDimension={{ width: 560, height }}>
         <BarChart data={rows} layout="vertical" margin={{ top: 16, right: 12, bottom: 0, left: 0 }} barCategoryGap={6} accessibilityLayer>
@@ -165,7 +174,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
       </ChartContainer>
       <p className="text-[0.7rem] text-muted-foreground">
         Lost days by hazard{shares ? ', in a typical year and in the worst 1 year in 20' : ''}.{hasBadYear && !shares && ' Hatched: extra days in a bad year.'}
-        {cutoffs && ` Dashed lines: medium band from ${fmt(mediumDays, 2)} days, high from ${fmt(highDays, 2)} days a year.`}
+        {cutoffs && ` Dashed lines: medium level from ${fmt(mediumDays, 2)} days, high from ${fmt(highDays, 2)} days a year.`}
       </p>
 
       <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
@@ -175,7 +184,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
           const top = f === data.top_driver
           const isHurricane = f === 'hurricane' && hasHurricanePct
           return (
-            <li key={f} aria-label={fam.band ? `${FAMILY_LABEL[f]}: ${fam.band} band` : FAMILY_LABEL[f]} data-band={fam.band} className="flex items-start gap-2">
+            <li key={f} aria-label={fam.band ? `${FAMILY_LABEL[f]}: ${fam.band} level` : FAMILY_LABEL[f]} data-band={fam.band} className="flex items-start gap-2">
               <HazardIcon hazard={f} className="mt-0.5 size-4" />
               <span className="min-w-0">
                 <span className={`block ${top ? 'font-semibold' : ''}`}>{FAMILY_LABEL[f]}</span>
@@ -189,7 +198,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
                     </>
                   )}
                 </span>
-                {top && <span className="text-xs font-semibold text-isobar">Top driver</span>}
+                {top && <span className="text-xs font-semibold text-isobar">Biggest risk</span>}
               </span>
             </li>
           )

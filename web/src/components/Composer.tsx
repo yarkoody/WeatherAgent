@@ -41,7 +41,7 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
 
   return (
     <form ref={formRef} onSubmit={submit} className="w-full">
-      <InputGroup className="glass rounded-2xl border-0 bg-transparent">
+      <InputGroup className="glass rounded-2xl border-(--glass-line) bg-transparent">
         <InputGroupTextarea
           value={text}
           onChange={(e) => setText(e.target.value)}
