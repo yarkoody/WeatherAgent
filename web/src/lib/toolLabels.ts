@@ -46,6 +46,11 @@ export function toolLabel(name: string, input: Input, done: boolean): string {
       const what = costs && weights ? 'your weights and costs' : costs ? 'your upgrade costs' : 'your weights'
       return done ? `Re-ranked with ${what}` : `Re-ranking with ${what}`
     }
+    case 'web_search': {
+      const q = str(input?.query)
+      const what = q ? `: ${q.length > 60 ? `${q.slice(0, 59)}…` : q}` : ''
+      return done ? `Searched the web${what}` : `Searching the web${what}`
+    }
     default:
       return done ? `Ran ${name}` : `Running ${name}`
   }

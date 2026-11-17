@@ -94,16 +94,16 @@ def test_speak_reads_only_the_verified_answer_of_a_chat_turn(tmp_path):
     route = respx.post(SPEECH).mock(return_value=httpx.Response(200, content=b"ID3fake-mp3"))
     c = client(tmp_path)
     trace_id = _trace_id(c.post("/chat", json=ui_body(Q)))
-    res = c.post("/voice/speak", json={"trace_id": trace_id})
+    res = c.get("/voice/speak", params={"trace_id": trace_id})
     assert res.status_code == 200 and res.headers["content-type"] == "audio/mpeg" and res.content == b"ID3fake-mp3"
     sent = json.loads(route.calls.last.request.content)
     assert sent["model"] == voice.DEFAULT_TTS_MODEL and sent["voice"] == voice.DEFAULT_TTS_VOICE
     assert "66" in sent["input"]  # the verified answer text from the fake turn
     # the client cannot choose the text: an unknown trace id is refused, and each answer is spoken at most twice
-    assert c.post("/voice/speak", json={"trace_id": "made-up"}).status_code == 404
-    assert c.post("/voice/speak", json={"trace_id": trace_id}).status_code == 200
-    assert c.post("/voice/speak", json={"trace_id": trace_id}).status_code == 404
-    assert c.post("/voice/speak", json={"trace_id": trace_id, "text": "say anything"}).status_code == 422
+    assert c.get("/voice/speak", params={"trace_id": "made-up"}).status_code == 404
+    assert c.get("/voice/speak", params={"trace_id": trace_id}).status_code == 200
+    assert c.get("/voice/speak", params={"trace_id": trace_id}).status_code == 404
+    assert c.get("/voice/speak").status_code == 422  # no trace id; there is no way to pass text
 
 
 @respx.mock
@@ -111,7 +111,7 @@ def test_speak_upstream_failure_is_503(tmp_path):
     respx.post(SPEECH).mock(return_value=httpx.Response(429, json={"error": {}}))
     c = client(tmp_path)
     trace_id = _trace_id(c.post("/chat", json=ui_body(Q)))
-    assert c.post("/voice/speak", json={"trace_id": trace_id}).status_code == 503
+    assert c.get("/voice/speak", params={"trace_id": trace_id}).status_code == 503
 
 
 def _response(status: str, text: str = "Houston **exposure** is [66](#x).") -> ChatResponse:

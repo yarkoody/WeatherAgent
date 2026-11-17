@@ -5,12 +5,14 @@ import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupText, InputGroupTextarea } from '@/components/ui/input-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDictation } from '@/lib/voice'
+import { LiveButton, LiveStatus, LIVE_STATE_TEXT, type LiveView } from './LiveControls'
 
 const MAX = 2000
 
 export const COMPOSER_INPUT_ID = 'chat-composer-input'
 
-export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (text: string) => void; onStop: () => void }) {
+export function Composer({ busy, onSend, onStop, live }: { busy: boolean; onSend: (text: string) => void; onStop: () => void; live?: LiveView }) {
+  const liveOn = Boolean(live && live.state !== 'off')
   const [text, setText] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
   // Dictation appends to whatever was already typed.
@@ -46,13 +48,14 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
 
   return (
     <form ref={formRef} onSubmit={submit} className="w-full">
+      {live && <LiveStatus live={live} />}
       <InputGroup className="glass rounded-2xl border-(--glass-line) bg-transparent">
         <InputGroupTextarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           ref={input}
           onKeyDown={onKey}
-          placeholder={dictation.listening ? 'Listening…' : 'Ask about a hub, a hazard or a ranking'}
+          placeholder={liveOn && live ? `Live: ${LIVE_STATE_TEXT[live.state]}` : dictation.listening ? 'Listening…' : 'Ask about a hub, a hazard or a ranking'}
           id={COMPOSER_INPUT_ID}
           aria-label="Ask about hub weather risk"
           dir="auto"
@@ -93,6 +96,7 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
               <TooltipContent>Voice input needs a browser with speech recognition, such as Chrome, Edge or Safari.</TooltipContent>
             </Tooltip>
           )}
+          {live && <LiveButton live={live} disabled={dictation.listening} />}
           {dictation.listening && (
             <InputGroupText className="text-band-high-text" aria-live="polite">
               Listening…

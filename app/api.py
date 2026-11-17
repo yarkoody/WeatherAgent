@@ -93,11 +93,6 @@ async def remember_answer(chunks: AsyncIterator[str], info: dict[str, Any], spok
         yield chunk
 
 
-class SpeakRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    trace_id: str
-
-
 class UIChatRequest(BaseModel):
     """The useChat (AI SDK UI v5) request body. Extra fields (trigger, messageId, ...) are allowed."""
 
@@ -394,12 +389,16 @@ def create_app(
             log.warning("voice session failed: %s", exc)
             raise HTTPException(503, "Live voice is unavailable right now. Please type your question.") from exc
 
-    @app.post("/voice/speak")
-    async def voice_speak(body: SpeakRequest, request: Request) -> StreamingResponse:
-        """Speak the verified answer of a /chat turn (by its trace id) with OpenAI TTS, as streamed MP3."""
+    @app.get("/voice/speak")
+    async def voice_speak(trace_id: str, request: Request) -> StreamingResponse:
+        """Speak the verified answer of a /chat turn (by its trace id) with OpenAI TTS, as streamed MP3.
+
+        GET, so an <audio> element can play it while it streams. The id is a random turn id, not user data;
+        the text is never taken from the client.
+        """
         key = voice_key()
         limit(request, speak_limiter)
-        text = spoken.take(body.trace_id)
+        text = spoken.take(trace_id[:64])
         if text is None:
             raise HTTPException(404, "No verified answer to speak for this turn.")
         try:

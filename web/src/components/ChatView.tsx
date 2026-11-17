@@ -23,8 +23,9 @@ import { compactHistory } from '@/lib/chats'
 import { NoMotion, useReducedMotion } from '@/lib/motion'
 import { loadMessages, saveMessages } from '@/lib/session'
 import { textDir } from '@/lib/textDir'
-import { stopSpeaking } from '@/lib/voice'
-import { AssistantMessage, NoAnswer, normalizeQuestion, toolParts } from './AssistantMessage'
+import { answerSpeech, stopSpeaking } from '@/lib/voice'
+import { useLiveVoice } from '@/lib/liveVoice'
+import { AssistantMessage, NoAnswer, answerPart, normalizeQuestion, toolParts } from './AssistantMessage'
 import { COMPOSER_INPUT_ID, Composer } from './Composer'
 import { AskProvider } from '@/lib/ask'
 import { isToolUIPart } from 'ai'
@@ -106,6 +107,23 @@ function ChatThread({ sessionId }: { sessionId: string }) {
     // Keep focus in the composer: a clicked chip unmounts, and focus must not fall back to the page.
     document.getElementById(COMPOSER_INPUT_ID)?.focus({ preventScroll: true })
   }
+  // Live voice: each finished utterance is a normal question (tools + grounding); the verified answer is then spoken.
+  const live = useLiveVoice(send)
+  const liveOn = live.state !== 'off'
+  const wasBusy = useRef(busy)
+  useEffect(() => {
+    if (busy && !wasBusy.current) live.live.thinking()
+    if (!busy && wasBusy.current) {
+      const last = messages.at(-1)
+      const response = last?.role === 'assistant' ? answerPart(last) : null
+      live.live.answered(response?.trace_id ?? null, response ? answerSpeech(response) : '')
+    }
+    wasBusy.current = busy
+  }, [busy, messages, live.live])
+  // Live mode replaces the browser's read-aloud voice.
+  useEffect(() => {
+    if (liveOn) stopSpeaking()
+  }, [liveOn])
   // While the request is in flight there is no assistant message yet: show its steps placeholder.
   const thread = status === 'submitted' && messages.at(-1)?.role === 'user' ? [...messages, PENDING] : messages
   const lastId = thread.at(-1)?.id
@@ -208,7 +226,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
       </div>
       <div className="relative z-10">
         <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6">
-          <Composer busy={busy} onSend={send} onStop={stop} />
+          <Composer busy={busy} onSend={send} onStop={stop} live={live} />
           <p className="mt-1.5 text-center text-[0.7rem] text-muted-foreground">
             Scores come from a fixed data snapshot. Figures are checked against the scoring data they cite.
           </p>
