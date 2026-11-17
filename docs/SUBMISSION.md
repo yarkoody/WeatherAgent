@@ -15,7 +15,7 @@ An AI agent for a logistics company's analysts. It answers which US distribution
 ## Evidence that it works
 - **Evals:** 47 cases against the real model, with expected values computed by the scoring code: the brief's four questions word for word, paraphrases, follow-ups, determinism, a false premise, missing data, prompt injection, recommendations, what-if and web search. Final run: 46/47. The one miss passed 3/3 when re-run alone (a retry left an optional field empty). Tool selection 46/46, grounding passed first try in 53/54 turns and after one retry in the other, 10.7 s per turn on average, about $2.11 for the run.
 - **Reviews and live checks:** every part was reviewed independently before merge (`docs/reviews/`), and `docs/ASSIGNMENT_COVERAGE.md` maps each line of the brief to where it is met and how it was checked on the live site.
-- **Second opinion (development only):** an offline cross-check against TypeSafe's JEV decision model exposed miscalibrated hazard bands in v1; agreement rose from 40% to 65% in v2.
+- **Second opinion, not used in the product:** I cross-checked the hazard bands offline against TypeSafe's JEV decision model. It helped once during development: it exposed miscalibrated bands in v1, and agreement rose from 40% to 65% in v2. An earlier version showed its agreement score in the app, and I removed it, because it added nothing an analyst could act on. It never affects a score or an answer.
 
 ## Key decisions
 - **A bounded agent, not a router workflow:** analysts ask open, combined questions. Numbers stay in code.
