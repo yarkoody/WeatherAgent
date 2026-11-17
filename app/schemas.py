@@ -246,6 +246,8 @@ class Figure(Strict):
     value: float = Field(description="The number exactly as a tool returned it.")
     unit: str = Field(description="Unit, e.g. '%', 'days', 'score 0-100', 'events/year'.")
     source_tool: str = Field(description="Name of the tool call that returned this number.")
+    source_field: str = Field(description="The exact field name in that tool's result that holds this number, e.g. 'priority', 'bad_year_days', 'hurricane_10yr_probability_pct', 'days_per_year', 'value'.")
+    family: Family | None = Field(description="The hazard family the number belongs to when the field sits inside a family (e.g. families.winter.days_per_year); otherwise null.")
 
 
 class AgentAnswer(Strict):
