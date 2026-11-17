@@ -117,6 +117,7 @@ class Ranking(Strict):
     hazard: Hazard
     region: Region | None
     items: list[RankedHub]
+    total: int = 0  # hubs matching the filter before top_n, so the UI can say "top 5 of 6"
     band_thresholds: BandThresholds
     data_as_of: str
 
