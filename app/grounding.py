@@ -31,6 +31,18 @@ _NUMBER = re.compile(
 )
 _MULTIPLIER = {"k": 1e3, "thousand": 1e3, "m": 1e6, "million": 1e6, "b": 1e9, "bn": 1e9, "billion": 1e9}
 # ISO dates and timestamps ("data as of 2026-11-17") are not figures.
+# Names with digits joined by hyphens ("gpt-6.1-sol", "v2-tvar", "I-35") are identifiers, not figures.
+_IDENTIFIER = re.compile(r"\b[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9.]*[A-Za-z0-9])+")
+
+
+_SCALE = re.compile(r"\b0\s*(?:-|to)\s*100\b")  # "a 0-100 index" names the scale, it is not a figure
+
+
+def _strip_identifiers(text: str) -> str:
+    text = _SCALE.sub(" ", text)
+    return _IDENTIFIER.sub(lambda m: " " if any(c.isdigit() for c in m.group(0)) else m.group(0), text)
+
+
 _ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?\b")
 
 
@@ -269,6 +281,11 @@ def check(answer: AgentAnswer, tool_results: list[Any], expected_ranking: list[s
     errors: list[str] = []
     outputs = [_as_output(item) for item in tool_results]
     indexed = [(o.tool, leaves(o.result)) for o in outputs]
+    if not answer.data_available and answer.figures:
+        errors.append(
+            "A no-data answer (data_available false) must not cite figures. Remove the figures and the numbers "
+            "from the text, or set data_available true if the tools did return what was asked."
+        )
     for f in answer.figures:
         error = _figure_error(f, _bound_values(f, indexed))
         if error:
@@ -276,7 +293,7 @@ def check(answer: AgentAnswer, tool_results: list[Any], expected_ranking: list[s
 
     figure_values = [f.value for f in answer.figures]
     for field, text in _text_fields(answer):
-        for m in _NUMBER.finditer(_ISO_DATE.sub(" ", text)):
+        for m in _NUMBER.finditer(_strip_identifiers(_ISO_DATE.sub(" ", text))):
             if _is_exempt(m) or _text_number_found(m, figure_values):
                 continue
             errors.append(f"The {field} text mentions {m.group(0)}, which is not in figures. Add it to figures or remove it.")
@@ -295,7 +312,7 @@ def check(answer: AgentAnswer, tool_results: list[Any], expected_ranking: list[s
 
 def drop_ungrounded_figures(answer: AgentAnswer, tool_results: list[Any]) -> AgentAnswer:
     indexed = [(o.tool, leaves(o.result)) for o in map(_as_output, tool_results)]
-    kept = [f for f in answer.figures if _figure_error(f, _bound_values(f, indexed)) is None]
+    kept = [f for f in answer.figures if answer.data_available and _figure_error(f, _bound_values(f, indexed)) is None]
     return answer.model_copy(update={"figures": kept})
 
 

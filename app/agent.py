@@ -14,6 +14,9 @@ Answer text is never streamed: `stream_turn` forwards tool progress only, then o
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import functools
 import importlib
 import inspect
 import json
@@ -43,6 +46,21 @@ from app.schemas import AgentAnswer, ChatResponse, Grounding, ToolError
 from app.store import Store, Tracer
 
 SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "system.md").read_text(encoding="utf-8")
+_SNAPSHOT_META = Path(__file__).resolve().parent.parent / "data" / "snapshot" / "nri.json"
+
+
+@functools.lru_cache(maxsize=1)
+def _data_as_of() -> str:
+    try:
+        with _SNAPSHOT_META.open(encoding="utf-8") as f:
+            return str(json.load(f).get("fetched_at", ""))[:10] or "unknown"
+    except (OSError, ValueError):
+        return "unknown"
+
+
+def system_prompt(model_id: str) -> str:
+    """The system prompt with the facts that change per deployment (model id, snapshot date)."""
+    return SYSTEM_PROMPT.replace("$MODEL_ID", model_id).replace("$DATA_AS_OF", _data_as_of())
 MAX_STEPS = 6
 MAX_OUTPUT_TOKENS = 2000
 # Low effort is enough: the code does the scoring, the model picks tools and writes the JSON answer.
@@ -391,7 +409,7 @@ async def _turn_events(
             prior_tool_results=prior,
         )
         user = ai.user_message(message)
-        async with agent.run(model, [ai.system_message(SYSTEM_PROMPT), *history, user]) as stream:
+        async with agent.run(model, [ai.system_message(system_prompt(model.id)), *history, user]) as stream:
             async for event in stream:
                 yield event
     except BaseException as exc:
@@ -448,6 +466,66 @@ def _tool_input(args: str) -> Any:
         return args
 
 
+KEEPALIVE_SECONDS = 10.0
+KEEPALIVE_SSE = ": keepalive\n\n"  # an SSE comment: the AI SDK UI client ignores it
+_END = object()
+
+
+async def with_keepalive(source: AsyncIterator[str], interval: float = KEEPALIVE_SECONDS) -> AsyncIterator[str]:
+    """Pass SSE chunks through, adding a comment line when none was sent for `interval` seconds.
+
+    Proxies (Render, Cloudflare) close a stream that stays silent while a slow tool or model call runs.
+    The source runs in one producer task: the turn opens task groups and context variables that break
+    if each chunk were awaited from a different task. Order is unchanged, and nothing follows [DONE].
+    Closing this generator (the client went away) cancels the producer, which closes the source.
+    """
+    queue: asyncio.Queue[Any] = asyncio.Queue()
+
+    async def produce() -> None:
+        try:
+            async for chunk in source:
+                await queue.put(chunk)
+        except BaseException as exc:  # handed to the consumer, which re-raises it
+            await queue.put(exc)
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+        else:
+            await queue.put(_END)
+        finally:
+            aclose = getattr(source, "aclose", None)
+            if aclose is not None:
+                await aclose()
+
+    producer = asyncio.create_task(produce())
+    done_sent = False
+    try:
+        while True:
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=interval)
+            except TimeoutError:
+                if not done_sent:
+                    yield KEEPALIVE_SSE
+                continue
+            if item is _END:
+                return
+            if isinstance(item, BaseException):
+                raise item
+            done_sent = done_sent or item == format_done_sse()
+            yield item
+    finally:
+        if not producer.done():
+            producer.cancel()
+        with contextlib.suppress(BaseException):
+            await producer
+
+
+def _must_propagate(exc: BaseException) -> bool:
+    if isinstance(exc, (GeneratorExit, KeyboardInterrupt, SystemExit)):
+        return True
+    task = asyncio.current_task()
+    return task is not None and task.cancelling() > 0  # someone cancelled this task: stop, do not answer
+
+
 async def stream_turn(
     message: str,
     session_id: str | None,
@@ -458,8 +536,13 @@ async def stream_turn(
     max_steps: int = MAX_STEPS,
     registry: Any | None = None,
     client_history: list[dict] | None = None,
+    info: dict[str, Any] | None = None,
 ) -> AsyncIterator[str]:
-    """AI SDK UI message stream (SSE strings): tool parts, one data-answer part, finish, [DONE]."""
+    """AI SDK UI message stream (SSE strings): tool parts, one data-answer part, finish, [DONE].
+
+    `info`, if given, gets trace_id, tools (tool calls sent) and outcome ("completed" or "error") for logging.
+    """
+    info = info if info is not None else {}
     holder: dict[str, Any] = {}
     calls: dict[str, ai.messages.ToolCallPart] = {}
     inputs_sent: set[str] = set()
@@ -493,9 +576,13 @@ async def stream_turn(
                         UIToolInputAvailableEvent(tool_call_id=part.tool_call_id, tool_name=part.tool_name, input=_tool_input(part.tool_args))
                     )
             yield format_sse(ui)
-    except Exception as exc:
+    except BaseException as exc:
         # Already traced in _turn_events. The contract still holds: exactly one data-answer part,
-        # here an apology flagged "failed", then finish and [DONE].
+        # here an apology flagged "failed", then finish and [DONE]. That covers anything raised inside
+        # the turn after tools ran, including a CancelledError from an SDK task group (not an Exception).
+        # Only a cancellation of this task itself (the client went away) or interpreter exit propagates.
+        if _must_propagate(exc):
+            raise
         while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
             exc = exc.exceptions[0]
         holder["response"] = ChatResponse(
@@ -505,6 +592,10 @@ async def stream_turn(
             trace_id=holder.get("trace_id") or uuid.uuid4().hex,
         )
         finish = []
+        info["outcome"] = "error"
+    info.setdefault("outcome", "completed")
+    info["trace_id"] = holder["response"].trace_id
+    info["tools"] = len(inputs_sent)
     if not started:
         yield format_sse(UIStartEvent())
     yield format_sse(UIDataEvent(data_type="answer", data=holder["response"].model_dump(mode="json")))

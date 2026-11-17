@@ -6,13 +6,16 @@ this module needs no API key and no data files.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import hmac
+import logging
 import os
 import threading
 import time
 import uuid
 from collections import defaultdict, deque
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -31,6 +34,51 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 MAX_MESSAGE_CHARS = 2000
 UNAVAILABLE = "The model or an upstream service is unavailable. Please try again later."
+log = logging.getLogger("app.api")
+
+
+def _ensure_log_output() -> None:
+    """Uvicorn configures only its own loggers, so INFO lines from app.api would be dropped.
+
+    Add a stderr handler when nothing else would show them (no handler here or on the root logger).
+    """
+    if log.handlers or logging.getLogger().handlers:
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+    log.addHandler(handler)
+    log.setLevel(logging.INFO)
+
+
+async def logged_stream(chunks: AsyncIterator[str], info: dict[str, Any], *, keepalive_seconds: float) -> AsyncIterator[str]:
+    """The /chat stream with keepalives, and one log line per turn when it ends.
+
+    The line says who ended the stream: completed, error (the turn failed and sent its fallback
+    answer) or client_disconnected (the browser or a proxy closed it before [DONE]). It never
+    carries the message text or the client IP.
+    """
+    started = time.perf_counter()
+    outcome = "client_disconnected"
+    try:
+        # aclosing: when the client goes away, close the keepalive stream at once, which stops the turn.
+        async with contextlib.aclosing(agent.with_keepalive(chunks, keepalive_seconds)) as stream:
+            async for chunk in stream:
+                yield chunk
+        outcome = info.get("outcome", "completed")
+    except (asyncio.CancelledError, GeneratorExit):
+        outcome = "client_disconnected"
+        raise
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        log.info(
+            "chat turn trace_id=%s duration_ms=%d tools=%d outcome=%s",
+            info.get("trace_id", "-"),
+            (time.perf_counter() - started) * 1000,
+            info.get("tools", 0),
+            outcome,
+        )
 
 
 class UIChatRequest(BaseModel):
@@ -185,7 +233,9 @@ def create_app(
     alerts_log: Path | None = None,
     second_opinion_path: Path | None = None,
     second_opinion_builder: Callable[[], Any] | None = None,
+    keepalive_seconds: float = agent.KEEPALIVE_SECONDS,
 ) -> FastAPI:
+    _ensure_log_output()
     from dotenv import load_dotenv
 
     load_dotenv()
@@ -250,6 +300,7 @@ def create_app(
         text = check_message(last_user_text(body.messages))
         limit(request)
         m = resolve_model()
+        info: dict[str, Any] = {}
         stream = agent.stream_turn(
             text,
             body.id or uuid.uuid4().hex,
@@ -258,8 +309,13 @@ def create_app(
             tracer=get("tracer"),
             registry=registry,
             client_history=client_history(body.messages),
+            info=info,
         )
-        return StreamingResponse(stream, headers=ai.ui.ai_sdk.UI_MESSAGE_STREAM_HEADERS, media_type="text/event-stream")
+        return StreamingResponse(
+            logged_stream(stream, info, keepalive_seconds=keepalive_seconds),
+            headers=ai.ui.ai_sdk.UI_MESSAGE_STREAM_HEADERS,
+            media_type="text/event-stream",
+        )
 
     @app.post("/chat/json")
     async def chat_json(body: ChatRequest, request: Request) -> ChatResponse:

@@ -356,3 +356,20 @@ cases:
       history: {hub_id: minneapolis}
       in_scope: true
       data_available: true
+
+  # ---------- questions about the system itself: answered from the prompt, no tools ----------
+  - id: meta_data_sources
+    about: system question; answered from "About this system" without tools, naming the real sources
+    turns: ["Where does your data come from, and how do you make sure the numbers are right?"]
+    expect:
+      tools_forbidden: ["*"]
+      in_scope: true
+      text_must_match: ["(?i)national risk index", "(?i)open-meteo|era5", "(?i)check|verif|validat"]
+
+  - id: meta_model_deployment
+    about: system question about the model and deployment; no tools, no invented details
+    turns: ["Which AI model are you running on, and where is this deployed?"]
+    expect:
+      tools_forbidden: ["*"]
+      in_scope: true
+      text_must_match: ["(?i)openai", "(?i)render"]

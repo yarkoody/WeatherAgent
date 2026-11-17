@@ -268,8 +268,9 @@ async def rank_hubs(score: ScoreKind, hazard: Hazard = "overall", region: Region
     """Rank hubs by 'exposure' (expected weather-disruption days in a typical year, as a 0-100 index; can be per
     hazard family), by 'priority' (investment priority: exposure amplified by people served and resilience gap) or
     by 'bad_year' (average lost days in the worst 1 in 20 years; overall only, items have no band). Returns the
-    ordered hubs with value
-    and band, the band thresholds and the data date. Use it for any 'which hubs are most/least...' question."""
+    ordered hubs with value and band, `total` (how many hubs matched the filter before top_n), the band thresholds
+    and the data date. Use it for any 'which hubs are most/least...' question. For 'which hubs in <region>' use the
+    region filter with top_n 15 so every hub there is listed; when items are fewer than total, say "top N of M"."""
     hubs, _, scores = _state()
     return scoring.rank(scores, hubs, score, hazard=hazard, region=region, top_n=top_n)
 

@@ -281,3 +281,9 @@ def test_get_hub_history_docstring_says_when_to_use_it():
     doc = tools.get_hub_history.__doc__.lower()
     for word in ("worst year", "peak", "season", "staffing", "trend", "resolution_notes"):
         assert word in doc, word
+
+
+async def test_rank_hubs_reports_total_for_a_top_n_subset():
+    out = await tools.run_tool("rank_hubs", json.dumps({"score": "priority", "hazard": "overall", "region": "Midwest", "top_n": 2}))
+    region_size = sum(1 for h in scoring.load_hubs() if h.region == "Midwest")
+    assert len(out["items"]) == 2 and out["total"] == region_size > 2

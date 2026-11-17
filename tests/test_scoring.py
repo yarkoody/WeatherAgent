@@ -481,3 +481,12 @@ def test_hub_history_note_and_unknown_hub():
     assert "hurricanes are not captured" in h.note and "ERA5" in h.note
     with pytest.raises(DataUnavailable):
         scoring.hub_history(HUBS, SNAPSHOT, "nowhere")
+
+
+def test_rank_total_counts_matching_hubs_before_top_n(scores):
+    everyone = scoring.rank(scores, HUBS, "priority")
+    assert everyone.total == len(HUBS) == len(everyone.items)
+    top_one = scoring.rank(scores, HUBS, "priority", top_n=1)
+    assert len(top_one.items) == 1 and top_one.total == len(HUBS)
+    midwest = scoring.rank(scores, HUBS, "priority", region="Midwest", top_n=15)
+    assert midwest.total == len(midwest.items) == 1

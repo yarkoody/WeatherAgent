@@ -369,3 +369,70 @@ def test_chat_rebuilds_history_when_store_is_empty(tmp_path):
     assert [(m.role, m.text) for m in model.calls[0] if m.role != "system"] == [
         ("user", "Which hub is most exposed?"), ("assistant", RESTORED_NOTE + "Miami is most exposed."), ("user", Q)
     ]
+
+
+# ---------- keepalive and per-turn logging ----------
+
+
+def slow_registry(delay):
+    import asyncio
+    from types import SimpleNamespace
+
+    async def run_tool(name, arguments_json):
+        await asyncio.sleep(delay)
+        return await fakes.run_tool(name, arguments_json)
+
+    return SimpleNamespace(TOOL_FUNCTIONS=fakes.TOOL_FUNCTIONS, ARG_MODELS=fakes.ARG_MODELS, run_tool=run_tool)
+
+
+def test_chat_sends_keepalive_during_a_slow_tool_and_keeps_the_order(tmp_path):
+    app = create_app(
+        model=ai.testing.FakeModel(script()), store=Store(tmp_path / "a.db"), tracer=Tracer(tmp_path / "t.jsonl"),
+        registry=slow_registry(0.3), keepalive_seconds=0.05,
+    )
+    res = TestClient(app).post("/chat", json=ui_body(Q))
+    assert res.status_code == 200
+    chunks = [c for c in res.text.split("\n\n") if c]
+    assert ": keepalive" in chunks
+    data = [c for c in chunks if c.startswith("data: ")]
+    assert data[-1] == "data: [DONE]"
+    types = [json.loads(c[6:])["type"] for c in data[:-1]]
+    assert types[0] == "start" and types[-2:] == ["data-answer", "finish"] and types.count("data-answer") == 1
+    assert chunks.index(": keepalive") < chunks.index("data: [DONE]")
+
+
+def test_chat_turn_is_logged_without_text_or_ip(tmp_path, caplog):
+    import logging
+
+    caplog.set_level(logging.INFO, logger="app.api")
+    res = client(tmp_path).post("/chat", json=ui_body(Q), headers={"X-Forwarded-For": "8.8.4.4"})
+    trace_id = json.loads(next(c for c in res.text.split("\n\n") if '"data-answer"' in c)[6:])["data"]["trace_id"]
+    lines = [r.getMessage() for r in caplog.records if r.name == "app.api" and "chat turn" in r.getMessage()]
+    assert len(lines) == 1
+    assert f"trace_id={trace_id}" in lines[0] and "tools=1" in lines[0] and "outcome=completed" in lines[0]
+    assert "duration_ms=" in lines[0] and Q not in lines[0] and "8.8.4.4" not in lines[0]
+
+
+async def test_client_disconnect_is_logged_and_stops_the_turn(caplog):
+    import asyncio
+    import logging
+
+    from app.api import logged_stream
+
+    closed: list[str] = []
+
+    async def turn():
+        try:
+            yield 'data: {"type": "start"}\n\n'
+            await asyncio.sleep(5)
+            yield "data: [DONE]\n\n"
+        finally:
+            closed.append("closed")
+
+    caplog.set_level(logging.INFO, logger="app.api")
+    stream = logged_stream(turn(), {"trace_id": "t-1", "tools": 0}, keepalive_seconds=1.0)
+    assert (await stream.__anext__()).startswith("data:")
+    await stream.aclose()  # what Starlette does when the client goes away
+    assert closed == ["closed"]
+    lines = [r.getMessage() for r in caplog.records if "chat turn" in r.getMessage()]
+    assert len(lines) == 1 and "trace_id=t-1" in lines[0] and "outcome=client_disconnected" in lines[0]

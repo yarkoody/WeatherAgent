@@ -523,7 +523,7 @@ def rank(
         for i, (hub_id, v) in enumerate(_ordered(values)[:top_n], start=1)
     ]
     data_as_of = next(iter(scores.values())).data_as_of if scores else ""
-    return Ranking(kind=kind, hazard=hazard, region=region, items=items,
+    return Ranking(kind=kind, hazard=hazard, region=region, items=items, total=len(values),
                    band_thresholds=_thresholds(config), data_as_of=data_as_of)
 
 
