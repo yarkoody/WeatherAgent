@@ -4,7 +4,9 @@ TypeSafe's JEV decision model gets only the raw signals of one hub (FEMA NRI ann
 frequencies, observed day counts, county area), never our scores, indexes, bands, weights or
 days-per-event assumptions, and not the hub's name. Its score (the expected rubric level, 0 = low to
 2 = high) is scaled to 0-1, mapped to bands with the same cut-offs as our 0-100 index
-(0.35 / 0.60) and compared with our family band.
+(0.35 / 0.60) and compared with our family band (formula v2: by days per year;
+hurricane by 10-year probability). Spearman rank correlation per family compares the order of
+hubs (JEV score vs our family days per year), which band agreement cannot.
 
 It never feeds scores or rankings: it is a cross-check an analyst can review. One `evaluate`
 call per hub asks four questions (one per family), so a full run is 15 calls. The TypeSafe
@@ -53,6 +55,29 @@ def normalize_score(score: float, levels: int = len(CRITERIA)) -> float:
     """JEV's ScoreAnswer.score is the expected rubric level (sum of level x probability, levels 0..n-1),
     so 0 = low and 2 = high for three criteria. Divide by n-1 for a 0-1 fraction."""
     return min(max(score / (levels - 1), 0.0), 1.0)
+
+
+def _ranks(values: list[float]) -> list[float]:
+    order = sorted(range(len(values)), key=lambda i: values[i])
+    ranks = [0.0] * len(values)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and values[order[j + 1]] == values[order[i]]:
+            j += 1
+        for k in range(i, j + 1):
+            ranks[order[k]] = (i + j) / 2 + 1  # ties share the average rank
+        i = j + 1
+    return ranks
+
+
+def spearman(a: list[float], b: list[float]) -> float | None:
+    """Rank correlation; None when either side has no variation."""
+    ra, rb = _ranks(a), _ranks(b)
+    ma, mb = sum(ra) / len(ra), sum(rb) / len(rb)
+    cov = sum((x - ma) * (y - mb) for x, y in zip(ra, rb))
+    va, vb = sum((x - ma) ** 2 for x in ra), sum((y - mb) ** 2 for y in rb)
+    return round(cov / (va * vb) ** 0.5, 2) if va and vb else None
 
 
 def band_from_score(score: float) -> Band:
@@ -109,7 +134,9 @@ async def _default_evaluate(model: Any, state: Any, qs: Any) -> Any:
     return await ai.ops.experimental.evaluate(model, state, qs)
 
 
-async def build_second_opinion(*, evaluate_fn=None, model=None, stats: list[dict] | None = None) -> SecondOpinion:
+async def build_second_opinion(
+    *, evaluate_fn=None, model=None, stats: list[dict] | None = None, concurrency: int = CONCURRENCY
+) -> SecondOpinion:
     """Rate every hub and family with JEV and compare with our bands.
 
     `evaluate_fn` and `model` are injectable for tests; `stats`, if given, receives one dict per
@@ -119,7 +146,7 @@ async def build_second_opinion(*, evaluate_fn=None, model=None, stats: list[dict
     model = model if model is not None else default_model()
     hubs, snapshot = scoring.load_hubs(), scoring.load_snapshot()
     scores = scoring.score_all(hubs, snapshot)
-    sem = asyncio.Semaphore(CONCURRENCY)
+    sem = asyncio.Semaphore(concurrency)
     model_ids: set[str] = set()  # the version the provider reports (e.g. jev-1.14.0), not the alias
 
     async def rate(hub) -> JevHubOpinion:
@@ -143,7 +170,7 @@ async def build_second_opinion(*, evaluate_fn=None, model=None, stats: list[dict
         families = []
         for f in FAMILIES:
             jev_score = normalize_score(float(answers[f].score))
-            ours = scoring.band(s.families[f].score)
+            ours = s.families[f].band  # v2: per-family band (days per year; hurricane by 10-year probability)
             jev = band_from_score(jev_score)
             families.append(JevFamilyOpinion(family=f, jev_band=jev, jev_score_pct=round(jev_score * 100, 1),
                                              our_band=ours, agrees=jev == ours))
@@ -151,6 +178,13 @@ async def build_second_opinion(*, evaluate_fn=None, model=None, stats: list[dict
         return JevHubOpinion(hub_id=hub.id, name=hub.name, families=families, agree_count=agree, total=len(families))
 
     rated = await asyncio.gather(*(rate(h) for h in sorted(hubs, key=lambda h: h.id)))
+    jev_pct = {(h.hub_id, f.family): f.jev_score_pct for h in rated for f in h.families}
+    correlation: dict[str, float] = {}
+    for f in FAMILIES:
+        ids = sorted(scores)
+        rho = spearman([scores[i].families[f].days_per_year for i in ids], [jev_pct[(i, f)] for i in ids])
+        if rho is not None:  # constant on either side: no order to compare
+            correlation[f] = rho
     agree = sum(h.agree_count for h in rated)
     total = sum(h.total for h in rated)
     return SecondOpinion(
@@ -161,5 +195,6 @@ async def build_second_opinion(*, evaluate_fn=None, model=None, stats: list[dict
         agree_count=agree,
         total=total,
         agreement_pct=round(100 * agree / total, 1) if total else 0.0,
+        rank_correlation=correlation or None,
         note=NOTE,
     )
