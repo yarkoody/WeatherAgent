@@ -1,0 +1,24 @@
+data: {"type": "start", "messageId": "msg_bbe823af5bc1"}
+
+data: {"type": "start-step"}
+
+data: {"toolCallId": "call_bc0b7e8dd920", "toolName": "get_active_alerts", "type": "tool-input-start"}
+
+data: {"toolCallId": "call_bc0b7e8dd920", "inputTextDelta": "{\"hub_id\": \"houston\"}", "type": "tool-input-delta"}
+
+data: {"toolCallId": "call_bc0b7e8dd920", "toolName": "get_active_alerts", "input": {"hub_id": "houston"}, "type": "tool-input-available"}
+
+data: {"toolCallId": "call_bc0b7e8dd920", "output": {"hub_id": "houston", "alerts": [{"event": "Flood Watch", "severity": "Moderate", "headline": "Flood Watch issued November 17 at 3:12PM CST until November 18 at 6:00PM CST by NWS Houston/Galveston TX", "expires": "2026-11-18T18:00:00-06:00"}, {"event": "Wind Advisory", "severity": "Minor", "headline": "Wind Advisory issued November 17 at 3:05PM CST until November 17 at 9:00PM CST by NWS Houston/Galveston TX", "expires": "2026-11-17T21:00:00-06:00"}], "fetched_at": "2026-11-17T21:40:00+00:00"}, "type": "tool-output-available"}
+
+data: {"type": "finish-step"}
+
+data: {"type": "start-step"}
+
+data: {"type": "finish-step"}
+
+data: {"data": {"session_id": "mock-alerts", "answer": {"answer": "Houston has **2 active NWS alerts** right now: a Flood Watch and a Wind Advisory. Live alerts do not change the multi-year scores.", "hubs": ["houston"], "ranking": null, "figures": [], "assumptions": [], "uncertainty": "NWS alerts are live and change quickly; fetched at 2026-11-17T21:40:00+00:00.", "data_available": true, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "40db2d36707a44f3bbdd24097d1e6f70"}, "type": "data-answer"}
+
+data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_bbe823af5bc1", "role": "assistant", "turnId": null, "partIds": ["call_bc0b7e8dd920"]}, {"id": "msg_3604dc3f68a5", "role": "tool", "turnId": null, "partIds": ["part_afee39d387e3"]}, {"id": "msg_969ed9eb711d", "role": "assistant", "turnId": null, "partIds": ["part_2fdd034d90ad"]}]}}}
+
+data: [DONE]
+

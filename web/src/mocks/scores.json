@@ -1,6 +1,152 @@
 [
-  { "hub_id": "houston", "name": "Houston TX", "region": "South", "exposure": 71.3, "exposure_band": "high", "priority": 70.1, "priority_band": "high", "top_driver": "flood" },
-  { "hub_id": "chicago", "name": "Chicago IL", "region": "Midwest", "exposure": 63.0, "exposure_band": "high", "priority": 62.4, "priority_band": "high", "top_driver": "winter" },
-  { "hub_id": "dallas", "name": "Dallas TX", "region": "South", "exposure": 55.6, "exposure_band": "medium", "priority": 59.8, "priority_band": "medium", "top_driver": "severe_storm" },
-  { "hub_id": "phoenix", "name": "Phoenix AZ", "region": "West", "exposure": 30.2, "exposure_band": "low", "priority": 44.9, "priority_band": "medium", "top_driver": "flood" }
+  {
+    "hub_id": "chicago",
+    "name": "Chicago Hub",
+    "region": "Midwest",
+    "exposure": 67.8,
+    "exposure_band": "high",
+    "priority": 69.7,
+    "priority_band": "high",
+    "top_driver": "winter"
+  },
+  {
+    "hub_id": "houston",
+    "name": "Houston Hub",
+    "region": "South",
+    "exposure": 54.2,
+    "exposure_band": "medium",
+    "priority": 68.5,
+    "priority_band": "high",
+    "top_driver": "flood"
+  },
+  {
+    "hub_id": "minneapolis",
+    "name": "Minneapolis Hub",
+    "region": "Midwest",
+    "exposure": 100.0,
+    "exposure_band": "high",
+    "priority": 66.7,
+    "priority_band": "high",
+    "top_driver": "winter"
+  },
+  {
+    "hub_id": "dallas",
+    "name": "Dallas Hub",
+    "region": "South",
+    "exposure": 53.7,
+    "exposure_band": "medium",
+    "priority": 58.3,
+    "priority_band": "medium",
+    "top_driver": "flood"
+  },
+  {
+    "hub_id": "newark",
+    "name": "Newark Hub",
+    "region": "Northeast",
+    "exposure": 68.4,
+    "exposure_band": "high",
+    "priority": 56.2,
+    "priority_band": "medium",
+    "top_driver": "flood"
+  },
+  {
+    "hub_id": "los_angeles",
+    "name": "Los Angeles Hub",
+    "region": "West",
+    "exposure": 28.9,
+    "exposure_band": "low",
+    "priority": 55.3,
+    "priority_band": "medium",
+    "top_driver": "flood"
+  },
+  {
+    "hub_id": "kansas_city",
+    "name": "Kansas City Hub",
+    "region": "Midwest",
+    "exposure": 71.4,
+    "exposure_band": "high",
+    "priority": 53.4,
+    "priority_band": "medium",
+    "top_driver": "winter"
+  },
+  {
+    "hub_id": "detroit",
+    "name": "Detroit Hub",
+    "region": "Midwest",
+    "exposure": 61.8,
+    "exposure_band": "high",
+    "priority": 52.2,
+    "priority_band": "medium",
+    "top_driver": "winter"
+  },
+  {
+    "hub_id": "miami",
+    "name": "Miami Hub",
+    "region": "South",
+    "exposure": 41.3,
+    "exposure_band": "medium",
+    "priority": 46.8,
+    "priority_band": "medium",
+    "top_driver": "flood"
+  },
+  {
+    "hub_id": "columbus",
+    "name": "Columbus Hub",
+    "region": "Midwest",
+    "exposure": 57.3,
+    "exposure_band": "medium",
+    "priority": 46.2,
+    "priority_band": "medium",
+    "top_driver": "winter"
+  },
+  {
+    "hub_id": "indianapolis",
+    "name": "Indianapolis Hub",
+    "region": "Midwest",
+    "exposure": 55.5,
+    "exposure_band": "medium",
+    "priority": 45.8,
+    "priority_band": "medium",
+    "top_driver": "winter"
+  },
+  {
+    "hub_id": "memphis",
+    "name": "Memphis Hub",
+    "region": "South",
+    "exposure": 53.2,
+    "exposure_band": "medium",
+    "priority": 42.9,
+    "priority_band": "medium",
+    "top_driver": "flood"
+  },
+  {
+    "hub_id": "phoenix",
+    "name": "Phoenix Hub",
+    "region": "West",
+    "exposure": 6.7,
+    "exposure_band": "low",
+    "priority": 38.4,
+    "priority_band": "medium",
+    "top_driver": "flood"
+  },
+  {
+    "hub_id": "denver",
+    "name": "Denver Hub",
+    "region": "West",
+    "exposure": 45.9,
+    "exposure_band": "medium",
+    "priority": 35.9,
+    "priority_band": "medium",
+    "top_driver": "winter"
+  },
+  {
+    "hub_id": "atlanta",
+    "name": "Atlanta Hub",
+    "region": "South",
+    "exposure": 34.2,
+    "exposure_band": "low",
+    "priority": 29.4,
+    "priority_band": "low",
+    "top_driver": "flood"
+  }
 ]

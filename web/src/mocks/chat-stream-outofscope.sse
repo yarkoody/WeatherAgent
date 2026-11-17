@@ -1,0 +1,12 @@
+data: {"type": "start", "messageId": "msg_68c3dbfbe182"}
+
+data: {"type": "start-step"}
+
+data: {"type": "finish-step"}
+
+data: {"data": {"session_id": "mock-outofscope", "answer": {"answer": "That's outside what I can help with. I analyze weather-disruption risk and investment priority for 15 US logistics hubs.", "hubs": [], "ranking": null, "figures": [], "assumptions": [], "uncertainty": "Not applicable.", "data_available": true, "in_scope": false}, "grounding": {"status": "pass", "errors": []}, "trace_id": "e596696db27340ffb6b5659f0600efe3"}, "type": "data-answer"}
+
+data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_68c3dbfbe182", "role": "assistant", "turnId": null, "partIds": ["part_847563661019"]}]}}}
+
+data: [DONE]
+

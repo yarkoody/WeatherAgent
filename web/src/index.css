@@ -1,0 +1,218 @@
+@import '@fontsource-variable/archivo/wdth.css';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Chart-paper palette. Band colors carry meaning (low / medium / high) and are used nowhere else. */
+@theme {
+  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-paper: #eef2f4;
+  --color-sheet: #f8fafb;
+  --color-ink: #1b2a35;
+  --color-ink-soft: #4a5b68;
+  --color-ink-faint: #7b8a95;
+  --color-rule: #c7d1d8;
+  --color-rule-soft: #dde4e9;
+  --color-isobar: #2f5d8a;
+  --color-isobar-soft: #dce7f1;
+
+  --color-band-low: #5e9483;
+  --color-band-medium: #d29a2e;
+  --color-band-high: #c2413b;
+  --color-band-low-soft: #e1eeea;
+  --color-band-medium-soft: #f7ecd5;
+  --color-band-high-soft: #f6e0de;
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* shadcn/ui tokens mapped onto the palette above. */
+:root {
+  --background: #eef2f4;
+  --foreground: #1b2a35;
+  --card: #f8fafb;
+  --card-foreground: #1b2a35;
+  --popover: #ffffff;
+  --popover-foreground: #1b2a35;
+  --primary: #1b2a35;
+  --primary-foreground: #ffffff;
+  --secondary: #dce7f1;
+  --secondary-foreground: #2f5d8a;
+  --muted: #e4eaee;
+  --muted-foreground: #4a5b68;
+  --accent: #dce7f1;
+  --accent-foreground: #1b2a35;
+  --destructive: #c2413b;
+  --border: #c7d1d8;
+  --input: #c7d1d8;
+  --ring: #2f5d8a;
+  --chart-1: #7fa6cc;
+  --chart-2: #2f5d8a;
+  --chart-3: #5b4e8c;
+  --chart-4: #7c8a94;
+  --chart-5: #5e9483;
+  --radius: 0.625rem;
+  --sidebar: #f8fafb;
+  --sidebar-foreground: #1b2a35;
+  --sidebar-primary: #1b2a35;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #dce7f1;
+  --sidebar-accent-foreground: #1b2a35;
+  --sidebar-border: #c7d1d8;
+  --sidebar-ring: #2f5d8a;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    @apply font-sans;
+  }
+  body {
+    margin: 0;
+    @apply bg-background text-foreground;
+  }
+  summary {
+    cursor: pointer;
+  }
+}
+
+@utility font-wide {
+  font-stretch: 125%;
+}
+@utility font-narrow {
+  font-stretch: 85%;
+}
+
+/* Answer markdown */
+.prose-answer p {
+  margin: 0 0 0.65em;
+  line-height: 1.6;
+}
+.prose-answer p:last-child {
+  margin-bottom: 0;
+}
+.prose-answer strong {
+  font-weight: 650;
+}
+.prose-answer ul,
+.prose-answer ol {
+  margin: 0 0 0.65em;
+  padding-left: 1.25em;
+}
+.prose-answer ul {
+  list-style: disc;
+}
+.prose-answer ol {
+  list-style: decimal;
+}
+.prose-answer li {
+  margin: 0.2em 0;
+}
+/* GFM tables in answer text: same look as the figures table (shadcn Table). */
+.prose-answer table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0.25em 0 0.85em;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.prose-answer th,
+.prose-answer td {
+  padding: 0.4rem 0.75rem 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  text-align: left;
+}
+.prose-answer th {
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.prose-answer tbody tr:last-child td {
+  border-bottom: 0;
+}
+.prose-answer td[align='right'],
+.prose-answer th[align='right'] {
+  text-align: right;
+}
+.prose-answer td[align='center'],
+.prose-answer th[align='center'] {
+  text-align: center;
+}
+.prose-answer del {
+  color: var(--muted-foreground);
+}
+.prose-answer a {
+  color: var(--color-isobar);
+  text-decoration: underline;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+.chip-running::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(47 93 138 / 0.14), transparent);
+  animation: sweep 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip-running::after {
+    animation: none;
+  }
+}
+
