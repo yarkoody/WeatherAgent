@@ -1,6 +1,6 @@
 # Web UI
 
-React + TypeScript + Vite + Tailwind CSS 4 + shadcn/ui (style `base-rhea`, Base UI) with the AI Elements patterns from shadcn/ui, `@ai-sdk/react` 2 (`useChat`, AI SDK 5 UI message stream v1, which is what `ai` 0.9.0 for Python emits) and shadcn Chart (Recharts 3).
+React + TypeScript + Vite + Tailwind CSS 4 (Inter, self-hosted via @fontsource-variable/inter) + shadcn/ui (style `base-rhea`, Base UI) with the AI Elements patterns from shadcn/ui, `@ai-sdk/react` 2 (`useChat`, AI SDK 5 UI message stream v1, which is what `ai` 0.9.0 for Python emits) and shadcn Chart (Recharts 3).
 
 ## Run
 
@@ -30,7 +30,8 @@ npm run build      # outputs web/dist, which FastAPI serves at /
 - Grounding failed: figures are marked unverified, citations stop claiming a match, and read-aloud says "Unverified answer" first.
 - Errors: 422, 429 (no retry offered) and 503 from `/chat` get their own message. A turn that ends without a `data-answer` (Stop, cut-off stream, reload mid-turn) shows its unfinished steps as stopped and a "No answer received" notice.
 - Each widget and the whole thread sit inside error boundaries; restored history is validated loosely.
-- Each request sends only the chat id and the newest user message (the server keeps the history).
+- Chat history: chats are kept in this browser's localStorage (`src/lib/chats.ts`, key `weather-risk.chats.v1`, at most 50, oldest dropped; corrupt entries are ignored). The sidebar (a slide-over below 768 px) has New chat, Today / Yesterday / Earlier groups, rename and delete with confirmation. The chat id is the backend `session_id`, so switching chats continues each one.
+- Each request sends the chat id and the whole conversation, compacted to user text and the verified answer text (no tool data); the server uses it only when its own history for that id is missing.
 - "Ask next": the latest finished answer ends with its `follow_ups` (0-3, built by the backend) as one-click Suggestion chips; a click sends the question. Hidden while a turn streams.
 - The chat id is the backend `session_id`. It and the messages are kept in `localStorage`. "New conversation" starts a new id.
 - Voice: the mic uses the Web Speech API (disabled, with a tooltip, where unsupported); the speaker toggle reads each new answer aloud.
@@ -51,6 +52,13 @@ Large numbers display compact (472K, 2.6M, 1.2B), days and scores with one decim
 
 `GET /second-opinion` feeds a "Second opinion (JEV)" column: per hub a four-square strip (winter, flood, hurricane, severe storm; filled = agrees, red outline = differs) and "3/4 agree"; click or tap shows each hazard's formula band against JEV's band and score. A summary line above the table gives the overall agreement, run date and data date, with an (i) explainer. A 404 hides all of it. Below 640 px the column collapses into a compact badge next to the hub name. In the developer view a "Re-run JEV" button calls `POST /second-opinion/rerun` and shows the server's detail on 503 (re-running works only locally). JEV never changes scores or rankings.
 
+## UI polish
+
+- Liquid-glass surfaces (`.glass`, `.glass-bar` in `src/index.css`) over a calm sky gradient, with a solid fallback when `backdrop-filter` is unsupported or `prefers-reduced-transparency` is set. Dark mode follows the system setting; band and hazard colors are theme tokens with AA text contrast in both.
+- One `HazardIcon` (Lucide): winter Snowflake, flood Waves, hurricane CloudRainWind (Lucide has no hurricane glyph), severe storm CloudLightning; used wherever a hazard appears.
+- Scores table: sort by any column header (aria-sort, direction arrow), filters for region, exposure band and hub name with a reset, sticky header, zebra rows, numbers right-aligned under right-aligned headers, one (i) per column. The JEV header (i) explains why JEV can disagree; the summary shows rank agreement per hazard when the run has it.
+- Dates read "Nov 17, 2026" (`formatDate`, no time-zone shift).
+
 ## Mocks
 
-`src/mocks/chat-stream*.sse` were recorded from `app.agent.stream_turn` with `ai.testing.FakeModel` and the real tools (NWS alerts stubbed). Scenarios: ranking, compare, weather, alerts, no data, out of scope, failed grounding (ask "How exposed is Houston?"), metro-area resolution ("How exposed is New York?") and a bad-year ranking ("Which hubs have the worst bad years?"). All are recorded from the formula-v2 backend; `scores.json` and `chat-response.json` are real v2 output too. `second-opinion.json` is synthetic (real formula bands, made-up JEV scores with six deliberate disagreements); the mock re-run returns 503. The mock transport is the real `DefaultChatTransport` with a replaying `fetch`, so the mocks go through the same parser as the live stream. Mock code is dropped from production builds.
+`src/mocks/chat-stream*.sse` were recorded from `app.agent.stream_turn` with `ai.testing.FakeModel` and the real tools (NWS alerts stubbed). Scenarios: ranking, compare, weather, alerts, no data, out of scope, failed grounding (ask "How exposed is Houston?"), metro-area resolution ("How exposed is New York?") and a bad-year ranking ("Which hubs have the worst bad years?"). All are recorded from the formula-v2 backend; `scores.json` and `chat-response.json` are real v2 output too. `second-opinion.json` is the real committed JEV run (`data/jev_second_opinion.json`); the mock re-run returns 503. The mock transport is the real `DefaultChatTransport` with a replaying `fetch`, so the mocks go through the same parser as the live stream. Mock code is dropped from production builds.

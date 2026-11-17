@@ -125,7 +125,7 @@ export function NoAnswer() {
   return (
     <p className="flex items-center gap-2 rounded-3xl bg-muted px-5 py-3.5 text-sm text-muted-foreground">
       <CircleSlashIcon className="size-4 shrink-0" />
-      No answer received. The request was stopped or interrupted; ask again to get one.
+      No answer received. The request was stopped or interrupted. Ask again to continue.
     </p>
   )
 }
@@ -141,7 +141,7 @@ function FoldedSteps({ count, children }: { count: number; children: ReactNode }
         className="inline-flex items-center gap-1 rounded-md text-sm text-muted-foreground hover:text-foreground"
       >
         <ChevronRightIcon className={`size-4 transition-transform motion-reduce:transition-none ${open ? 'rotate-90' : ''}`} />
-        How this answer was found ({count} {count === 1 ? 'step' : 'steps'})
+        Analysis steps ({count})
       </button>
       {open && <div className="mt-2 pl-1">{children}</div>}
     </div>

@@ -1,4 +1,5 @@
-import { FAMILY_LABEL, HAZARD_LABEL, fmt, hubName } from '@/lib/format'
+import { HazardIcon } from '@/components/HazardIcon'
+import { FAMILY_LABEL, HAZARD_LABEL, fmt, formatDate, hubName } from '@/lib/format'
 import type { Hazard, HubComparison, HubScore } from '@/lib/types'
 import { InfoTip } from '@/components/InfoTip'
 import {
@@ -31,7 +32,7 @@ export function ComparisonCards({ data }: { data: HubComparison }) {
     <WidgetFrame
       label="Hub comparison"
       title={names.length === 2 ? `${names[0]} and ${names[1]}` : `Comparing ${names.length} hubs`}
-      note={`More lost days means more exposed. Data as of ${data.data_as_of}.`}
+      note={`More lost days means more exposed. Data as of ${formatDate(data.data_as_of)}.`}
     >
       <div
         className="grid gap-3"
@@ -41,8 +42,10 @@ export function ComparisonCards({ data }: { data: HubComparison }) {
       >
         {data.hubs.map((s) => (
           <div key={s.hub_id} role="group" aria-label={hubName(s.hub_id)} className="rounded-2xl bg-background/60 px-4 py-3.5 ring-1 ring-border/60">
-            <p className="font-wide font-semibold">{hubName(s.hub_id)}</p>
-            <p className="text-xs text-muted-foreground">Top driver: {FAMILY_LABEL[s.top_driver]}</p>
+            <p className="heading-tight font-semibold">{hubName(s.hub_id)}</p>
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              Top driver: <HazardIcon hazard={s.top_driver} className="size-3.5" /> {FAMILY_LABEL[s.top_driver]}
+            </p>
             <dl className="mt-2.5 grid grid-cols-2 gap-2 border-b border-border/60 pb-2.5 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Typical year</dt>
@@ -65,6 +68,7 @@ export function ComparisonCards({ data }: { data: HubComparison }) {
                 return (
                   <div key={h} className="flex items-center justify-between gap-2">
                     <dt className="flex items-center gap-1 text-muted-foreground">
+                      {h !== 'overall' && <HazardIcon hazard={h} className="size-3.5" />}
                       {h === 'overall' ? 'Lost days, typical year' : HAZARD_LABEL[h]}
                       <InfoTip
                         subject={`${hubName(s.hub_id)} ${h === 'overall' ? 'exposure' : HAZARD_LABEL[h]} score`}

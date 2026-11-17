@@ -130,7 +130,7 @@ export function ToolSteps({ tools, thinking, streaming }: { tools: ToolPartView[
           <TraceIcon>
             <Spinner />
           </TraceIcon>
-          <TraceTitle>{tools.length === 0 ? 'Reading the question' : 'Checking the numbers'}</TraceTitle>
+          <TraceTitle>{tools.length === 0 ? 'Reviewing the question' : 'Validating figures'}</TraceTitle>
         </TraceLine>
       )}
     </Trace>

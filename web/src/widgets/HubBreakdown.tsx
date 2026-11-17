@@ -16,7 +16,8 @@ import {
   priorityLines,
   prioritySteps,
 } from '@/lib/explain'
-import { BAND_COLOR, BAND_LABEL_COLOR, FAMILIES, FAMILY_COLOR, FAMILY_LABEL, fmt, hubName, pct } from '@/lib/format'
+import { HazardIcon } from '@/components/HazardIcon'
+import { BAND_COLOR, BAND_LABEL_COLOR, FAMILIES, FAMILY_COLOR, FAMILY_LABEL, fmt, formatDate, hubName, pct } from '@/lib/format'
 import { useCountUp, useReducedMotion } from '@/lib/motion'
 import type { HubScore } from '@/lib/types'
 import { BandText, WidgetFrame } from './WidgetFrame'
@@ -32,7 +33,7 @@ function CountUp({ value }: { value: number }) {
 
 /** Typical year and bad year side by side; one (i) explains both. Saved pre-v2 data has no bad year. */
 export function Lenses({ data }: { data: HubScore }) {
-  const number = 'font-wide text-3xl leading-none font-semibold tracking-tight tabular-nums'
+  const number = 'heading-tight text-3xl leading-none font-semibold tracking-tight tabular-nums'
   return (
     <div className="flex items-end gap-x-7 gap-y-2">
       <div role="group" aria-label="Typical year">
@@ -80,7 +81,7 @@ export function HubBreakdown({ data }: { data: HubScore }) {
   const name = hubName(data.hub_id)
 
   return (
-    <WidgetFrame label={`${name} risk breakdown`} title={`${name} risk breakdown`} note={`Data as of ${data.data_as_of}.`}>
+    <WidgetFrame label={`${name} risk breakdown`} title={`${name} risk breakdown`} note={`Data as of ${formatDate(data.data_as_of)}.`}>
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <Lenses data={data} />
         <dl className="flex gap-6 text-sm">
@@ -109,8 +110,8 @@ export function HubBreakdown({ data }: { data: HubScore }) {
         <BarChart data={rows} layout="vertical" margin={{ top: 16, right: 12, bottom: 0, left: 0 }} barCategoryGap={6} accessibilityLayer>
           <defs>
             <pattern id="bad-year-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <rect width="6" height="6" fill="#eef2f4" />
-              <line x1="0" y1="0" x2="0" y2="6" stroke="#4a5b68" strokeWidth="1.5" />
+              <rect width="6" height="6" fill="var(--color-paper)" />
+              <line x1="0" y1="0" x2="0" y2="6" stroke="var(--color-ink-soft)" strokeWidth="1.5" />
             </pattern>
           </defs>
           <XAxis type="number" domain={[0, Math.ceil(max)]} hide />
@@ -154,12 +155,13 @@ export function HubBreakdown({ data }: { data: HubScore }) {
           const isHurricane = f === 'hurricane' && hasHurricanePct
           return (
             <li key={f} aria-label={fam.band ? `${FAMILY_LABEL[f]}: ${fam.band} band` : FAMILY_LABEL[f]} data-band={fam.band} className="flex items-start gap-2">
-              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: FAMILY_COLOR[f], opacity: top ? 1 : 0.45 }} aria-hidden="true" />
+              <HazardIcon hazard={f} className="mt-0.5 size-4" />
               <span className="min-w-0">
                 <span className={`flex items-center gap-1 ${top ? 'font-semibold' : ''}`}>
                   {FAMILY_LABEL[f]}
                   <InfoTip
                     subject={`${FAMILY_LABEL[f]} band`}
+                    icon={<HazardIcon hazard={f} />}
                     steps={isHurricane ? hurricaneSteps(data) : familySteps(fam, t)}
                     detail={[...(isHurricane ? hurricaneLines(data) : []), ...familyLines(fam), familyBandLine(t)]}
                   />
@@ -174,7 +176,7 @@ export function HubBreakdown({ data }: { data: HubScore }) {
                     </>
                   )}
                 </span>
-                {top && <span className="text-xs font-semibold text-isobar">Main driver</span>}
+                {top && <span className="text-xs font-semibold text-isobar">Top driver</span>}
               </span>
             </li>
           )

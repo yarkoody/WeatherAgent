@@ -57,8 +57,24 @@ describe('Ask next', () => {
     expect(chip).toHaveFocus()
     fireEvent.click(chip)
     await waitFor(() => expect(bodies).toHaveLength(2))
-    expect(textOf(bodies[1].messages[0])).toBe(answer.follow_ups![0])
+    // the request carries the whole (compact) history; the clicked follow-up is the newest message
+    expect(textOf(bodies[1].messages.at(-1)!)).toBe(answer.follow_ups![0])
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Ask next' })).not.toBeInTheDocument())
+  })
+
+  it('a chip sends like the composer: same thread, no scroll anchoring to the top, focus stays in the composer', async () => {
+    const bodies = serve({ finishLater: true })
+    const group = await askFirst()
+    const thread = document.querySelector('[data-slot=message-scroller-content]')
+    fireEvent.click(within(group).getByRole('button', { name: answer.follow_ups![0] }))
+    await waitFor(() => expect(screen.getAllByLabelText('Answer')).toHaveLength(2))
+    expect(textOf(bodies[1].messages.at(-1)!)).toBe(answer.follow_ups![0])
+    // the thread was not remounted
+    expect(document.querySelector('[data-slot=message-scroller-content]')).toBe(thread)
+    // user messages are not scroll anchors, so a new question is not pulled to the top of the view
+    expect(document.querySelectorAll('[data-scroll-anchor="true"]')).toHaveLength(0)
+    // focus moved to the composer instead of falling back to the page
+    expect(screen.getByLabelText('Ask about hub weather risk')).toHaveFocus()
   })
 
   it('shows chips on the latest answer only', async () => {

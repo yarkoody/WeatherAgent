@@ -4,8 +4,8 @@ import type { ActiveAlerts } from '@/lib/types'
 
 function tone(severity: string) {
   const s = severity.toLowerCase()
-  if (s === 'extreme' || s === 'severe') return { bar: 'bg-band-high', text: 'text-[#9b2f2a]' }
-  if (s === 'moderate') return { bar: 'bg-band-medium', text: 'text-[#7a5612]' }
+  if (s === 'extreme' || s === 'severe') return { bar: 'bg-band-high', text: 'text-band-high-text' }
+  if (s === 'moderate') return { bar: 'bg-band-medium', text: 'text-band-medium-text' }
   return { bar: 'bg-isobar', text: 'text-isobar' }
 }
 
@@ -14,7 +14,7 @@ export function AlertBanner({ data }: { data: ActiveAlerts }) {
   if (data.alerts.length === 0) return null
   const n = data.alerts.length
   return (
-    <section className="overflow-hidden w-full rounded-xl bg-[#fbf3f2] ring-1 ring-band-high/30" role="status" aria-label="Live weather alerts">
+    <section className="overflow-hidden w-full rounded-xl bg-band-high-soft/60 ring-1 ring-band-high/30" role="status" aria-label="Live weather alerts">
       <div className="flex items-center gap-2 bg-band-high px-5 py-2.5 text-sm font-semibold text-white">
         <SirenIcon className="size-4" />
         {n} active NWS {n === 1 ? 'alert' : 'alerts'} for {hubName(data.hub_id)}

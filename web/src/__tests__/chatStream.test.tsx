@@ -34,7 +34,7 @@ describe('chat over the recorded stream (real AI SDK parser)', () => {
 
     await waitFor(() => expect(screen.getByLabelText('Answer')).toBeInTheDocument(), { timeout: 8000 })
     // the steps fold into one line once the answer is in
-    fireEvent.click(screen.getByRole('button', { name: /How this answer was found \(2 steps\)/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Analysis steps \(2\)/ }))
     expect(screen.getByText('Ranked hubs by winter exposure in the Midwest')).toBeInTheDocument()
     expect(screen.getByText('Checked Minneapolis risk')).toBeInTheDocument()
     expect(screen.getAllByLabelText('Answer')).toHaveLength(1)

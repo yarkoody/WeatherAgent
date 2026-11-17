@@ -8,6 +8,8 @@ import { useDictation } from '@/lib/voice'
 
 const MAX = 2000
 
+export const COMPOSER_INPUT_ID = 'chat-composer-input'
+
 export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (text: string) => void; onStop: () => void }) {
   const [text, setText] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
@@ -39,12 +41,13 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
 
   return (
     <form ref={formRef} onSubmit={submit} className="w-full">
-      <InputGroup className="bg-white">
+      <InputGroup className="glass rounded-2xl border-0 bg-transparent">
         <InputGroupTextarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKey}
           placeholder={dictation.listening ? 'Listening…' : 'Ask about a hub, a hazard or a ranking'}
+          id={COMPOSER_INPUT_ID}
           aria-label="Ask about hub weather risk"
           className="min-h-14 text-base"
         />

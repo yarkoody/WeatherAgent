@@ -1,6 +1,7 @@
 import { Bar, BarChart, Cell, LabelList, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
-import { BAND_COLOR, BAND_LABEL, BAND_LABEL_COLOR, HAZARD_LABEL, fmt, shortHubName } from '@/lib/format'
+import { HazardIcon } from '@/components/HazardIcon'
+import { BAND_COLOR, BAND_LABEL, BAND_LABEL_COLOR, HAZARD_LABEL, fmt, formatDate, shortHubName } from '@/lib/format'
 import type { Band, Ranking } from '@/lib/types'
 
 /** Bars without a band (bad-year ranking): neutral ink, so color never implies a band. */
@@ -55,17 +56,18 @@ export function RankingWidget({ data }: { data: Ranking }) {
     <WidgetFrame
       label="Ranking chart"
       title={
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
+          {data.hazard !== 'overall' && data.kind !== 'bad_year' && <HazardIcon hazard={data.hazard} />}
           {rankingTitle(data)}
           <InfoTip subject={`${rankingTitle(data).toLowerCase()} score`} steps={rankingLines(data)} />
         </span>
       }
       note={
         days
-          ? `Disruption days in a 1-in-20 bad year. Data as of ${data.data_as_of}.`
+          ? `Average lost days in the worst 1 year in 20. Data as of ${formatDate(data.data_as_of)}.`
           : indexLines
-            ? `Score 0 to 100. Medium from ${fmt(medium_from)}, high from ${fmt(high_from)}. Data as of ${data.data_as_of}.`
-            : `Score 0 to 100. Colors show the hazard's band by lost days a year (medium from ${fmt(data.band_thresholds.family_medium_from_days)}, high from ${fmt(data.band_thresholds.family_high_from_days)}). Data as of ${data.data_as_of}.`
+            ? `Score 0 to 100. Medium from ${fmt(medium_from)}, high from ${fmt(high_from)}. Data as of ${formatDate(data.data_as_of)}.`
+            : `Score 0 to 100. Colors show the hazard's band by lost days a year (medium from ${fmt(data.band_thresholds.family_medium_from_days)}, high from ${fmt(data.band_thresholds.family_high_from_days)}). Data as of ${formatDate(data.data_as_of)}.`
       }
     >
       <ChartContainer config={config} className="aspect-auto w-full" style={{ height }} initialDimension={{ width: 560, height }}>

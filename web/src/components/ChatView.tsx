@@ -15,14 +15,16 @@ import {
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
+  useMessageScroller,
 } from '@/components/ui/message-scroller'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { chatFetch, describeChatError } from '@/lib/chatErrors'
-import { NoMotion } from '@/lib/motion'
+import { compactHistory } from '@/lib/chats'
+import { NoMotion, useReducedMotion } from '@/lib/motion'
 import { loadMessages, saveMessages } from '@/lib/session'
 import { answerSpeech, speak } from '@/lib/voice'
 import { AssistantMessage, NoAnswer, answerPart } from './AssistantMessage'
-import { Composer } from './Composer'
+import { COMPOSER_INPUT_ID, Composer } from './Composer'
 
 export const SUGGESTIONS = [
   'Which Midwest hubs are most exposed to winter weather?',
@@ -37,10 +39,12 @@ function userText(m: UIMessage): string {
 
 const PENDING: UIMessage = { id: 'pending', role: 'assistant', parts: [] }
 
-/** The server keeps the history, so each request carries only the chat id and the newest user message. */
-export function lastUserMessageOnly({ id, messages }: { id: string; messages: UIMessage[] }) {
-  const last = [...messages].reverse().find((m) => m.role === 'user')
-  return { body: { id, messages: last ? [last] : [] } }
+/**
+ * Each request carries the chat id and the whole conversation, compacted to user text and the verified answer
+ * text. The server uses it only when its own history for this id is missing (for example after a redeploy).
+ */
+export function withCompactHistory({ id, messages }: { id: string; messages: UIMessage[] }) {
+  return { body: { id, messages: compactHistory(messages) } }
 }
 
 export function ChatView({ sessionId, speakAnswers, onReset }: { sessionId: string; speakAnswers: boolean; onReset?: () => void }) {
@@ -67,7 +71,7 @@ export function ChatView({ sessionId, speakAnswers, onReset }: { sessionId: stri
 
 function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswers: boolean }) {
   const transport = useMemo(
-    () => new DefaultChatTransport({ api: '/chat', fetch: chatFetch, prepareSendMessagesRequest: lastUserMessageOnly }),
+    () => new DefaultChatTransport({ api: '/chat', fetch: chatFetch, prepareSendMessagesRequest: withCompactHistory }),
     [],
   )
   const initial = useMemo(() => loadMessages(sessionId), [sessionId])
@@ -95,7 +99,12 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
     if (speakAnswers && r) speak(answerSpeech(r))
   }, [messages, status, speakAnswers])
 
-  const send = (text: string) => sendMessage({ text })
+  // One send path for the composer, the starter questions and the "Ask next" chips.
+  const send = (text: string) => {
+    void sendMessage({ text })
+    // Keep focus in the composer: a clicked chip unmounts, and focus must not fall back to the page.
+    document.getElementById(COMPOSER_INPUT_ID)?.focus({ preventScroll: true })
+  }
   // While the request is in flight there is no assistant message yet: show its steps placeholder.
   const thread = status === 'submitted' && messages.at(-1)?.role === 'user' ? [...messages, PENDING] : messages
   const lastId = thread.at(-1)?.id
@@ -109,12 +118,12 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
               <EmptyMedia variant="icon">
                 <CloudLightningIcon />
               </EmptyMedia>
-              <EmptyTitle className="font-wide text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+              <EmptyTitle className="heading-tight text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
                 Where will weather hit your network hardest?
               </EmptyTitle>
               <EmptyDescription>
-                Ask about disruption exposure and investment priority for 15 US logistics hubs. Answers cite their numbers, and charts are
-                drawn straight from the scoring data.
+                Ask about disruption exposure and investment priority for 15 US logistics hubs. Every figure in an answer is validated against the scoring data, and charts are
+                drawn from it directly.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent className="max-w-2xl">
@@ -122,14 +131,15 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
             </EmptyContent>
           </Empty>
         ) : (
-          <MessageScrollerProvider autoScroll>
+          <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+            <FollowLatest count={thread.length} lastIsUser={thread.at(-1)?.role === 'user'} />
             <MessageScroller>
               {/* Gutter on both edges keeps the centered column symmetric when a scrollbar shows. */}
               <MessageScrollerViewport className="[scrollbar-gutter:stable_both-edges]">
                 <MessageScrollerContent aria-busy={busy} className="mx-auto w-full max-w-3xl gap-7 px-4 py-6 sm:px-6">
                   {thread.map((m) =>
                     m.role === 'user' ? (
-                      <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor>
+                      <MessageScrollerItem key={m.id} messageId={m.id}>
                         <Message align="end">
                           <MessageContent>
                             <Bubble align="end">
@@ -168,11 +178,11 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
           </MessageScrollerProvider>
         )}
       </div>
-      <div className="border-t bg-background/95 backdrop-blur">
+      <div className="relative z-10">
         <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6">
           <Composer busy={busy} onSend={send} onStop={stop} />
           <p className="mt-1.5 text-center text-[0.7rem] text-muted-foreground">
-            Scores come from a fixed data snapshot. Every number in an answer is checked against tool results.
+            Scores come from a fixed data snapshot. Every figure is validated against the scoring data.
           </p>
         </div>
       </div>
@@ -183,7 +193,7 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
 function ChatError({ error, onRetry }: { error: Error; onRetry: () => void }) {
   const view = describeChatError(error)
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-band-high-soft px-5 py-3.5 text-sm text-[#7d2622]" role="alert">
+    <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-band-high-soft px-5 py-3.5 text-sm text-band-high-text" role="alert">
       <div className="min-w-0 flex-1">
         <p>{view.title}</p>
         {view.detail && <p className="mt-0.5 text-xs opacity-80">{view.detail}</p>}
@@ -195,4 +205,19 @@ function ChatError({ error, onRetry }: { error: Error; onRetry: () => void }) {
       )}
     </div>
   )
+}
+
+/**
+ * When a question is sent (from the composer or a chip), scroll the thread to the newest message, so the question
+ * shows at the bottom and the reply streams in under it. Smooth unless the user asked for reduced motion.
+ */
+function FollowLatest({ count, lastIsUser }: { count: number; lastIsUser: boolean }) {
+  const { scrollToEnd } = useMessageScroller()
+  const reduced = useReducedMotion()
+  const seen = useRef(count)
+  useEffect(() => {
+    if (count > seen.current && lastIsUser) scrollToEnd({ behavior: reduced ? 'auto' : 'smooth' })
+    seen.current = count
+  }, [count, lastIsUser, reduced, scrollToEnd])
+  return null
 }

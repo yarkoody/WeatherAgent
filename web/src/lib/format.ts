@@ -26,10 +26,10 @@ export const FAMILY_LABEL: Record<Family, string> = {
 }
 
 export const FAMILY_COLOR: Record<Family, string> = {
-  winter: '#7FA6CC',
-  flood: '#2F5D8A',
-  hurricane: '#5B4E8C',
-  severe_storm: '#7C8A94',
+  winter: 'var(--color-hazard-winter)',
+  flood: 'var(--color-hazard-flood)',
+  hurricane: 'var(--color-hazard-hurricane)',
+  severe_storm: 'var(--color-hazard-severe_storm)',
 }
 
 export const HAZARD_LABEL: Record<Hazard, string> = { overall: 'Overall', ...FAMILY_LABEL }
@@ -44,9 +44,9 @@ export const BAND_COLOR: Record<Band, string> = {
 
 /** Darker band shades for text on light backgrounds (WCAG AA for small labels). */
 export const BAND_LABEL_COLOR: Record<Band, string> = {
-  low: '#2f6656',
-  medium: '#7a5612',
-  high: '#9b2f2a',
+  low: 'var(--color-band-low-text)',
+  medium: 'var(--color-band-medium-text)',
+  high: 'var(--color-band-high-text)',
 }
 
 export const METRIC_LABEL: Record<Metric, string> = {
@@ -87,6 +87,17 @@ export function formatValue(value: number, unit: string): string {
   if (unit === '%') return `${v}%`
   if (unit === 'score 0-100') return v
   return `${v} ${unit}`
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "2026-11-17" or an ISO timestamp -> "Nov 17, 2026". Uses the calendar date as written, so no time-zone shift. */
+export function formatDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (!m) return iso
+  const [, y, mo, d] = m
+  const month = MONTHS[Number(mo) - 1]
+  return month ? `${month} ${Number(d)}, ${y}` : iso
 }
 
 export function formatDateTime(iso: string): string {

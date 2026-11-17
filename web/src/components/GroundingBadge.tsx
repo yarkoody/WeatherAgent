@@ -6,8 +6,8 @@ import type { Grounding } from '@/lib/types'
 const VARIANTS = {
   pass: {
     label: 'Numbers verified',
-    title: 'Every number in this answer matches a tool result.',
-    className: 'bg-band-low-soft text-[#2f6656]',
+    title: 'Every figure in this answer matches the scoring data.',
+    className: 'bg-band-low-soft text-band-low-text',
     Icon: CircleCheckIcon,
   },
   retried: {
@@ -19,7 +19,7 @@ const VARIANTS = {
   failed: {
     label: 'Unverified',
     title: 'Some numbers could not be matched to tool results. Check them before use.',
-    className: 'bg-band-high-soft text-[#9b2f2a]',
+    className: 'bg-band-high-soft text-band-high-text',
     Icon: TriangleAlertIcon,
   },
 } as const

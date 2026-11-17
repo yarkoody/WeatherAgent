@@ -110,10 +110,10 @@ describe('answer first, details collapsed', () => {
         <AssistantMessage message={message} streaming={false} />
       </DebugProvider>,
     )
-    expect(screen.getByRole('button', { name: /How this answer was found \(1 step\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Analysis steps \(1\)/ })).toBeInTheDocument()
     expect(screen.queryByText('Ranked hubs by winter exposure in the Midwest')).not.toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByText(`Numbers behind this answer (${response.answer.figures.length})`))
+    fireEvent.click(screen.getByText(`Figures behind this answer (${response.answer.figures.length})`))
     expect(screen.getByRole('table')).toBeInTheDocument()
   })
 

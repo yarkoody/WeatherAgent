@@ -220,6 +220,6 @@ export interface SecondOpinion {
   total: number
   agreement_pct: number // 0-100
   note: string
-  /** Not in the contract yet: rank agreement between JEV and the formula, if the orchestrator adds it. */
-  rank_correlation?: number | null
+  /** Spearman rank agreement per hazard family (JEV score vs our family days), when the run computed it. */
+  rank_correlation?: Partial<Record<Family, number>> | null
 }

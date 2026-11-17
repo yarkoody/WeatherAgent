@@ -42,7 +42,7 @@ describe('analyst view (default)', () => {
   it('answer card shows label, hub, value and the badge, but no tool names or trace id', () => {
     asUser(<AnswerCard response={failed} />)
     expect(screen.queryByRole('table')).not.toBeInTheDocument() // folded by default
-    fireEvent.click(screen.getByRole('button', { name: /Numbers behind this answer/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Figures behind this answer/ }))
     const table = screen.getByRole('table')
     expect(within(table).queryByText('Source')).not.toBeInTheDocument()
     for (const f of response.answer.figures) expect(screen.queryByText(f.source_tool)).not.toBeInTheDocument()

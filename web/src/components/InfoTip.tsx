@@ -1,5 +1,5 @@
 import { InfoIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
@@ -8,7 +8,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
  * `steps` are short plain-language lines (at most five); `detail` is the technical breakdown, shown on request.
  * Both must be built from tool output only (see lib/explain.ts).
  */
-export function InfoTip({ subject, steps, detail, title }: { subject: string; steps: string[]; detail?: string[]; title?: string }) {
+export function InfoTip({
+  subject,
+  steps,
+  detail,
+  title,
+  icon,
+}: {
+  subject: string
+  steps: string[]
+  detail?: string[]
+  title?: string
+  /** Optional glyph before the title, e.g. a HazardIcon. */
+  icon?: ReactNode
+}) {
   const [more, setMore] = useState(false)
   const numbered = steps.length > 1
   return (
@@ -26,7 +39,10 @@ export function InfoTip({ subject, steps, detail, title }: { subject: string; st
         <InfoIcon className="size-3.5" />
       </PopoverTrigger>
       <PopoverContent className="w-80 max-w-[calc(100vw-2rem)] gap-2 text-sm leading-snug">
-        <p className="font-medium">{title ?? `How the ${subject} is calculated`}</p>
+        <p className="flex items-center gap-1.5 font-medium">
+          {icon}
+          {title ?? `How the ${subject} is calculated`}
+        </p>
         {numbered ? (
           <ol className="list-decimal space-y-1.5 pl-5 text-muted-foreground marker:text-foreground/60">
             {steps.map((l) => (

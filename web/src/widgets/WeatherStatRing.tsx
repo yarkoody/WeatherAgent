@@ -1,6 +1,6 @@
 import { Cell, Pie, PieChart } from 'recharts'
 import { ChartContainer, type ChartConfig } from '@/components/ui/chart'
-import { METRIC_LABEL, fmt, hubName, pct } from '@/lib/format'
+import { METRIC_LABEL, fmt, formatDate, hubName, pct } from '@/lib/format'
 import type { WeatherStat } from '@/lib/types'
 import { InfoTip } from '@/components/InfoTip'
 import { useCountUp, useReducedMotion } from '@/lib/motion'
@@ -62,12 +62,12 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
             </PieChart>
             </ChartContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-wide text-xl font-semibold">{headline}</span>
+              <span className="heading-tight text-xl font-semibold">{headline}</span>
               {data.unit !== '%' && <span className="text-[0.65rem] text-muted-foreground">{data.unit}</span>}
             </div>
           </div>
         ) : (
-          <p className="font-wide text-3xl font-semibold">
+          <p className="heading-tight text-3xl font-semibold">
             {fmt(data.value)} <span className="text-base font-normal text-muted-foreground">{data.unit}</span>
           </p>
         )}
@@ -79,7 +79,7 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
           )}
           <p className="mt-1 text-muted-foreground">{data.definition}</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            {data.source}. Data as of {data.data_as_of}.
+            {data.source}. Data as of {formatDate(data.data_as_of)}.
           </p>
         </div>
       </div>

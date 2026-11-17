@@ -132,7 +132,7 @@ describe('streams that end without an answer', () => {
     serveChat({ sse: toSse(events) })
     await ask()
     await waitFor(() => expect(screen.getByLabelText('Answer')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: /How this answer was found/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Analysis steps/ }))
     expect(screen.getAllByText(/no result/).length).toBe(2)
     expect(screen.queryByLabelText('Ranking chart')).not.toBeInTheDocument()
   })
@@ -140,12 +140,19 @@ describe('streams that end without an answer', () => {
 
 describe('restored history', () => {
   it('drops malformed entries instead of crashing', () => {
-    localStorage.setItem('weather-risk.messages.bad', '{"not":"an array"}')
+    // chats live in one versioned key (lib/chats.ts); a chat's bad messages are dropped, bad JSON gives nothing
+    const chat = (id: string, messages: unknown) => ({ id, title: 't', createdAt: 1, updatedAt: 1, messages })
+    localStorage.setItem(
+      'weather-risk.chats.v1',
+      JSON.stringify({
+        version: 1,
+        chats: [chat('bad', { not: 'an array' }), chat('mixed', [null, { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] }, { id: 2 }])],
+      }),
+    )
     expect(loadMessages('bad')).toEqual([])
-    localStorage.setItem('weather-risk.messages.mixed', JSON.stringify([null, { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] }, { id: 2 }]))
     expect(loadMessages('mixed').map((m) => m.id)).toEqual(['u1'])
-    localStorage.setItem('weather-risk.messages.junk', 'not json')
-    expect(loadMessages('junk')).toEqual([])
+    localStorage.setItem('weather-risk.chats.v1', 'not json')
+    expect(loadMessages('mixed')).toEqual([])
   })
 
   it('does not restore spinners for a turn that never finished', () => {

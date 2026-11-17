@@ -46,21 +46,29 @@ describe('second opinion column', () => {
   it('shows the summary and each hub agree count, with disagreements marked', async () => {
     serve({ status: 200, body: opinion })
     view()
-    expect(await screen.findByRole('columnheader', { name: /Second opinion \(JEV\)/ })).toBeInTheDocument()
+    expect(await screen.findByRole('columnheader', { name: /JEV/ })).toBeInTheDocument()
     expect(screen.getByText(`JEV agrees with the formula on ${opinion.agree_count} of ${opinion.total} ratings (${opinion.agreement_pct}%).`)).toBeInTheDocument()
 
-    const houston = screen.getByRole('row', { name: /Houston/ })
-    const cell = within(houston).getByRole('button', { name: /JEV second opinion for Houston: 3 of 4 agree/ })
+    // derive the hubs from the recorded JEV run: one that disagrees somewhere, one that agrees on all four
+    const split = opinion.hubs.find((h) => h.agree_count < h.total)!
+    const whole = opinion.hubs.find((h) => h.agree_count === h.total)!
+    const name = (h: { name: string }) => h.name.replace(/ Hub$/, '')
+    const cell = within(screen.getByRole('row', { name: new RegExp(name(split)) })).getByRole('button', {
+      name: new RegExp(`JEV second opinion for ${name(split)}: ${split.agree_count} of 4 agree`),
+    })
     expect(cell).toHaveAttribute('data-disagrees', 'true')
-    const atlanta = screen.getByRole('row', { name: /Atlanta/ })
-    expect(within(atlanta).getByRole('button', { name: /4 of 4 agree/ })).toHaveAttribute('data-disagrees', 'false')
+    expect(within(screen.getByRole('row', { name: new RegExp(name(whole)) })).getByRole('button', { name: /4 of 4 agree/ })).toHaveAttribute(
+      'data-disagrees',
+      'false',
+    )
 
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
-    const flood = opinion.hubs.find((h) => h.hub_id === 'houston')!.families.find((f) => f.family === 'flood')!
-    const row = within(dialog).getByRole('row', { name: /Flood/ })
+    const differs = split.families.find((f) => !f.agrees)!
+    const label = { winter: 'Winter', flood: 'Flood', hurricane: 'Hurricane', severe_storm: 'Severe storm' }[differs.family]
+    const row = within(dialog).getByRole('row', { name: new RegExp(label) })
     expect(row).toHaveAttribute('data-agrees', 'false')
-    expect(row).toHaveTextContent(`${flood.jev_score_pct}%`)
+    expect(row).toHaveTextContent(`${differs.jev_score_pct}%`)
     expect(row).toHaveTextContent(/differs/i)
   })
 
@@ -68,7 +76,7 @@ describe('second opinion column', () => {
     serve({ status: 404, body: { detail: 'No second opinion yet.' } })
     view(true)
     await screen.findByRole('row', { name: /Chicago/ })
-    expect(screen.queryByRole('columnheader', { name: /Second opinion/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: /JEV/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/JEV agrees/)).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -79,9 +87,11 @@ describe('narrow screens', () => {
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(max-width: 639px)', addEventListener() {}, removeEventListener() {} }))
     serve({ status: 200, body: opinion })
     view()
-    const houston = await screen.findByRole('button', { name: /JEV second opinion for Houston: 3 of 4 agree/ })
-    expect(screen.queryByRole('columnheader', { name: /Second opinion/ })).not.toBeInTheDocument()
-    expect(houston.closest('th')).toHaveTextContent('Houston')
+    const split = opinion.hubs.find((h) => h.agree_count < h.total)!
+    const name = split.name.replace(/ Hub$/, '')
+    const badge = await screen.findByRole('button', { name: new RegExp(`JEV second opinion for ${name}`) })
+    expect(screen.queryByRole('columnheader', { name: /JEV/ })).not.toBeInTheDocument()
+    expect(badge.closest('th')).toHaveTextContent(name)
   })
 })
 
@@ -89,7 +99,7 @@ describe('re-run JEV', () => {
   it('is only offered in the developer view', async () => {
     serve({ status: 200, body: opinion })
     view(false)
-    await screen.findByRole('columnheader', { name: /Second opinion/ })
+    await screen.findByRole('columnheader', { name: /JEV/ })
     expect(screen.queryByRole('button', { name: 'Re-run JEV' })).not.toBeInTheDocument()
   })
 
