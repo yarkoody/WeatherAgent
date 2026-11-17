@@ -85,6 +85,14 @@ Returns `docs/METHODOLOGY.md` as `text/markdown`, and 404 with `{ "detail": stri
 
 Returns `{ "status": "ok" }`.
 
+## `POST /voice/session`, `GET /voice/speak` (live voice)
+
+`POST /voice/session` returns `{ "client_secret", "expires_at", "connect_url", "transcribe_model", "max_session_seconds" }`: a 60-second client secret for one transcription-only realtime session, so the OpenAI key stays on the server. It shares the chat rate limit and has a daily cap of 40 sessions (429 when used up).
+
+`GET /voice/speak?trace_id=<turn id>` streams MP3 of the answer the server verified for that `/chat` turn. The text never comes from the client. It returns 404 when there is no verified answer for that id, and allows 20 requests a minute per IP.
+
+Both return 503 when live voice is off (`VOICE_ENABLED=0`) or OpenAI is unavailable.
+
 ## `POST /alerts/check`
 
 Requires the header `X-Alert-Token: <ALERT_TOKEN>`. Returns `{ "changes": [...], "nws": [...], "delivered": ..., "subscribers": { "sent", "failed", "removed" } }`. Alerts go to `ALERT_WEBHOOK_URL` and then to every subscribed webhook. Optional `?demo_window=2015-2017` rescores the snapshot on those observed years, so an operator can show a real alert (the snapshot's own scores don't change between deploys).

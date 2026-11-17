@@ -8,3 +8,6 @@ node_modules/
 web/dist/
 .DS_Store
 .claude/
+# AI session transcripts: sent with the submission, not published
+docs/session/
+submission/

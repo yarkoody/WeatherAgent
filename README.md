@@ -11,7 +11,7 @@ Try:
 - "Why is the Dallas hub's weather disruption risk high?" (it corrects the premise when the data disagrees)
 - "I have $1M for resilience upgrades. Which hub should get most of it?"
 
-More prompts, and how to read every number, are in the **[user guide](docs/USER_GUIDE.md)**.
+More prompts, and how to read every number, are in the **[user guide](docs/USER_GUIDE.md)**. How each line of the brief is met, with the evidence, is in **[assignment coverage](docs/ASSIGNMENT_COVERAGE.md)**.
 
 What the app can do:
 - **Chat with live tool progress.** Charts and tables are drawn only from tool outputs.
@@ -51,7 +51,7 @@ Other commands:
 |---|---|
 | `make test` | Python tests, offline, with a fake model. No key needed |
 | `cd web && npm test` | UI tests |
-| `make eval` | The eval set against the real model (about $1.74 per run) |
+| `make eval` | The eval set against the real model (about $2.11 per run) |
 | `make data` | Refresh the public-data snapshot (FEMA NRI, Open-Meteo, Census) |
 | `make alerts` | Run the score-change alert check |
 | `make jev` | Rerun the offline JEV second opinion (needs `TYPESAFE_API_KEY`) |
@@ -176,19 +176,20 @@ The cases cover:
 - A partly answerable question (upgrade fit known, costs not) that must stay answered, name the missing costs and invent none
 - What-if rank movers, named only from the rank changes the code computes
 - "Safest hub" and low-score questions, which must say that heat and wildfire are not modeled
+- Web search: used for current news, not used for a score question, and a number from the web must cite its result URL
 
 One LLM-judge rubric checks that each explanation names the hub's actual top driver.
 
-**Last full run (final build, 2026-11-17): 44/44 cases passed.**
+**Last full run (final build, 2026-11-17 22:48 UTC): 46/47 cases passed.** The one miss, `people_bad_year`, is a retry that returned a correct answer but left the optional `ranking` field empty. Re-run on its own three times on the same code, it passed 3/3. The full run before live voice and web search were added passed 44/44.
 
 | Metric | Result |
 |---|---|
-| Tool selection | 43/43 (100%) |
-| Grounding | Passed on the first try in 50/51 turns; 1 passed after the one retry; none failed |
+| Tool selection | 46/46 (100%) |
+| Grounding | Passed on the first try in 53/54 turns; 1 passed after the one retry; none failed |
 | LLM judge: names the actual top driver | 4/4 |
 | Same ranking across 3 runs | Yes |
-| Latency per turn | 9.4 s mean, 16.9 s p95 |
-| Cost of the run | About $1.74 |
+| Latency per turn | 10.7 s mean, 18.4 s p95 |
+| Cost of the run | About $2.11 |
 
 Per-case results and the failure analysis of every run, including what earlier failures taught and changed, are in [`evals/results/latest.md`](evals/results/latest.md).
 
@@ -213,7 +214,7 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
   - Live voice: sessions share the chat limit, with a daily cap of 40 and 10 minutes each; speech only reads answers the server verified.
   - An OpenAI budget limit.
 - **Alerts:**
-  - A daily GitHub Actions job, plus a webhook endpoint, posts score changes to Discord. Verified with a real message.
+  - A daily GitHub Actions job (06:00 UTC), plus a webhook endpoint, posts score changes to Discord. Tested with real Discord messages: a test message, a subscription, and a real alert sent through `POST /alerts/check`.
   - It alerts on a 5-point score change, 3 bad-year days, 10 points of hurricane probability, or a level change that is at least 2 points past the cut-off. It alerts once per new change, keeping its state between runs.
   - It compares only within one scoring formula version, so a method change resets the baseline instead of sending false alerts. The first real alert found exactly that problem.
 - **Subscriber alerts (Discord):**
@@ -289,4 +290,4 @@ Each track was reviewed by an independent reviewer before it was committed. The 
 - a rolling-window bug in the alerts
 - a UI that showed failed figures as verified
 
-Once the repo was public, the remaining work landed through pull requests, each reviewed automatically by Claude's GitHub action. The product decisions were made by me: the KPI, days per event, scope, and the formula changes after an independent review. The full AI session transcripts are in [`docs/session/`](docs/session/).
+Once the repo was public, the remaining work landed through pull requests, each reviewed automatically by Claude's GitHub action. The product decisions were made by me: the KPI, days per event, scope, and the formula changes after an independent review. The full AI session transcripts, the orchestrating session and every side session, are sent with the submission email as a zip, not kept in this public repository, because they are personal working conversations. The plan and the design spec are in the repository, linked above.
