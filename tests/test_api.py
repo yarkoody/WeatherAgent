@@ -124,6 +124,7 @@ def test_alerts_check_requires_token(tmp_path, monkeypatch):
     assert c.post("/alerts/check", headers={"X-Alert-Token": "wrong"}).status_code == 401
     res = c.post("/alerts/check", headers={"X-Alert-Token": "secret"})
     assert res.status_code == 200
+    assert (tmp_path / "alert_state.json").exists()  # state sits next to the injected alerts log
     assert res.json()["changes"] == [] and res.json()["nws"] == []
     monkeypatch.setenv("ALERT_TOKEN", "")
     c = client(tmp_path, nws_fetch=lambda: [])

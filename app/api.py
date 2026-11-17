@@ -332,6 +332,7 @@ def create_app(
             kwargs["baseline_path"] = baseline_path
         if alerts_log is not None:
             kwargs["log_path"] = alerts_log
+            kwargs["state_path"] = alerts_log.with_name("alert_state.json")
         return alerts.check_alerts(
             get("store"), rows, webhook_url, nws_fetch if nws_fetch is not None else alerts.fetch_severe_nws, **kwargs
         )
