@@ -178,3 +178,32 @@ export type ToolName = (typeof TOOL_NAMES)[number]
 export function isToolError(value: unknown): value is ToolError {
   return typeof value === 'object' && value !== null && 'error' in value && 'hint' in value
 }
+
+// ---------- JEV second opinion (offline cross-check; never changes scores) ----------
+
+export interface JevFamilyOpinion {
+  family: Family
+  jev_band: Band // JEV's rating mapped with the same cut-offs as our index
+  jev_score_pct: number // JEV's score as 0-100
+  our_band: Band // our formula's band for this family
+  agrees: boolean
+}
+
+export interface JevHubOpinion {
+  hub_id: string
+  name: string
+  families: JevFamilyOpinion[]
+  agree_count: number
+  total: number
+}
+
+export interface SecondOpinion {
+  model: string
+  run_at: string
+  data_as_of: string
+  hubs: JevHubOpinion[]
+  agree_count: number
+  total: number
+  agreement_pct: number // 0-100
+  note: string
+}

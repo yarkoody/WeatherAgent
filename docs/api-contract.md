@@ -78,3 +78,11 @@ The body is always `{ "detail": string }`. The status codes:
 | 429 | Rate limit or daily cap reached |
 | 401 | Bad alert token |
 | 503 | The model or an upstream service is unavailable |
+
+## `GET /second-opinion`
+
+Returns `SecondOpinion`: the last offline JEV cross-check, read from `data/jev_second_opinion.json`. It returns 404 until the first run. The server never calls JEV live, and JEV never changes scores or rankings.
+
+## `POST /second-opinion/rerun` (developer view only)
+
+This reruns the JEV cross-check and saves the file. It works only where `JEV_RERUN_ENABLED=1` and `TYPESAFE_API_KEY` are both set, which in practice means a local machine. Anywhere else it returns 503 with `{"detail": "...only available when running locally..."}`. Requests to it are rate-limited.

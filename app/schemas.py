@@ -238,3 +238,33 @@ class ChatResponse(Strict):
     answer: AgentAnswer
     grounding: Grounding
     trace_id: str
+
+
+# ---------- JEV second opinion (offline cross-check; never affects scores) ----------
+
+
+class JevFamilyOpinion(Strict):
+    family: Family
+    jev_band: Band  # JEV's rating mapped with the same cut-offs as our index (0.35 / 0.60 of its 0-1 score)
+    jev_score_pct: float  # JEV's ScoreAnswer score as 0-100
+    our_band: Band  # our formula's band for this family
+    agrees: bool
+
+
+class JevHubOpinion(Strict):
+    hub_id: str
+    name: str
+    families: list[JevFamilyOpinion]
+    agree_count: int
+    total: int
+
+
+class SecondOpinion(Strict):
+    model: str  # the JEV model id actually used
+    run_at: str  # ISO timestamp of the JEV run
+    data_as_of: str  # snapshot date the inputs came from
+    hubs: list[JevHubOpinion]
+    agree_count: int
+    total: int
+    agreement_pct: float  # 0-100
+    note: str  # "Independent rating ... does not affect scores ..."
