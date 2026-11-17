@@ -275,10 +275,19 @@ export interface PerMillionHub {
   priority_per_million: number
 }
 
+export interface RankChange {
+  hub_id: string
+  name: string
+  from_rank: number
+  to_rank: number
+}
+
 export interface WhatIfResult {
   kind: ScoreKind
   inputs_echo: WhatIfInput
   ranking: RankedHub[]
+  /** Only the hubs whose rank changed, computed by the code. Optional: older saved chats lack it. */
+  rank_changes?: RankChange[]
   per_million_ranking: PerMillionHub[] | null
   note: string
   data_as_of: string

@@ -106,11 +106,28 @@ describe('HTTP errors from /chat', () => {
     expect(body.messages[0].role).toBe('user')
   })
 
+  it('a question sent after a failed one replaces it, so the failed question is not shown twice', async () => {
+    const q = 'Which Midwest hubs are most exposed to winter weather?'
+    const bodies = serveChat({ status: 429, detail: 'Rate limit: at most 10 requests per minute. Please wait a moment.' })
+    await ask(q)
+    await screen.findByRole('alert')
+    expect(screen.getAllByText(q)).toHaveLength(1)
+    const input = screen.getByLabelText('Ask about hub weather risk')
+    fireEvent.change(input, { target: { value: q } })
+    fireEvent.submit(input.closest('form')!)
+    await waitFor(() => expect(bodies).toHaveLength(2))
+    await screen.findByRole('alert')
+    expect(screen.getAllByText(q)).toHaveLength(1)
+    const second = bodies[1] as { messages: UIMessage[] }
+    expect(second.messages.filter((m) => m.role === 'user')).toHaveLength(1)
+  })
+
   it('maps 422, 503 and network errors', () => {
     const err = (status: number, detail: string) => new Error(JSON.stringify({ status, detail }))
     expect(describeChatError(err(422, 'message: too long'))).toMatchObject({ canRetry: false, detail: 'message: too long' })
     expect(describeChatError(err(503, 'The model is unavailable.'))).toMatchObject({ canRetry: true })
-    expect(describeChatError(err(429, 'Too many requests'))).toMatchObject({ canRetry: false })
+    expect(describeChatError(err(429, 'Rate limit: at most 10 requests per minute. Please wait a moment.'))).toMatchObject({ canRetry: true })
+    expect(describeChatError(err(429, 'The daily request cap for this demo has been reached.'))).toMatchObject({ canRetry: false })
     expect(describeChatError(new Error('Failed to fetch'))).toMatchObject({ canRetry: true })
   })
 })

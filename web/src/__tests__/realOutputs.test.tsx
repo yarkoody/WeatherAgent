@@ -9,9 +9,9 @@ import { AssistantMessage } from '../components/AssistantMessage'
 import { ScoresView } from '../components/ScoresView'
 import { DebugProvider } from '../lib/debug'
 import * as explain from '../lib/explain'
-import { FAMILIES, fmt, hubName } from '../lib/format'
+import { BAND_COLOR, FAMILIES, fmt, hubName } from '../lib/format'
 import { normalizeHub } from '../lib/normalize'
-import type { HubScore, ScoreRow, ToolName, WeatherStat, WhatIfResult } from '../lib/types'
+import type { HubScore, Ranking, ScoreRow, ToolName, WeatherStat, WhatIfResult } from '../lib/types'
 import scoresJson from '../mocks/scores.json'
 import { AlertBanner } from '../widgets/AlertBanner'
 import { ComparisonCards } from '../widgets/ComparisonCards'
@@ -250,10 +250,14 @@ describe('cards: one "How to read this" per widget, no (i) per field, units and 
     expect(dialog).toHaveTextContent(`Medium from ${t.hurricane_medium_from_pct}%, high from ${t.hurricane_high_from_pct}%`)
   })
 
-  it('hazard rankings color bars by score band; bars show the number only', () => {
+  it('hazard rankings color bars by the hazard level the tool returns (the level the answer cites)', () => {
     const c = of('rank_hubs').find((x) => x.input.hazard === 'winter')!
-    const { container } = render(<RankingWidget data={c.output as never} />)
-    expect(container.textContent).toMatch(/Bar length and color: the winter score, 0 to 100 \(medium from 35, high from 60\)/)
-    expect(container.textContent).not.toMatch(/by days/)
+    const data = c.output as unknown as Ranking
+    const { container } = render(<RankingWidget data={data} />)
+    expect(container.textContent).toMatch(/Color: the winter level\. Medium from 2 lost days a year \(score 8\), high from 5 \(score 20\)/)
+    expect(container.textContent).not.toMatch(/medium from 35/)
+    // every bar's color is the band the tool gave that hub
+    const fills = [...container.querySelectorAll('.recharts-bar-rectangle path, .recharts-rectangle')].map((e) => e.getAttribute('fill')).filter((f) => f && f.startsWith('var(--color-band'))
+    if (fills.length) expect(fills).toEqual(data.items.map((i) => BAND_COLOR[i.band!]))
   })
 })

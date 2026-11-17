@@ -28,7 +28,7 @@ from pydantic import BaseModel, ConfigDict
 from app.data import DATA_DIR, OPEN_METEO_URL
 from app.schemas import (
     Band, BandThresholds, Family, FamilyScore, Hazard, Hub, HubHistory, HubScore, Metric, MonthDays, PerMillionHub,
-    RankedHub, Ranking, Region, ScoreKind, ScoreRow, Signal, WeatherStat, WhatIfInput, WhatIfResult, YearDays,
+    RankChange, RankedHub, Ranking, Region, ScoreKind, ScoreRow, Signal, WeatherStat, WhatIfInput, WhatIfResult, YearDays,
 )
 
 __all__ = [
@@ -661,18 +661,26 @@ def what_if(hubs: list[Hub], snapshot: Snapshot, inputs: WhatIfInput,
 
     weights = inputs.family_weights.model_dump(exclude_none=True) if inputs.family_weights else None
     effective = _effective_weights(weights, config)
-    mult = _multipliers(effective, config)
-    priorities = {}
-    for hub in sorted(hubs, key=lambda h: h.id):
-        fam = _family_days(hub, snapshot, config)
-        days = sum(mult[f] * fam[f][0] for f in FAMILIES)
-        p, _ = _priority(normalize(days, config.exposure_days_cap), snapshot.nri["counties"][hub.county_fips], config,
-                         _people(hub, snapshot)[0])
-        priorities[hub.id] = _r(p, 1)
+
+    def priorities_with(eff: dict[str, float]) -> dict[str, float]:
+        mult = _multipliers(eff, config)
+        out = {}
+        for hub in sorted(hubs, key=lambda h: h.id):
+            fam = _family_days(hub, snapshot, config)
+            days = sum(mult[f] * fam[f][0] for f in FAMILIES)
+            p, _ = _priority(normalize(days, config.exposure_days_cap), snapshot.nri["counties"][hub.county_fips],
+                             config, _people(hub, snapshot)[0])
+            out[hub.id] = _r(p, 1)
+        return out
+
+    priorities = priorities_with(effective)
     ranking = [
         RankedHub(rank=i, hub_id=k, name=by_id[k].name, value=v, band=band(v, config))
         for i, (k, v) in enumerate(_ordered(priorities), start=1)
     ]
+    before = {k: i for i, (k, _) in enumerate(_ordered(priorities_with(_effective_weights(None, config))), start=1)}
+    rank_changes = [RankChange(hub_id=r.hub_id, name=r.name, from_rank=before[r.hub_id], to_rank=r.rank)
+                    for r in ranking if before[r.hub_id] != r.rank]
     per_million = None
     if costs:
         ratio = {c.hub_id: _r(priorities[c.hub_id] / c.cost_musd, 2) for c in costs}
@@ -688,7 +696,8 @@ def what_if(hubs: list[Hub], snapshot: Snapshot, inputs: WhatIfInput,
         f"disruption day from each family counts (renormalized: {', '.join(f'{f} {w:g}' for f, w in shares.items())}; "
         "default is equal). Upgrade costs are analyst-supplied, in USD millions."
     )
-    return WhatIfResult(kind="priority", inputs_echo=inputs, ranking=ranking, per_million_ranking=per_million,
+    return WhatIfResult(kind="priority", inputs_echo=inputs, ranking=ranking, rank_changes=rank_changes,
+                        per_million_ranking=per_million,
                         note=note, data_as_of=snapshot.data_as_of)
 
 

@@ -2,6 +2,7 @@
 import { CheckIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { textDir } from '@/lib/textDir'
 import { deleteChat, groupChats, loadChats, renameChat, subscribeChats, type StoredChat } from '@/lib/chats'
 
 /** The stored chats, kept in sync with every save (this tab and others). */
@@ -84,6 +85,7 @@ function ChatRow({ chat, active, onSelect, onDeleted }: { chat: StoredChat; acti
         <input
           ref={input}
           aria-label="Chat title"
+          dir="auto"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKey}
@@ -136,7 +138,8 @@ function ChatRow({ chat, active, onSelect, onDeleted }: { chat: StoredChat; acti
         aria-current={active ? 'page' : undefined}
         aria-label={`Open chat: ${chat.title}`}
         onClick={() => onSelect(chat.id)}
-        className="min-w-0 flex-1 truncate rounded-xl px-3 py-2 text-left text-sm focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
+        dir={textDir(chat.title)}
+        className="min-w-0 flex-1 truncate rounded-xl px-3 py-2 text-start text-sm focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
       >
         {chat.title}
       </button>

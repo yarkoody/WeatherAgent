@@ -43,6 +43,12 @@ NEGATION = re.compile(
     r"\b(not|no|never|cannot|can't|can’t|won't|won’t|isn't|isn’t|don't|don’t|doesn't|doesn’t|ignore|instead|rather|asked|request|unable|override)\b",
     re.IGNORECASE,
 )
+MOVE_VERB = re.compile(
+    r"\b(mov(e|es|ed|ing)|climb(s|ed)?|rise(s|n)?|rose|jump(s|ed)?|drop(s|ped)?|fall(s|en)?|fell|"
+    r"slip(s|ped)?|overtak(e|es|en)|swap(s|ped)?)\b",
+    re.IGNORECASE,
+)
+STAYS = re.compile(r"\b(stay(s|ed)?|unchanged|remain(s|ed)?|retain(s|ed)?|hold(s)?|same (rank|place|position))\b", re.IGNORECASE)
 
 
 # ---------- oracle: expected values from the scoring code ----------
@@ -329,6 +335,25 @@ def check_run(run: Run, case: dict, oracle: Oracle) -> None:
         sentences = [s for s in re.split(r"(?<=[.!?])\s+|\n+", text) if s.strip()]
         bad = [s for s in sentences if re.search(pattern, s, re.IGNORECASE) and not NEGATION.search(s)]
         add(("no_false_claim", not bad, "" if not bad else f"claims: {bad[0][:120]}"))
+
+    if expect.get("movers_from_rank_changes"):
+        # Replay the last what_if call: a hub named in a "moves up/down" sentence must be in its rank_changes.
+        from app.schemas import WhatIfInput
+
+        calls = [a for name, a in run.tool_args if name == "what_if"]
+        if not calls:
+            add(("movers", False, "no what_if call"))
+        else:
+            result = oracle.scoring.what_if(oracle.hubs, oracle.snapshot, WhatIfInput.model_validate(calls[-1]))
+            moved = {c.hub_id for c in result.rank_changes}
+            sentences = [s for s in re.split(r"(?<=[.!?])\s+|\n+", text) if s.strip()]
+            wrong = sorted({
+                hub_id for s in sentences
+                if MOVE_VERB.search(s) and not NEGATION.search(s) and not STAYS.search(s)
+                for hub_id in oracle.by_id if hub_id not in moved
+                and any(re.search(rf"\b{re.escape(n)}\b", s, re.IGNORECASE) for n in oracle.names(hub_id))
+            })
+            add(("movers", not wrong, "" if not wrong else f"named as moving but not in rank_changes: {wrong}"))
 
     if expect.get("no_closing_question"):
         ends_with_q = text.rstrip().rstrip("*_ ").endswith("?")

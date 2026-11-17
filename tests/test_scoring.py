@@ -374,6 +374,16 @@ def test_what_if_without_inputs_matches_base_priority(scores):
     assert [(i.hub_id, i.value) for i in r.ranking] == [
         (i.hub_id, i.value) for i in scoring.rank(scores, HUBS, "priority").items]
     assert r.per_million_ranking is None
+    assert r.rank_changes == []
+
+
+def test_what_if_rank_changes_list_exactly_the_hubs_that_moved(scores):
+    base = {i.hub_id: i.rank for i in scoring.rank(scores, HUBS, "priority").items}
+    r = scoring.what_if(HUBS, SNAPSHOT, WhatIfInput.model_validate({"family_weights": {"hurricane": 0.5}}))
+    moved = {i.hub_id: (base[i.hub_id], i.rank) for i in r.ranking if base[i.hub_id] != i.rank}
+    assert moved  # this weight change reorders the fixture hubs
+    assert {c.hub_id: (c.from_rank, c.to_rank) for c in r.rank_changes} == moved
+    assert [c.to_rank for c in r.rank_changes] == sorted(c.to_rank for c in r.rank_changes)
 
 
 def test_what_if_rejects_unknown_hub_cost():

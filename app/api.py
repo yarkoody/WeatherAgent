@@ -10,13 +10,15 @@ import asyncio
 import contextlib
 import hmac
 import logging
+import math
 import os
 import threading
 import time
 import uuid
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from datetime import time as dt_time
 from pathlib import Path
 from typing import Any
 
@@ -192,6 +194,16 @@ class RateLimiter:
             self._day_count += 1
             return None
 
+    def retry_after(self, ip: str) -> int:
+        """Seconds until `ip` may send again (for the Retry-After header): when its oldest request in the window
+        expires, or the next UTC midnight once the daily cap is used up."""
+        with self._lock:
+            if self._day_count >= self.daily_cap:
+                now = datetime.now(UTC)
+                return max(1, int((datetime.combine(now.date() + timedelta(days=1), dt_time.min, UTC) - now).total_seconds()))
+            hits = self._hits.get(ip)
+            return max(1, math.ceil(60 - (self.clock() - hits[0]))) if hits else 1
+
 
 def client_ip(request: Request, hops: int = 1, header: str = "") -> str:
     """The client IP as seen by our trusted proxy.
@@ -240,7 +252,11 @@ def create_app(
     from dotenv import load_dotenv
 
     load_dotenv()
+    # Model calls cost money: /chat has a tight per-minute limit and a daily cap. The no-LLM routes the Scores page
+    # and the map call (what-if, a hub's score and history) get their own, looser limit, so clicking around the map
+    # can never lock out the chat.
     limiter = RateLimiter(_env_int("RATE_LIMIT_PER_MIN", 10), _env_int("DAILY_REQUEST_CAP", 300))
+    read_limiter = RateLimiter(_env_int("READ_RATE_LIMIT_PER_MIN", 120), 10**9)
     proxy_hops = _env_int("TRUSTED_PROXY_HOPS", 1)
     ip_header = os.environ.get("CLIENT_IP_HEADER", "").strip().lower()
     alert_token = os.environ.get("ALERT_TOKEN", "")
@@ -274,10 +290,12 @@ def create_app(
             result = alerts.snapshot_rows()
         return sorted(result, key=lambda r: (-r.priority, r.hub_id))
 
-    def limit(request: Request) -> None:
-        refused = limiter.check(client_ip(request, proxy_hops, ip_header))
+    def limit(request: Request, which: RateLimiter | None = None) -> None:
+        which = which or limiter
+        ip = client_ip(request, proxy_hops, ip_header)
+        refused = which.check(ip)
         if refused:
-            raise HTTPException(429, refused)
+            raise HTTPException(429, refused, headers={"Retry-After": str(which.retry_after(ip))})
 
     app = FastAPI(title="Weather Risk Intelligence Agent")
 
@@ -351,7 +369,7 @@ def create_app(
     @app.post("/what-if")
     def what_if(body: WhatIfInput, request: Request) -> WhatIfResult:
         """Deterministic re-ranking with analyst-supplied weights and costs. No LLM call."""
-        limit(request)
+        limit(request, read_limiter)
         from app import scoring
 
         try:
@@ -365,7 +383,7 @@ def create_app(
         A name resolved through a nickname or a metro area gets an X-Resolution-Note header (the
         schemas have no field for it).
         """
-        limit(request)
+        limit(request, read_limiter)
         import json as json_
 
         from app import tools
