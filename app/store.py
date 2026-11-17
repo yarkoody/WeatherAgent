@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS alerts_sent (
     new REAL NOT NULL,
     reason TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS nws_seen (
+    key TEXT PRIMARY KEY,
+    seen_at TEXT NOT NULL
+);
 """
 
 
@@ -141,6 +145,16 @@ class Store:
         with self._connect() as conn:
             rows = conn.execute("SELECT hub_id, sent_at, old, new, reason FROM alerts_sent ORDER BY rowid").fetchall()
         return [dict(zip(("hub_id", "sent_at", "old", "new", "reason"), r)) for r in rows]
+
+
+    def swap_nws_seen(self, keys: set[str]) -> set[str]:
+        """Replace the NWS alert keys of the previous run with this run's; return the previous ones."""
+        with self._write() as conn:
+            previous = {row[0] for row in conn.execute("SELECT key FROM nws_seen")}
+            conn.execute("DELETE FROM nws_seen")
+            now = _now()
+            conn.executemany("INSERT INTO nws_seen (key, seen_at) VALUES (?, ?)", [(k, now) for k in sorted(keys)])
+        return previous
 
 
 class Tracer:

@@ -72,12 +72,22 @@ class RateLimiter:
         self._hits: dict[str, deque[float]] = defaultdict(deque)
         self._day = ""
         self._day_count = 0
+        self._last_sweep = clock()
         self._lock = threading.Lock()
+
+    def _sweep(self, now: float) -> None:
+        """Forget IPs with no request in the last minute, so memory stays bounded."""
+        if now - self._last_sweep < 60:
+            return
+        self._last_sweep = now
+        for ip in [ip for ip, hits in self._hits.items() if not hits or now - hits[-1] >= 60]:
+            del self._hits[ip]
 
     def check(self, ip: str) -> str | None:
         """Count the request and return None, or return why it is refused."""
         with self._lock:
             now = self.clock()
+            self._sweep(now)
             today = datetime.now(UTC).date().isoformat()
             if today != self._day:
                 self._day, self._day_count = today, 0
@@ -93,10 +103,16 @@ class RateLimiter:
             return None
 
 
-def client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
+def client_ip(request: Request, hops: int = 1) -> str:
+    """The client IP as seen by our trusted proxy.
+
+    Each proxy appends the address it received the request from, so the entry `hops` places
+    from the right was written by the outermost trusted proxy. Entries further left are
+    client-controlled and are ignored (they could be rotated to dodge the rate limit).
+    """
+    forwarded = [p.strip() for p in (request.headers.get("x-forwarded-for") or "").split(",") if p.strip()]
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        return forwarded[max(len(forwarded) - max(hops, 1), 0)]
     return request.client.host if request.client else "unknown"
 
 
@@ -123,6 +139,7 @@ def create_app(
 
     load_dotenv()
     limiter = RateLimiter(_env_int("RATE_LIMIT_PER_MIN", 10), _env_int("DAILY_REQUEST_CAP", 300))
+    proxy_hops = _env_int("TRUSTED_PROXY_HOPS", 1)
     alert_token = os.environ.get("ALERT_TOKEN", "")
     webhook_url = os.environ.get("ALERT_WEBHOOK_URL", "") or None
     lazy: dict[str, Any] = {"model": model, "store": store, "tracer": tracer}
@@ -155,7 +172,7 @@ def create_app(
         return sorted(result, key=lambda r: (-r.priority, r.hub_id))
 
     def limit(request: Request) -> None:
-        refused = limiter.check(client_ip(request))
+        refused = limiter.check(client_ip(request, proxy_hops))
         if refused:
             raise HTTPException(429, refused)
 
@@ -165,6 +182,10 @@ def create_app(
     async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
         details = "; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors())
         return JSONResponse(status_code=422, content={"detail": details or "Validation failed."})
+
+    @app.exception_handler(Exception)
+    async def unexpected_error(_: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse(status_code=500, content={"detail": "Internal server error."})
 
     @app.get("/health")
     def health() -> dict[str, str]:

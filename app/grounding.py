@@ -7,9 +7,10 @@ the LLM's structured answer is parsed, so it does not depend on the model's hone
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from typing import Any
 
-from app.schemas import AgentAnswer
+from app.schemas import AgentAnswer, Figure
 
 # A number with optional thousands commas, decimals and a trailing %.
 # A leading minus counts only when it is not glued to a word or a digit
@@ -38,21 +39,54 @@ def _is_exempt(match: re.Match[str]) -> bool:
     return 1 <= n <= 15 or 1900 <= n <= 2100
 
 
+_TOOL_ERROR_KEYS = {"error", "retryable", "hint"}
+
+
+def _is_tool_error(obj: Any) -> bool:
+    return isinstance(obj, dict) and set(obj) == _TOOL_ERROR_KEYS
+
+
 def collect_numbers(obj: Any) -> list[float]:
-    """Every number in a tool result, including numbers written inside strings."""
+    """Every citable number in a tool result, including numbers written inside strings.
+
+    ToolError results and ISO dates (a date's "17" is not a figure) are skipped.
+    """
     out: list[float] = []
     if isinstance(obj, bool) or obj is None:
         return out
     if isinstance(obj, (int, float)):
         out.append(float(obj))
     elif isinstance(obj, str):
-        out.extend(numbers_in_text(obj))
+        out.extend(numbers_in_text(_ISO_DATE.sub(" ", obj)))
     elif isinstance(obj, dict):
+        if _is_tool_error(obj):
+            return out
         for value in obj.values():
             out.extend(collect_numbers(value))
     elif isinstance(obj, (list, tuple)):
         for value in obj:
             out.extend(collect_numbers(value))
+    return out
+
+
+def numbers_by_hub(obj: Any) -> dict[str, list[float]]:
+    """Numbers inside every object that carries a hub_id, keyed by that hub id."""
+    out: dict[str, list[float]] = defaultdict(list)
+
+    def visit(o: Any) -> None:
+        if isinstance(o, dict):
+            if _is_tool_error(o):
+                return
+            hub = o.get("hub_id")
+            if isinstance(hub, str):
+                out[hub].extend(collect_numbers(o))
+            for value in o.values():
+                visit(value)
+        elif isinstance(o, (list, tuple)):
+            for value in o:
+                visit(value)
+
+    visit(obj)
     return out
 
 
@@ -94,39 +128,60 @@ def ranking_candidates(tool_results: list[Any]) -> list[list[str]]:
     return out
 
 
-def _is_prefix(ranking: list[str], full: list[str]) -> bool:
-    return 0 < len(ranking) <= len(full) and full[: len(ranking)] == ranking
+def _in_order(ranking: list[str], full: list[str]) -> bool:
+    """True if ranking is a subsequence of full (same relative order, no repeats)."""
+    remaining = iter(full)
+    return len(ranking) > 0 and all(hub in remaining for hub in ranking)
+
+
+def _text_fields(answer: AgentAnswer) -> list[tuple[str, str]]:
+    return [("answer", answer.answer), ("uncertainty", answer.uncertainty)] + [
+        (f"assumptions[{i}]", text) for i, text in enumerate(answer.assumptions)
+    ]
+
+
+def _ungrounded(f: Figure, pool: list[float], by_hub: dict[str, list[float]]) -> bool:
+    # A hub's figure must come from an object about that hub; general figures (hub_id null) from anywhere.
+    return not _found(f.value, pool if f.hub_id is None else by_hub.get(f.hub_id, []))
 
 
 def check(answer: AgentAnswer, tool_results: list[Any], expected_ranking: list[str] | None) -> list[str]:
     """Return grounding errors; an empty list means the answer is grounded.
 
-    expected_ranking=None derives the allowed orders from the tool results.
-    A ranking may be a top-N prefix of the order the code returned.
+    expected_ranking=None derives the allowed orders from the tool results. A ranking may be
+    any subset of the order the code returned (top N, a filtered list) or that order reversed
+    (lowest first).
     """
     errors: list[str] = []
     pool = collect_numbers(tool_results)
+    by_hub = numbers_by_hub(tool_results)
 
     for f in answer.figures:
-        if not _found(f.value, pool):
+        if not _ungrounded(f, pool, by_hub):
+            continue
+        if f.hub_id is None:
             errors.append(
                 f"Figure '{f.label}' has value {_fmt(f.value)}, which no tool returned. "
                 "Use only numbers exactly as tools returned them."
             )
+        else:
+            errors.append(
+                f"Figure '{f.label}' for hub {f.hub_id} has value {_fmt(f.value)}, which no tool returned for that hub. "
+                "Use only numbers exactly as tools returned them, and set hub_id to null for general figures such as band thresholds."
+            )
 
     figure_values = [f.value for f in answer.figures]
-    for m in _NUMBER.finditer(_ISO_DATE.sub(" ", answer.answer)):
-        if _is_exempt(m):
-            continue
-        value = _parse(m)
-        if not _found(value, figure_values):
-            errors.append(f"The answer text mentions {m.group(0)}, which is not in figures. Add it to figures or remove it.")
+    for field, text in _text_fields(answer):
+        for m in _NUMBER.finditer(_ISO_DATE.sub(" ", text)):
+            if _is_exempt(m) or _found(_parse(m), figure_values):
+                continue
+            errors.append(f"The {field} text mentions {m.group(0)}, which is not in figures. Add it to figures or remove it.")
 
     if answer.ranking:
         candidates = [expected_ranking] if expected_ranking is not None else ranking_candidates(tool_results)
         if not candidates:
             errors.append("The answer has a ranking but no tool returned a ranking. Call rank_hubs or set ranking to null.")
-        elif not any(_is_prefix(answer.ranking, c) for c in candidates):
+        elif not any(_in_order(answer.ranking, c) or _in_order(answer.ranking, c[::-1]) for c in candidates):
             errors.append(
                 f"The ranking {answer.ranking} does not match the order the tools returned ({candidates[-1]}). "
                 "Copy the order from the tool result."
@@ -135,6 +190,6 @@ def check(answer: AgentAnswer, tool_results: list[Any], expected_ranking: list[s
 
 
 def drop_ungrounded_figures(answer: AgentAnswer, tool_results: list[Any]) -> AgentAnswer:
-    pool = collect_numbers(tool_results)
-    kept = [f for f in answer.figures if _found(f.value, pool)]
+    pool, by_hub = collect_numbers(tool_results), numbers_by_hub(tool_results)
+    kept = [f for f in answer.figures if not _ungrounded(f, pool, by_hub)]
     return answer.model_copy(update={"figures": kept})

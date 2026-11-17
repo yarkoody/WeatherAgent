@@ -104,3 +104,24 @@ def test_rolling_window_is_last_36_complete_months():
 
     assert rolling_window(date(2026, 11, 17)) == ("2023-11-01", "2026-10-31")
     assert rolling_window(date(2026, 1, 1)) == ("2023-01-01", "2025-12-31")
+
+
+def test_invalid_webhook_url_falls_back_to_jsonl(tmp_path, monkeypatch):
+    def invalid(*args, **kwargs):
+        raise httpx.InvalidURL("Invalid URL")
+
+    monkeypatch.setattr(httpx, "post", invalid)
+    run(tmp_path, [row()])
+    result = run(tmp_path, [row(priority=50.0)], webhook_url="http://bad url")
+    assert result["delivered"] == "jsonl"
+
+
+def test_only_new_nws_alerts_are_reported(tmp_path):
+    tornado = {"hub_id": "dallas", "event": "Tornado Warning", "severity": "Extreme", "headline": "T", "expires": "2026-11-17T20:00:00Z"}
+    flood = {"hub_id": "houston", "event": "Flash Flood Warning", "severity": "Severe", "headline": "F", "expires": None}
+    assert [a["event"] for a in run(tmp_path, [row()], nws=[tornado])["nws"]] == ["Tornado Warning"]
+    second = run(tmp_path, [row()], nws=[tornado])
+    assert second["nws"] == [] and second["delivered"] is None
+    assert [a["event"] for a in run(tmp_path, [row()], nws=[tornado, flood])["nws"]] == ["Flash Flood Warning"]
+    run(tmp_path, [row()], nws=[])
+    assert [a["event"] for a in run(tmp_path, [row()], nws=[tornado])["nws"]] == ["Tornado Warning"]  # expired, then new again

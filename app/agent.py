@@ -29,7 +29,7 @@ import ai
 from ai.ui.ai_sdk.outbound_stream import format_done_sse, format_sse
 from ai.ui.ai_sdk.ui_events import (
     UIDataEvent,
-    UIErrorEvent,
+    UIStartEvent,
     UIFinishEvent,
     UIToolInputAvailableEvent,
     UIToolOutputAvailableEvent,
@@ -61,6 +61,7 @@ GROUNDING_RETRY_TEMPLATE = (
     "Reply again with the complete AgentAnswer JSON. Use only numbers exactly as the tools returned them, "
     "put every number from the answer text in figures, and copy any ranking in the order the tools returned it."
 )
+LENGTH_ERROR = "The answer was cut off at the output token limit, so it could not be verified."
 STREAM_ERROR_TEXT = "The model or an upstream service is unavailable. Please try again."
 
 FALLBACK_ANSWER = AgentAnswer(
@@ -79,7 +80,25 @@ FALLBACK_ANSWER = AgentAnswer(
 # verify at developers.openai.com/api/docs/pricing. Cached input is cheaper, so this is an upper bound.
 PRICES_PER_MTOK: dict[str, tuple[float, float]] = {"gpt-6.1-sol": (2.0, 10.0)}
 
-_TEXT_EVENTS = (ai.events.TextStart, ai.events.TextDelta, ai.events.TextEnd)
+# Never streamed: the answer text (verified first, sent once as data-answer) and model reasoning.
+_HIDDEN_EVENTS = (
+    ai.events.TextStart,
+    ai.events.TextDelta,
+    ai.events.TextEnd,
+    ai.events.ReasoningStart,
+    ai.events.ReasoningDelta,
+    ai.events.ReasoningEnd,
+)
+ERROR_ANSWER = AgentAnswer(
+    answer="Sorry, I could not answer this right now because the model or a data service is unavailable. Please try again in a moment.",
+    hubs=[],
+    ranking=None,
+    figures=[],
+    assumptions=[],
+    uncertainty="No answer was produced, so nothing here is backed by data.",
+    data_available=False,
+    in_scope=True,
+)
 
 
 def retry_message(errors: list[str]) -> str:
@@ -181,14 +200,23 @@ class WeatherAgent(ai.Agent):
         self.input_tokens = 0
         self.output_tokens = 0
 
+    def _parse_traced(self, message: ai.messages.Message, purpose: str) -> AgentAnswer | None:
+        answer = _parse(message)
+        if answer is None:
+            self.tracer.event(
+                self.trace_id, "unparsed_reply", purpose=purpose, text=(message.text or "")[:500], tool_calls=len(message.tool_calls)
+            )
+        return answer
+
     def _check(self, answer: AgentAnswer | None) -> list[str]:
         if answer is None:
             return [PARSE_ERROR]
         return grounding.check(answer, self.prior_tool_results + self.turn_tool_results, None)
 
     async def _call(self, model: ai.Model, messages: list[ai.messages.Message], tools: list[ai.Tool], purpose: str, out: list):
-        """One model call; runs requested tools; appends (assistant message, tool message | None) to out."""
+        """One model call; runs requested tools; appends (assistant message, tool message | None, finish_reason) to out."""
         start = time.perf_counter()
+        finish_reason = None
         async with (
             ai.stream(model, messages, tools=tools, output_type=AgentAnswer, params=build_params()) as stream,
             ai.ToolRunner() as runner,
@@ -198,7 +226,9 @@ class WeatherAgent(ai.Agent):
                 yield event
                 if isinstance(event, ai.events.ToolEnd) and tools:
                     part = event.tool_call
-                    if self._tool_resolver.get(part.tool_name) is None:
+                    try:
+                        runner.schedule(self.resolve(part))
+                    except KeyError:
                         error = ToolError(
                             error=f"Unknown tool '{part.tool_name}'.",
                             retryable=False,
@@ -206,10 +236,11 @@ class WeatherAgent(ai.Agent):
                         ).model_dump()
                         self.tracer.event(self.trace_id, "tool_call", name=part.tool_name, args=part.tool_args, error=error["error"])
                         runner.add_result(ai.tool_result(tool_call_id=part.tool_call_id, tool_name=part.tool_name, result=error))
-                    else:
-                        runner.schedule(self.resolve(part))
                 elif isinstance(event, ai.events.ToolCallResult):
-                    self.turn_tool_results.extend(p.result for p in event.results)
+                    # SDK error results (e.g. unparseable arguments) are exception text, not data to cite.
+                    self.turn_tool_results.extend(p.result for p in event.results if not p.is_error)
+                elif isinstance(event, ai.events.StreamEnd):
+                    finish_reason = event.finish_reason
         usage = stream.message.usage
         if usage is not None:
             self.input_tokens += usage.input_tokens
@@ -223,8 +254,9 @@ class WeatherAgent(ai.Agent):
             latency_ms=round((time.perf_counter() - start) * 1000, 1),
             input_tokens=usage.input_tokens if usage else None,
             output_tokens=usage.output_tokens if usage else None,
+            finish_reason=finish_reason,
         )
-        out.append((stream.message, runner.get_tool_message()))
+        out.append((stream.message, runner.get_tool_message(), finish_reason))
 
     async def loop(self, context: ai.Context):
         rounds = 0
@@ -233,7 +265,7 @@ class WeatherAgent(ai.Agent):
             out: list = []
             async for event in self._call(context.model, context.messages, tools, "step" if tools else "forced_final", out):
                 yield event
-            message, tool_message = out[0]
+            message, tool_message, finish_reason = out[0]
             if tools and tool_message is not None:
                 context.add(message)
                 context.add(tool_message)
@@ -242,11 +274,15 @@ class WeatherAgent(ai.Agent):
                 continue
             break
 
-        answer = _parse(message)
-        errors = self._check(answer)
-        first_errors = list(errors)
         status = "pass"
-        if errors:
+        if finish_reason == "length":
+            # A truncated reply is never valid JSON; retrying would hit the same limit.
+            answer, errors, status = FALLBACK_ANSWER, [LENGTH_ERROR], "failed"
+        else:
+            answer = self._parse_traced(message, "step" if tools else "forced_final")
+            errors = self._check(answer)
+        first_errors = list(errors)
+        if errors and status == "pass":
             # Rebuild the rejected reply as plain text so the retry never carries dangling tool calls.
             retry_context = [
                 *context.messages,
@@ -256,18 +292,23 @@ class WeatherAgent(ai.Agent):
             out = []
             async for event in self._call(context.model, retry_context, [], "grounding_retry", out):
                 yield event
-            retry_answer = _parse(out[0][0])
-            retry_errors = self._check(retry_answer)
+            retry_message_, _, retry_finish = out[0]
+            retry_answer = None if retry_finish == "length" else self._parse_traced(retry_message_, "grounding_retry")
+            retry_errors = [LENGTH_ERROR] if retry_finish == "length" else self._check(retry_answer)
             if not retry_errors:
                 answer, errors, status = retry_answer, [], "retried"
             else:
                 status = "failed"
                 if retry_answer is not None:
                     answer, errors = retry_answer, retry_errors
+                else:
+                    errors = errors + [e for e in retry_errors if e not in errors]
                 if answer is None:
                     answer = FALLBACK_ANSWER
                 else:
+                    # Unverified: keep only grounded figures and never show an unchecked ranking.
                     answer = grounding.drop_ungrounded_figures(answer, self.prior_tool_results + self.turn_tool_results)
+                    answer = answer.model_copy(update={"ranking": None})
 
         self.answer = answer
         self.grounding = Grounding(status=status, errors=errors)
@@ -298,11 +339,12 @@ async def _turn_events(
     session_id = session_id or uuid.uuid4().hex
     trace_id = uuid.uuid4().hex
     holder["trace_id"] = trace_id
+    holder["session_id"] = session_id
     started = time.perf_counter()
     tracer.event(trace_id, "user_message", session_id=session_id, text=message)
     try:
         history = [ai.messages.Message.model_validate(m) for m in store.get_messages(session_id)]
-        prior = [p.result for m in history if m.role == "tool" for p in m.tool_results]
+        prior = [p.result for m in history if m.role == "tool" for p in m.tool_results if not p.is_error]
         agent = WeatherAgent(
             tools=build_tools(_registry(registry), tracer, trace_id),
             tracer=tracer,
@@ -374,15 +416,17 @@ async def stream_turn(
         async for event in _turn_events(
             message, session_id, model=model, store=store, tracer=tracer, max_steps=max_steps, registry=registry, holder=holder
         ):
-            if isinstance(event, _TEXT_EVENTS):
-                continue  # answer text is never streamed
+            if isinstance(event, _HIDDEN_EVENTS):
+                continue
             if isinstance(event, ai.events.ToolEnd):
                 calls[event.tool_call.tool_call_id] = event.tool_call
             yield event
 
     finish: list[UIFinishEvent] = []
+    started = False
     try:
         async for ui in ai.ui.ai_sdk.to_stream(events()):
+            started = started or isinstance(ui, UIStartEvent)
             if isinstance(ui, UIFinishEvent):
                 finish.append(ui)  # held back until the answer part is out
                 continue
@@ -397,11 +441,20 @@ async def stream_turn(
                         UIToolInputAvailableEvent(tool_call_id=part.tool_call_id, tool_name=part.tool_name, input=_tool_input(part.tool_args))
                     )
             yield format_sse(ui)
-    except Exception:
-        # Already traced in _turn_events; the client gets a generic error part.
-        yield format_sse(UIErrorEvent(error_text=STREAM_ERROR_TEXT))
-        yield format_done_sse()
-        return
+    except Exception as exc:
+        # Already traced in _turn_events. The contract still holds: exactly one data-answer part,
+        # here an apology flagged "failed", then finish and [DONE].
+        while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
+            exc = exc.exceptions[0]
+        holder["response"] = ChatResponse(
+            session_id=holder.get("session_id") or session_id or uuid.uuid4().hex,
+            answer=ERROR_ANSWER,
+            grounding=Grounding(status="failed", errors=[f"{STREAM_ERROR_TEXT} ({type(exc).__name__})"]),
+            trace_id=holder.get("trace_id") or uuid.uuid4().hex,
+        )
+        finish = []
+    if not started:
+        yield format_sse(UIStartEvent())
     yield format_sse(UIDataEvent(data_type="answer", data=holder["response"].model_dump(mode="json")))
     for event in finish or [UIFinishEvent()]:
         yield format_sse(event)

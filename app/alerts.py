@@ -84,6 +84,10 @@ def compare(old: ScoreRow, new: ScoreRow) -> dict[str, Any] | None:
     }
 
 
+def _nws_key(alert: dict) -> str:
+    return "|".join(str(alert.get(k)) for k in ("hub_id", "event", "headline", "expires"))
+
+
 def _summary(changes: list[dict], nws: list[dict]) -> str:
     lines = [f"{c['name']}: {'; '.join(c['reasons'])}" for c in changes]
     lines += [f"NWS {a.get('severity')}: {a.get('event')} at {a.get('hub_id')}" for a in nws]
@@ -127,7 +131,13 @@ def check_alerts(
         if update_baseline:
             write_baseline(baseline_path, rows, computed_at)
 
-    nws = [a for a in (nws_fetch() if nws_fetch is not None else []) if a.get("severity") in NWS_SEVERITIES]
+    nws: list[dict] = []
+    if nws_fetch is not None:
+        active = [a for a in nws_fetch() if a.get("severity") in NWS_SEVERITIES]
+        # NWS alerts carry no id here, so the key is what identifies one; report only alerts
+        # that were not active in the previous run.
+        previous = store.swap_nws_seen({_nws_key(a) for a in active})
+        nws = [a for a in active if _nws_key(a) not in previous]
 
     delivered = None
     if changes or nws:
@@ -138,7 +148,7 @@ def check_alerts(
             try:
                 httpx.post(webhook_url, json=payload, timeout=10).raise_for_status()
                 delivered = "webhook"
-            except httpx.HTTPError as exc:
+            except (httpx.HTTPError, httpx.InvalidURL) as exc:
                 payload["webhook_error"] = type(exc).__name__
         if delivered == "jsonl":
             _append_jsonl(log_path, payload)

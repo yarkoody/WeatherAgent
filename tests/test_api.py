@@ -131,12 +131,48 @@ def test_rate_limit_returns_429(tmp_path, monkeypatch):
     monkeypatch.setenv("RATE_LIMIT_PER_MIN", "2")
     scripts = [script(f"q{i}") for i in range(3)]
     c = client(tmp_path, model=ai.testing.FakeModel(*scripts))
-    ip_a = {"X-Forwarded-For": "1.1.1.1, 10.0.0.1"}
-    assert c.post("/chat/json", json={"message": "q0"}, headers=ip_a).status_code == 200
-    assert c.post("/chat", json=ui_body("q1"), headers=ip_a).status_code == 200
-    blocked = c.post("/chat/json", json={"message": "q2"}, headers=ip_a)
+    # the proxy appends the real client IP (1.1.1.1); the spoofed left entries change every call
+    assert c.post("/chat/json", json={"message": "q0"}, headers={"X-Forwarded-For": "6.6.6.1, 1.1.1.1"}).status_code == 200
+    assert c.post("/chat", json=ui_body("q1"), headers={"X-Forwarded-For": "6.6.6.2, 1.1.1.1"}).status_code == 200
+    blocked = c.post("/chat/json", json={"message": "q2"}, headers={"X-Forwarded-For": "6.6.6.3, 1.1.1.1"})
     assert blocked.status_code == 429 and isinstance(blocked.json()["detail"], str)
-    assert c.post("/chat/json", json={"message": "q2"}, headers={"X-Forwarded-For": "2.2.2.2"}).status_code == 200
+    assert c.post("/chat/json", json={"message": "q2"}, headers={"X-Forwarded-For": "1.1.1.1, 2.2.2.2"}).status_code == 200
+
+
+def test_client_ip_uses_trusted_proxy_hops():
+    from starlette.requests import Request
+
+    from app.api import client_ip
+
+    def req(xff):
+        headers = [(b"x-forwarded-for", xff.encode())] if xff else []
+        return Request({"type": "http", "headers": headers, "client": ("10.0.0.9", 1234)})
+
+    assert client_ip(req("spoof, 9.9.9.9"), hops=1) == "9.9.9.9"
+    assert client_ip(req("spoof, 9.9.9.9, 10.0.0.1"), hops=2) == "9.9.9.9"
+    assert client_ip(req("9.9.9.9"), hops=2) == "9.9.9.9"  # fewer entries than hops: the leftmost
+    assert client_ip(req(""), hops=1) == "10.0.0.9"
+
+
+def test_rate_limiter_drops_old_entries():
+    from app.api import RateLimiter
+
+    now = [0.0]
+    limiter = RateLimiter(per_minute=5, daily_cap=10_000, clock=lambda: now[0])
+    for i in range(500):
+        assert limiter.check(f"10.0.{i // 250}.{i % 250}") is None
+    now[0] = 61.0
+    assert limiter.check("1.2.3.4") is None
+    assert len(limiter._hits) == 1
+
+
+def test_unexpected_error_returns_500_with_detail(tmp_path):
+    def broken():
+        raise RuntimeError("boom")
+
+    app = create_app(model=ai.testing.FakeModel(script()), store=Store(tmp_path / "a.db"), tracer=Tracer(tmp_path / "t.jsonl"), list_hubs=broken)
+    res = TestClient(app, raise_server_exceptions=False).get("/hubs")
+    assert res.status_code == 500 and res.json() == {"detail": "Internal server error."}
 
 
 def test_daily_cap_returns_429(tmp_path, monkeypatch):
