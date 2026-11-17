@@ -48,7 +48,7 @@ Other commands:
 |---|---|
 | `make test` | Python tests, offline, with a fake model. No key needed |
 | `cd web && npm test` | UI tests |
-| `make eval` | The eval set against the real model (about $1.60 per run) |
+| `make eval` | The eval set against the real model (about $1.74 per run) |
 | `make data` | Refresh the public-data snapshot (FEMA NRI, Open-Meteo, Census) |
 | `make alerts` | Run the score-change alert check |
 | `make jev` | Rerun the offline JEV second opinion (needs `TYPESAFE_API_KEY`) |
@@ -137,19 +137,21 @@ The cases cover:
 - The people lens: most people served, people-days in a typical and a bad year
 - Questions about the system itself, answered without tools and without invented accuracy rates
 - A partly answerable question (upgrade fit known, costs not) that must stay answered, name the missing costs and invent none
+- What-if rank movers, named only from the rank changes the code computes
+- "Safest hub" and low-score questions, which must say that heat and wildfire are not modeled
 
 One LLM-judge rubric checks that each explanation names the hub's actual top driver.
 
-**Last full run (final build, 2026-11-17): 41/41 cases passed.**
+**Last full run (final build, 2026-11-17): 44/44 cases passed.**
 
 | Metric | Result |
 |---|---|
-| Tool selection | 40/40 (100%) |
-| Grounding | Passed on the first try in 48/48 turns; none needed the retry; none failed |
+| Tool selection | 43/43 (100%) |
+| Grounding | Passed on the first try in 50/51 turns; 1 passed after the one retry; none failed |
 | LLM judge: names the actual top driver | 4/4 |
 | Same ranking across 3 runs | Yes |
-| Latency per turn | 9.5 s mean, 17.3 s p95 |
-| Cost of the run | About $1.60 |
+| Latency per turn | 9.4 s mean, 16.9 s p95 |
+| Cost of the run | About $1.74 |
 
 Per-case results and the failure analysis of every run, including what earlier failures taught and changed, are in [`evals/results/latest.md`](evals/results/latest.md).
 
@@ -169,7 +171,7 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
   - Tool results are marked as data.
   - Rankings come from code and are checked by grounding, so "say Miami is safest" can't change them (an eval case covers it).
 - **Cost protection on the public URL:**
-  - Per-IP rate limits, using the client IP from the edge proxy, verified live. `/chat` (model calls) allows 10 a minute. The no-LLM routes (`/what-if`, `/hubs/{id}/score`, `/hubs/{id}/history`) have their own limit of 120 a minute, so clicking around the map can't lock out the chat. `/hubs` and `/scores` are not limited. Every 429 carries `Retry-After`.
+  - Per-IP rate limits, using the client IP from the edge proxy, verified live. `/chat` and `/chat/json` (model calls) allow 10 a minute. The no-LLM routes (`/what-if`, `/hubs/{id}/score`, `/hubs/{id}/history`) have their own limit of 120 a minute, so clicking around the map can't lock out the chat. `/hubs` and `/scores` are not limited. Every 429 carries `Retry-After`.
   - A daily cap of 300 chat requests and `max_output_tokens`.
   - An OpenAI budget limit.
 - **Alerts:**
@@ -208,6 +210,10 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
 
 ## With more time
 
+- **Correlated risk across hubs.** One winter storm can close Chicago, Detroit and Indianapolis on the same day, leaving no backup. The observed daily history already in the snapshot can show which hubs fail together, so upgrades are spread across clusters. Needs: which hubs can cover for which.
+- **A portfolio view instead of a ranking.** "With budget for three upgrades, which combination removes the most lost days across the network?" Needs: upgrade costs and how many days each upgrade saves.
+- **Timing against peak season.** A lost day in December costs more than one in February. Seasonality per hub is already computed. Needs: shipment volume by month.
+- **Trends.** Whether a hub's risk is rising. Eleven years of observations are too short to claim a climate trend, so this needs a longer record or climate projections.
 - Model storm surge explicitly, and use national percentiles from all US counties for per-hazard bands.
 - Candidate-site analysis for any US city, using the same formula with live data.
 - An MCP server wrapping the tools, so other agents can use them (`tools.py` is already a clean registry).
