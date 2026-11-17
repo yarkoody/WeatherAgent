@@ -77,6 +77,10 @@ Returns one hub's `HubHistory`: observed disruption days per calendar year and p
 
 Name resolution, the `X-Resolution-Note` header, the 404 errors and the rate limit are the same as for `GET /hubs/{hub_id}/score`.
 
+## `GET /methodology.md`
+
+Returns `docs/METHODOLOGY.md` as `text/markdown`, and 404 with `{ "detail": string }` if the file is missing. It is a static document: no LLM call and no rate limit. The Docker image ships this one file from `docs/`.
+
 ## `GET /health`
 
 Returns `{ "status": "ok" }`.

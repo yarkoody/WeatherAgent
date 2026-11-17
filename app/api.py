@@ -234,6 +234,7 @@ def create_app(
     second_opinion_path: Path | None = None,
     second_opinion_builder: Callable[[], Any] | None = None,
     keepalive_seconds: float = agent.KEEPALIVE_SECONDS,
+    methodology_path: Path | None = None,
 ) -> FastAPI:
     _ensure_log_output()
     from dotenv import load_dotenv
@@ -288,6 +289,14 @@ def create_app(
     @app.exception_handler(Exception)
     async def unexpected_error(_: Request, exc: Exception) -> JSONResponse:
         return JSONResponse(status_code=500, content={"detail": "Internal server error."})
+
+    @app.get("/methodology.md")
+    def methodology() -> Response:
+        """The scoring methodology document (docs/METHODOLOGY.md), linked from the UI."""
+        path = methodology_path or ROOT / "docs" / "METHODOLOGY.md"
+        if not path.is_file():
+            raise HTTPException(404, "The methodology document is not available.")
+        return Response(path.read_text(encoding="utf-8"), media_type="text/markdown; charset=utf-8")
 
     @app.get("/health")
     def health() -> dict[str, str]:

@@ -502,3 +502,35 @@ def test_hub_history_is_rate_limited(tmp_path, monkeypatch):
     c = client(tmp_path)
     assert c.get("/hubs/denver/history").status_code == 200
     assert c.get("/hubs/denver/history").status_code == 429
+
+
+# ---------- GET /methodology.md ----------
+
+
+def test_methodology_is_served_as_markdown(tmp_path):
+    doc = tmp_path / "METHODOLOGY.md"
+    doc.write_text("# Methodology\n\nExposure is expected disruption days.\n", encoding="utf-8")
+    res = client(tmp_path, methodology_path=doc).get("/methodology.md")
+    assert res.status_code == 200 and res.text.startswith("# Methodology")
+    assert res.headers["content-type"].startswith("text/markdown")
+
+
+def test_methodology_missing_is_404(tmp_path):
+    res = client(tmp_path, methodology_path=tmp_path / "missing.md").get("/methodology.md")
+    assert res.status_code == 404 and isinstance(res.json()["detail"], str)
+
+
+def test_methodology_route_wins_over_the_web_app(tmp_path):
+    # the API routes are declared before the static web app mount, so the doc is not the SPA index
+    doc = tmp_path / "METHODOLOGY.md"
+    doc.write_text("# M\n", encoding="utf-8")
+    assert client(tmp_path, methodology_path=doc).get("/methodology.md").text == "# M\n"
+
+
+def test_docker_image_ships_the_methodology_doc():
+    from app import api
+
+    ignore = (api.ROOT / ".dockerignore").read_text().splitlines()
+    assert "docs/" in ignore and "!docs/METHODOLOGY.md" in ignore
+    assert ignore.index("!docs/METHODOLOGY.md") > ignore.index("docs/")  # the exception must come after the rule
+    assert "COPY docs/METHODOLOGY.md docs/METHODOLOGY.md" in (api.ROOT / "Dockerfile").read_text()

@@ -6,6 +6,7 @@ web/dist/
 logs/
 data/app.db
 docs/
+!docs/METHODOLOGY.md
 tests/
 evals/
 .git/
