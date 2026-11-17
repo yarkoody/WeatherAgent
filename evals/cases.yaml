@@ -22,6 +22,9 @@
 #     score_figures    [{hub_id, family} | {hub_id, score}]: figures cite the code's value for that hub
 #                      (family: index, share % or days/yr; score: exposure index or days/yr, or priority)
 #     figure           {hub_id, metric, year}: the oracle weather_stat value is in figures and in the answer text
+#     compact_figure   {hub_id, signal}: the priority signal's raw value is exact in figures and
+#                      written in compact form ("2.6M") in the answer text
+#     grounding_first_try  true: grounding must pass without the retry
 #     states_band      {hub_id, kind}: the answer text names the code's band (low/medium/high)
 #     mentions_top_of  list of ranking specs: the answer names the rank-1 hub of at least one
 #     text_must_match  regexes that must match answer + assumptions
@@ -279,5 +282,16 @@ cases:
         what_if: {upgrade_costs: [{hub_id: chicago, cost_musd: 3}, {hub_id: houston, cost_musd: 2}, {hub_id: dallas, cost_musd: 1.5}]}
         list: per_million_ranking
       text_must_match: ["(?i)analyst[- ]supplied"]
+      in_scope: true
+      data_available: true
+
+  # ---------- compact large numbers ----------
+  - id: population_compact
+    about: Large count written compactly ("2.6M") in the text, exact in figures, verified by grounding
+    turns: ["How many people does the Dallas hub serve?"]
+    expect:
+      tools_required: ["get_hub_risk|compare_hubs"]
+      compact_figure: {hub_id: dallas, signal: people served}
+      grounding_first_try: true
       in_scope: true
       data_available: true

@@ -78,6 +78,10 @@ class Oracle:
         s = self.scores[hub_id]
         return s.exposure_band if kind == "exposure" else s.priority_band
 
+    def signal_raw(self, hub_id: str, prefix: str) -> float:
+        """Raw value of a priority signal, e.g. 'people served' (county population)."""
+        return next(s.raw for s in self.scores[hub_id].priority_signals if s.name.startswith(prefix))
+
     def score_values(self, spec: dict[str, Any]) -> list[float]:
         """Values a correct answer may cite: a family's index, share (%) or days per year, or a score."""
         s = self.scores[spec["hub_id"]]
@@ -255,6 +259,19 @@ def check_run(run: Run, case: dict, oracle: Oracle) -> None:
         ok = any(f.hub_id == spec["hub_id"] and any(matches(f.value, v) for v in values) for f in answer.figures)
         what = spec.get("family") or spec.get("score")
         add(("score_figure", ok, "" if ok else f"no figure for {spec['hub_id']} {what} matching the code values {values}"))
+
+    if "compact_figure" in expect:
+        from app.grounding import cites_compact
+
+        spec = expect["compact_figure"]
+        value = oracle.signal_raw(spec["hub_id"], spec["signal"])
+        exact = any(f.hub_id == spec["hub_id"] and f.value == value for f in answer.figures)
+        compact = cites_compact(text, value)
+        add(("compact_figure", exact and compact,
+             "" if exact and compact else f"{value:,.0f}: exact in figures {exact}, compact in text {compact}"))
+
+    if expect.get("grounding_first_try"):
+        add(("grounding_first_try", resp.grounding.status == "pass", f"status {resp.grounding.status}"))
 
     if "states_band" in expect:
         spec = expect["states_band"]
