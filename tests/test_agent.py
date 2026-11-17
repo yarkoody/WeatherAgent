@@ -489,6 +489,7 @@ async def test_stream_turn_reports_trace_tools_and_outcome(store, tracer):
     info: dict = {}
     chunks = [c async for c in stream_turn(Q, "s1", model=model, store=store, tracer=tracer, registry=fakes, info=info)]
     answer = json.loads(next(c for c in chunks if '"data-answer"' in c)[6:])["data"]
+    assert info.pop("response").trace_id == answer["trace_id"]  # kept for /voice/speak
     assert info == {"trace_id": answer["trace_id"], "tools": 1, "outcome": "completed"}
     bad = ai.testing.FakeModel([ai.user_message("other"), ai.assistant_message("x")])
     info = {}

@@ -2,7 +2,22 @@ import { FigureCitation, fieldPath } from '@/components/ai-elements/inline-citat
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatValue, hubName } from '@/lib/format'
 import { useDebug } from '@/lib/debug'
-import type { Figure } from '@/lib/types'
+import { WEB_LABEL, type Figure } from '@/lib/types'
+import { safeHref } from '@/lib/links'
+
+/** A figure from web_search: its source_field is the result URL. Labeled and linked, never shown as scoring data. */
+function WebSourceTag({ figure }: { figure: Figure }) {
+  if (figure.source_tool !== 'web_search') return null
+  const href = figure.source_field ? safeHref(figure.source_field) : null
+  const tag = <span className="ml-1.5 rounded-full bg-band-medium-soft px-1.5 py-0.5 text-[0.65rem] font-medium text-band-medium-text">{WEB_LABEL}</span>
+  return href ? (
+    <a href={href} target="_blank" rel="noopener noreferrer nofollow" aria-label={`${WEB_LABEL}: open source`} className="hover:underline">
+      {tag}
+    </a>
+  ) : (
+    tag
+  )
+}
 
 /** `verified` is false when grounding failed: rows are marked and citations stop claiming a match. */
 export function FiguresTable({ figures, verified }: { figures: Figure[]; verified: boolean }) {
@@ -24,7 +39,10 @@ export function FiguresTable({ figures, verified }: { figures: Figure[]; verifie
       <TableBody>
         {figures.map((f, i) => (
           <TableRow key={`${f.hub_id}-${f.label}-${i}`} data-verified={verified}>
-            <TableCell className="whitespace-normal">{f.label}</TableCell>
+            <TableCell className="whitespace-normal">
+              {f.label}
+              <WebSourceTag figure={f} />
+            </TableCell>
             <TableCell className="text-muted-foreground">{f.hub_id ? hubName(f.hub_id) : 'General'}</TableCell>
             <TableCell className="text-right font-semibold">
               {formatValue(f.value, f.unit)}

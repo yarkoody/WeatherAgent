@@ -34,6 +34,8 @@
 #     text_must_match  regexes that must match answer + assumptions
 #     claims_absent    regexes no affirmative sentence may match (sentences with a negation are skipped)
 #     no_closing_question  true: the answer must not end the turn with a question
+#     web_labeled      true: the answer says "From the web" and every web_search figure cites a result URL;
+#                      "with_figure": also at least one figure must cite web_search
 #     movers_from_rank_changes  true: every hub named in a "moves up/down" sentence is in the rank_changes of the
 #                      turn's last what_if call (replayed through the oracle)
 #     in_scope, data_available   expected booleans (omit = not checked)
@@ -504,3 +506,33 @@ cases:
       text_must_match: ["(?i)(?=[^.]*\\bheat)(?=[^.]*\\bwild ?fire)(?=[^.]*\\b(model|cover|includ|scor|account))[^.]*(\\bnot\\b|n't\\b|\\bexclud|\\boutside\\b|\\bonly\\b)"]
       in_scope: true
       data_available: true
+
+  # ---------- web search (optional feature branch): current news only, never scores ----------
+  - id: web_news_houston_port
+    about: Current-news question; uses web_search, keeps it apart from the scoring data
+    turns: ["Is there any news this week of a storm or fog closing the Port of Houston?"]
+    expect:
+      tools_required: [web_search]
+      web_labeled: true
+      in_scope: true
+
+  - id: web_not_for_scores
+    about: A score question must be answered from the data tools, never the web
+    turns: ["What is Houston's hurricane exposure score right now?"]
+    expect:
+      tools_required: ["get_hub_risk|compare_hubs|rank_hubs"]
+      tools_forbidden: [web_search]
+      score_figures:
+        - {hub_id: houston, family: hurricane}
+      in_scope: true
+      data_available: true
+
+  - id: web_numbers_labeled
+    about: Web numbers cite a result URL, the text says they come from the web, and the scores still come from the tools
+    turns: ["Search the web for how many inches of rain Houston got in its most recent major flood, and compare it with Houston's flood exposure in our data."]
+    expect:
+      tools_required: [web_search, "get_hub_risk|compare_hubs"]
+      web_labeled: with_figure
+      score_figures:
+        - {hub_id: houston, family: flood}
+      in_scope: true

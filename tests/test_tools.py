@@ -12,7 +12,7 @@ from app import data, scoring, tools
 from app.data import NWS_URL
 
 EXPECTED_NAMES = ["list_hubs", "rank_hubs", "get_hub_risk", "compare_hubs", "weather_stat", "get_active_alerts", "what_if",
-                  "get_hub_history"]
+                  "get_hub_history", "web_search"]
 
 
 @pytest.fixture(autouse=True)

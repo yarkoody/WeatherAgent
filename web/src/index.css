@@ -35,6 +35,10 @@
   --color-hazard-flood: #1f4f86;
   --color-hazard-hurricane: #5b4e8c;
   --color-hazard-severe_storm: #6b7a85;
+  /* Live voice orb: listening (blue, the isobar), checking (violet), speaking (teal). Used only by the voice dock. */
+  --color-voice-listen: #2f5d8a;
+  --color-voice-think: #6a5aa8;
+  --color-voice-speak: #1f8a7d;
 }
 
 @theme inline {
@@ -148,6 +152,9 @@
   --color-hazard-flood: #3b7dd8;
   --color-hazard-hurricane: #a99bdc;
   --color-hazard-severe_storm: #a7b4bd;
+  --color-voice-listen: #8ab4dc;
+  --color-voice-think: #b4a6ec;
+  --color-voice-speak: #6fd3c4;
 
   --header: rgb(21 32 41 / 0.92);
   --sky-1: #17283a;
@@ -479,4 +486,33 @@
   display: block;
   max-width: 100%;
   overflow-x: auto;
+}
+
+/* Live voice orb: flat color, motion only. Reduced motion keeps the color and label and drops every animation. */
+@keyframes voice-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.35; }
+  50% { transform: scale(1.35); opacity: 0.12; }
+}
+@keyframes voice-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.5); opacity: 0.08; }
+}
+@keyframes voice-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes voice-shimmer {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.45; }
+  50% { transform: scaleY(0.75); opacity: 0.8; }
+}
+.voice-halo-listening { animation: voice-breathe 2.4s ease-in-out infinite; }
+.voice-halo-speaking { animation: voice-pulse 1.1s ease-in-out infinite; }
+.voice-halo-connecting { animation: voice-breathe 3.2s ease-in-out infinite; }
+.voice-ring-thinking { animation: voice-spin 1.2s linear infinite; }
+.voice-bar-idle { animation: voice-shimmer 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .voice-halo-listening,
+  .voice-halo-speaking,
+  .voice-halo-connecting,
+  .voice-ring-thinking,
+  .voice-bar-idle { animation: none; }
 }

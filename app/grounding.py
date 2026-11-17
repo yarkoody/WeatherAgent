@@ -227,8 +227,32 @@ def _text_fields(answer: AgentAnswer) -> list[tuple[str, str]]:
     ]
 
 
-def _bound_values(f: Figure, indexed: list[tuple[str, list[Leaf]]]) -> list[float] | None:
+WEB_TOOL = "web_search"
+
+
+def _web_values(f: Figure, outputs: list[ToolOutput]) -> list[float] | None:
+    """A web figure cites a result by URL (source_field): the numbers written in that result's title and snippet.
+
+    None if no web_search result exists in the conversation; [] if none of them has that URL.
+    """
+    from app.websearch import normalize_url, web_result_texts
+
+    found: list[float] | None = None
+    url = normalize_url(f.source_field)
+    for o in outputs:
+        if o.tool != WEB_TOOL or _is_tool_error(o.result):
+            continue
+        found = found or []
+        text = web_result_texts(o.result).get(url)
+        if text is not None:
+            found.extend(numbers_in_text(_ISO_DATE.sub(" ", text)))
+    return found
+
+
+def _bound_values(f: Figure, indexed: list[tuple[str, list[Leaf]]], outputs: list[ToolOutput] | None = None) -> list[float] | None:
     """Values at the figure's tool / hub / family / field; None if no result of that tool exists."""
+    if f.source_tool == WEB_TOOL:
+        return _web_values(f, outputs or [])
     found: list[float] | None = None
     for tool, items in indexed:
         if tool != f.source_tool:
@@ -247,6 +271,17 @@ def _bound_values(f: Figure, indexed: list[tuple[str, list[Leaf]]]) -> list[floa
 def _figure_error(f: Figure, values: list[float] | None) -> str | None:
     if values and _found(f.value, values):
         return None
+    if f.source_tool == WEB_TOOL and values is not None:
+        if not values:
+            return (
+                f"Figure '{f.label}' (value {_fmt(f.value)}) cites web_search with source_field '{f.source_field}', "
+                "which is not the url of any web_search result. Set source_field to the exact url of the result "
+                "whose title or snippet holds the number."
+            )
+        return (
+            f"Figure '{f.label}' cites the web result {f.source_field} as {_fmt(f.value)}, but that result's title and "
+            f"snippet do not contain that number. Copy a number the result states, or remove the figure."
+        )
     where = f"{f.source_tool}.{f.source_field}" + (f" (family {f.family})" if f.family else "")
     who = f"hub {f.hub_id}" if f.hub_id else "a general figure (hub_id null)"
     if values is None:
@@ -287,7 +322,7 @@ def check(answer: AgentAnswer, tool_results: list[Any], expected_ranking: list[s
             "from the text, or set data_available true if the tools did return what was asked."
         )
     for f in answer.figures:
-        error = _figure_error(f, _bound_values(f, indexed))
+        error = _figure_error(f, _bound_values(f, indexed, outputs))
         if error:
             errors.append(error)
 
@@ -311,8 +346,9 @@ def check(answer: AgentAnswer, tool_results: list[Any], expected_ranking: list[s
 
 
 def drop_ungrounded_figures(answer: AgentAnswer, tool_results: list[Any]) -> AgentAnswer:
-    indexed = [(o.tool, leaves(o.result)) for o in map(_as_output, tool_results)]
-    kept = [f for f in answer.figures if answer.data_available and _figure_error(f, _bound_values(f, indexed)) is None]
+    outputs = [_as_output(item) for item in tool_results]
+    indexed = [(o.tool, leaves(o.result)) for o in outputs]
+    kept = [f for f in answer.figures if answer.data_available and _figure_error(f, _bound_values(f, indexed, outputs)) is None]
     return answer.model_copy(update={"figures": kept})
 
 

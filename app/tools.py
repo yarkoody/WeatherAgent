@@ -1,4 +1,4 @@
-"""The seven agent tools: thin, validated wrappers over scoring and the NWS client.
+"""The agent tools: thin, validated wrappers over scoring, the NWS client and (web_search) OpenAI's hosted web search.
 
 Each tool validates its own arguments, returns a Pydantic model (or list of models), and
 never raises: any failure becomes a `ToolError` with a hint the model can act on.
@@ -18,7 +18,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from app import data, scoring
+from app import data, scoring, websearch
 from app.schemas import (
     ActiveAlerts, FamilyWeights, Hazard, HubComparison, HubCost, Metric, NwsAlert, Region, ScoreKind,
     ToolError, WhatIfInput,
@@ -85,6 +85,7 @@ ARG_MODELS: dict[str, type[BaseModel]] = {
     "get_active_alerts": GetActiveAlertsArgs,
     "what_if": WhatIfArgs,
     "get_hub_history": GetHubHistoryArgs,
+    "web_search": websearch.WebSearchArgs,
 }
 
 # ---------- shared state and helpers ----------
@@ -360,8 +361,24 @@ async def get_hub_history(hub_id: str):
     return scoring.hub_history(hubs, snapshot, _resolve(hub_id))
 
 
+@_tool
+async def web_search(query: str):
+    """Search the web for current, qualitative context the snapshot cannot have: news of a port or airport
+    closure, a storm, flooding or a recent event at a hub city this week. Returns up to 5 results, each with
+    title, url, snippet and published date. Never use it for scores, bands, rankings, exposure, priority,
+    weather statistics, history or NWS alerts: the other tools answer those. A number from it goes in figures
+    with source_tool "web_search" and source_field set to the url of the result whose title or snippet holds
+    it, and the answer must say the information is from the web."""
+    try:
+        return await websearch.search(query)
+    except Exception as exc:  # upstream failure, missing key, timeout
+        return ToolError(error=f"web search unavailable: {type(exc).__name__}", retryable=False,
+                         hint="Answer from the data tools and say the web search could not run right now.")
+
+
 TOOL_FUNCTIONS: list[Callable[..., Awaitable[Any]]] = [
     list_hubs, rank_hubs, get_hub_risk, compare_hubs, weather_stat, get_active_alerts, what_if, get_hub_history,
+    web_search,
 ]
 _BY_NAME = {f.__name__: f for f in TOOL_FUNCTIONS}
 

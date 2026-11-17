@@ -17,4 +17,6 @@ export const WIDGETS: Partial<Record<ToolName, Widget>> = {
   get_hub_history: lazy(() => import('./HistoryWidget').then((m) => ({ default: m.HistoryWidget }))),
   // The what-if result in the chat; the sliders to change it live on the Scores page. list_hubs has no widget on purpose.
   what_if: lazy(() => import('./WhatIfWidget').then((m) => ({ default: m.WhatIfWidget }))),
+  // Web search results: links only, labeled as web content (never drawn as a chart).
+  web_search: lazy(() => import('./WebSources').then((m) => ({ default: m.WebSources }))),
 }
