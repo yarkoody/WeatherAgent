@@ -3,7 +3,7 @@
 export type Region = 'Midwest' | 'South' | 'West' | 'Northeast'
 export type Family = 'winter' | 'flood' | 'hurricane' | 'severe_storm'
 export type Hazard = 'overall' | Family
-export type ScoreKind = 'exposure' | 'priority' | 'bad_year' // bad_year = 1-in-20-year disruption days
+export type ScoreKind = 'exposure' | 'priority' | 'bad_year' | 'people_impact' | 'people_served' // bad_year = 1-in-20-year days; people_impact = million people-days a year
 export type Band = 'low' | 'medium' | 'high'
 export type Metric =
   | 'snow_days_pct'
@@ -58,7 +58,7 @@ export interface BandThresholds {
   hurricane_high_from_pct: number // (50)
 }
 
-export interface HubScore {
+export interface HubScore extends PeopleImpact {
   hub_id: string
   exposure: number
   exposure_days_per_year: number // typical year
@@ -97,6 +97,8 @@ export interface Ranking {
   items: RankedHub[]
   band_thresholds: BandThresholds
   data_as_of: string
+  /** Hubs that matched the filter before top_n (0 or missing from older backends: unknown). */
+  total?: number
 }
 
 export interface WeatherStat {
@@ -152,7 +154,18 @@ export interface ActiveAlerts {
   fetched_at: string
 }
 
-export interface ScoreRow {
+/**
+ * People impact (optional: older backends and saved chats lack it; ScoreRow sends 0 / "" when unknown).
+ * people_served is the metro-area population, a Census estimate used as a proxy, never the hub's actual customers.
+ */
+export interface PeopleImpact {
+  metro_name?: string
+  people_served?: number
+  people_days_m?: number // million people-days a year, typical year = people_served x typical days / 1e6
+  people_days_bad_year_m?: number // the same in a bad year
+}
+
+export interface ScoreRow extends PeopleImpact {
   hub_id: string
   name: string
   region: Region
@@ -205,6 +218,17 @@ export interface ChatResponse {
   trace_id: string
   /** Suggested next questions (0-3), built by code from the turn. Missing in answers saved before this field. */
   follow_ups?: string[]
+  /** Per-turn cost and timing (developer mode). Missing in answers saved before this field. */
+  usage?: TurnUsage | null
+}
+
+/** Per-turn cost and timing, shown in developer mode. */
+export interface TurnUsage {
+  latency_ms: number
+  input_tokens: number
+  output_tokens: number
+  cost_usd: number | null // null when the model's price is unknown
+  tool_calls: number
 }
 
 export const TOOL_NAMES = [
@@ -221,37 +245,6 @@ export type ToolName = (typeof TOOL_NAMES)[number]
 
 export function isToolError(value: unknown): value is ToolError {
   return typeof value === 'object' && value !== null && 'error' in value && 'hint' in value
-}
-
-// ---------- JEV second opinion (offline cross-check; never changes scores) ----------
-
-export interface JevFamilyOpinion {
-  family: Family
-  jev_band: Band // JEV's rating mapped with the same cut-offs as our index
-  jev_score_pct: number // JEV's score as 0-100
-  our_band: Band // our formula's band for this family
-  agrees: boolean
-}
-
-export interface JevHubOpinion {
-  hub_id: string
-  name: string
-  families: JevFamilyOpinion[]
-  agree_count: number
-  total: number
-}
-
-export interface SecondOpinion {
-  model: string
-  run_at: string
-  data_as_of: string
-  hubs: JevHubOpinion[]
-  agree_count: number
-  total: number
-  agreement_pct: number // 0-100
-  note: string
-  /** Spearman rank agreement per hazard family (JEV score vs our family days), when the run computed it. */
-  rank_correlation?: Partial<Record<Family, number>> | null
 }
 
 // ---------- what-if (analyst-supplied weights and costs; POST /what-if) ----------

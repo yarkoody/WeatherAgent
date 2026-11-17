@@ -16,6 +16,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY app/ app/
 # All committed data: hubs, snapshot, metro areas, nicknames, JEV second opinion (app.db is in .dockerignore).
 COPY data/ data/
+COPY docs/METHODOLOGY.md docs/METHODOLOGY.md
 COPY --from=web /web/dist web/dist
 ENV PORT=8000
 EXPOSE 8000

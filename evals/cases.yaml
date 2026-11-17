@@ -24,6 +24,8 @@
 #                      (family: index, share % or days/yr; score: exposure index or days/yr, or priority)
 #     figure           {hub_id, metric, year}: the oracle weather_stat value is in figures and in the answer text
 #     history          {hub_id}: the answer names every oracle peak month and the worst year (get_hub_history)
+#     field_figure     {rank_of: <spec>, field, names_metro?}: figures cite that field (or rank_hubs value) of the
+#                      rank-1 hub; names_metro: true also requires its metro area (specs may be {field: <HubScore field>})
 #     compact_figure   {hub_id, signal}: the priority signal's raw value is exact in figures and
 #                      written in compact form ("2.6M") in the answer text
 #     grounding_first_try  true: grounding must pass without the retry
@@ -31,8 +33,10 @@
 #     mentions_top_of  list of ranking specs: the answer names the rank-1 hub of at least one
 #     text_must_match  regexes that must match answer + assumptions
 #     claims_absent    regexes no affirmative sentence may match (sentences with a negation are skipped)
+#     no_closing_question  true: the answer must not end the turn with a question
 #     in_scope, data_available   expected booleans (omit = not checked)
-# Every run also checks: grounding not "failed", tool rounds <= 6, and no number spelled out in words
+# Every run also checks: an answer with data_available false has no figures;
+# grounding not "failed", tool rounds <= 6, and no number spelled out in words
 # (eleven and up), which would slip past the grounding check, and no markdown table in the answer
 # (the UI draws the figures table and charts from tool outputs).
 
@@ -354,5 +358,116 @@ cases:
     expect:
       tools_required: [get_hub_history]
       history: {hub_id: minneapolis}
+      in_scope: true
+      data_available: true
+
+  # ---------- questions about the system itself: answered from the prompt, no tools ----------
+  - id: meta_data_sources
+    about: system question; answered from "About this system" without tools, naming the real sources
+    turns: ["Where does your data come from, and how do you make sure the numbers are right?"]
+    expect:
+      tools_forbidden: ["*"]
+      in_scope: true
+      text_must_match: ["(?i)national risk index", "(?i)open-meteo|era5", "(?i)check|verif|validat"]
+
+  - id: meta_model_deployment
+    about: system question about the model and deployment; no tools, no invented details
+    turns: ["Which AI model are you running on, and where is this deployed?"]
+    expect:
+      tools_forbidden: ["*"]
+      in_scope: true
+      text_must_match: ["(?i)openai", "(?i)render"]
+
+  - id: meta_sources_short
+    about: Short system question from the live-app review; no tools
+    turns: ["What are the data sources?"]
+    expect:
+      tools_forbidden: ["*"]
+      in_scope: true
+      text_must_match: ["(?i)national risk index", "(?i)open-meteo|era5", "(?i)national weather service|nws"]
+
+  - id: meta_model_and_checks
+    about: System question on the model and the checking; no tools, names the model and the field check
+    turns: ["Which model do you use, and how are the numbers checked?"]
+    expect:
+      tools_forbidden: ["*"]
+      in_scope: true
+      text_must_match: ["(?i)openai", "(?i)field|check"]
+
+  # ---------- live-app review: no needless questions, full regional lists, clean refusals ----------
+  - id: unsupported_population_weighted
+    about: Unsupported weighting; one-sentence limit plus the closest view (review priority), no question back
+    turns: ["midwest winter disruption weighted by population in the region?"]
+    expect:
+      tools_required: [rank_hubs]
+      text_must_match: ["(?i)priority"]
+      no_closing_question: true
+      in_scope: true
+
+  - id: midwest_winter_all_hubs
+    about: Regional "which hubs" question lists every hub in the region, in the oracle order
+    turns: ["Which Midwest hubs are most exposed to winter weather?"]
+    expect:
+      tools_required: [rank_hubs]
+      tool_args: [{tool: rank_hubs, equals: {region: Midwest, hazard: winter}, min: {top_n: 6}}]
+      ranking_from: {kind: exposure, hazard: winter, region: Midwest}
+      ranking_exact: true
+      in_scope: true
+      data_available: true
+
+  - id: unsupported_fire_risk
+    about: A hazard the data does not cover; clear refusal, no figures, no invented ranking
+    turns: ["Which of my hubs has the highest fire risk?"]
+    expect:
+      tools_forbidden: [rank_hubs, compare_hubs, what_if, weather_stat]
+      data_available: false
+
+  # ---------- people impact lens (metro population, people-days) ----------
+  - id: people_most_served
+    about: Most people served; names the hub and its metro, calls it a proxy, cites people_served
+    turns: ["Which hub serves the most people?"]
+    expect:
+      tools_required: [rank_hubs]
+      tool_args: [{tool: rank_hubs, equals: {score: people_served}}]
+      ranking_from: {kind: people_served, hazard: overall}
+      ranking_required: false
+      mentions_top_of: [{field: people_served}]
+      field_figure: {rank_of: {field: people_served}, field: people_served}
+      text_must_match: ["(?i)proxy|estimate"]
+      in_scope: true
+      data_available: true
+
+  - id: people_bad_year
+    about: Bad-year people impact; ranking equals the oracle people-impact order or the bad-year people-days order
+    turns: ["Where would a bad year affect the most people?"]
+    expect:
+      tools_required: ["rank_hubs|compare_hubs|get_hub_risk"]
+      ranking_from: [{kind: people_impact, hazard: overall}, {field: people_days_bad_year_m}]
+      text_must_match: ["(?i)proxy|estimate"]
+      in_scope: true
+      data_available: true
+
+  - id: people_affected_typical
+    about: Typical-year people impact routes to people_impact, not people_served; ranking equals the oracle
+    turns: ["Where does weather disruption affect the most people in a typical year?"]
+    expect:
+      tools_required: [rank_hubs]
+      tool_args: [{tool: rank_hubs, equals: {score: people_impact}}]
+      ranking_from: {kind: people_impact, hazard: overall}
+      text_must_match: ["(?i)proxy|estimate"]
+      in_scope: true
+      data_available: true
+
+  # ---------- partly answerable: costs missing, upgrade fit available ----------
+  - id: partial_upgrade_costs
+    about: Upgrade costs are missing but the upgrade fit per hub is not; a partial answer stays data_available true
+    turns:
+      - "Which hubs should I prioritize for investment?"
+      - "What would the upgrades cost, and which upgrades fit each of those hubs' risks?"
+    expect:
+      tools_forbidden: [what_if]
+      # Says the costs are missing, and invents none.
+      text_must_match: ["(?i)(don.t have|no|not (in|include)|without|missing)[^.]{0,80}cost|cost[^.]{0,80}(not (in|include)|missing|don.t have|unavailable)"]
+      claims_absent: ["\\$\\s?\\d", "(?i)\\d[\\d.,]*\\s?(million|thousand|k)?\\s?(dollars|usd)"]
       in_scope: true
       data_available: true

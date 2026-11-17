@@ -1,22 +1,22 @@
 # Eval results
 
-Run 2026-11-17 13:47 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot data as of 2026-11-17. Command: `uv run python -m evals.run`. Expected values come from `app/scoring.py` at run time (oracle). Traces of this run: a temp directory, not the repo.
+Run 2026-11-17 16:21 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot data as of 2026-11-17. Command: `uv run python -m evals.run`. Expected values come from `app/scoring.py` at run time (oracle). Traces of this run: a temp directory, not the repo.
 
 ## Summary
 
 | Metric | Value |
 |---|---|
-| Cases passed (all checks, all repeats) | 30/30 (100%) |
-| Tool-selection accuracy (runs with tool expectations) | 29/29 (100%) |
-| Grounding passed first try (all turns) | 33/36 (92%) |
-| Grounding passed after one retry | 3/36 (8%) |
-| Grounding failed or turn errored | 0/36 (0%) |
+| Cases passed (all checks, all repeats) | 38/39 (97%) |
+| Tool-selection accuracy (runs with tool expectations) | 38/38 (100%) |
+| Grounding passed first try (all turns) | 45/45 (100%) |
+| Grounding passed after one retry | 0/45 (0%) |
+| Grounding failed or turn errored | 0/45 (0%) |
 | Judge: names the actual top driver | 4/4 (100%) |
 | Determinism | determinism_priority: 3 runs, identical ranking: yes |
-| Latency per turn, mean / p95 | 10.3 s / 17.4 s (36 turns) |
-| Tokens, agent (input / output) | 417,205 / 17,488 |
-| Tokens, judge (input / output) | 1,401 / 132 |
-| Cost estimate for this run | $1.01 (agent $1.01, judge $0.00; list prices in `app/agent.py`, cached input not discounted) |
+| Latency per turn, mean / p95 | 9.7 s / 14.8 s (45 turns) |
+| Tokens, agent (input / output) | 572,154 / 18,488 |
+| Tokens, judge (input / output) | 1,448 / 140 |
+| Cost estimate for this run | $1.33 (agent $1.33, judge $0.00; list prices in `app/agent.py`, cached input not discounted) |
 
 ## Offline grounding probes
 
@@ -34,15 +34,9 @@ Run 2026-11-17 13:47 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot 
 
 ## Grounding breakdown
 
-Turns: 36. First try: 33. Passed after one retry: 3. Failed after the retry: 0. Turn errors: 0.
+Turns: 45. First try: 45. Passed after one retry: 0. Failed after the retry: 0. Turn errors: 0.
 
-For each retried or failed turn, every grounding error: what the model cited (tool.field [family] @hub = value) and which field of that turn's tool results actually holds the number (tools re-run offline).
-
-| Case, turn | Status | Attempt | Error kind | Model cited | Field that holds the number |
-|---|---|---|---|---|---|
-| followup_first_one t2 | retried | first | figure | 'Winter share of typical-year disruption exposure': get_hub_risk.winter @minneapolis = 83.5 | get_hub_risk.family_weights [winter] |
-| miami_typical_vs_bad t1 | retried | first | text number | mentions 20, which is not in figures. Add it to figures or remove it. | - |
-| history_minneapolis t1 | retried | first | figure | 'Worst observed year winter days': get_hub_history.winter [winter] @minneapolis = 53 | get_hub_history.days [winter] |
+No grounding errors in this run.
 
 ## Per case
 
@@ -50,38 +44,78 @@ Latency is per run, all turns summed; repeated cases show one value per run.
 
 | Case | Result | Tools called (last turn) | Grounding | Judge | Latency (s) | Failed checks |
 |---|---|---|---|---|---|---|
-| brief_midwest_winter | PASS | rank_hubs | pass | - | 8.5 |  |
-| brief_miami_houston | PASS | compare_hubs | pass | - | 10.4 |  |
-| brief_denver_snow | PASS | weather_stat | pass | - | 7.4 |  |
-| brief_dallas_why_high | PASS | get_hub_risk | pass | pass | 9.0 |  |
-| para_midwest_rank | PASS | rank_hubs | pass | - | 9.5 |  |
-| para_priority_top5 | PASS | rank_hubs,compare_hubs | pass | - | 13.6 |  |
-| para_houston_miami | PASS | compare_hubs | pass | - | 9.2 |  |
-| para_chicago_snow | PASS | weather_stat | pass | - | 7.4 |  |
-| para_kc_drivers | PASS | get_hub_risk | pass | pass | 9.0 |  |
-| followup_first_one | PASS | get_hub_risk | retried | pass | 23.5 |  |
-| followup_and_chicago | PASS | weather_stat | pass | - | 14.2 |  |
-| determinism_priority | PASS | rank_hubs / rank_hubs / rank_hubs | pass/pass/pass | -/-/- | 16.5/15.3/15.2 |  |
-| premise_atlanta | PASS | get_hub_risk | pass | - | 11.0 |  |
-| missing_boise | PASS | get_hub_risk,list_hubs | pass | - | 9.9 |  |
-| missing_lightning | PASS | - | pass | - | 5.7 |  |
-| missing_year_1950 | PASS | weather_stat | pass | - | 5.6 |  |
+| brief_midwest_winter | PASS | rank_hubs | pass | - | 10.6 |  |
+| brief_miami_houston | PASS | compare_hubs | pass | - | 12.8 |  |
+| brief_denver_snow | PASS | weather_stat | pass | - | 9.0 |  |
+| brief_dallas_why_high | PASS | get_hub_risk | pass | pass | 11.2 |  |
+| para_midwest_rank | PASS | rank_hubs | pass | - | 9.1 |  |
+| para_priority_top5 | PASS | rank_hubs,compare_hubs | pass | - | 13.3 |  |
+| para_houston_miami | PASS | compare_hubs | pass | - | 10.7 |  |
+| para_chicago_snow | PASS | weather_stat | pass | - | 7.5 |  |
+| para_kc_drivers | PASS | get_hub_risk | pass | pass | 9.9 |  |
+| followup_first_one | PASS | get_hub_risk | pass | pass | 21.2 |  |
+| followup_and_chicago | PASS | weather_stat | pass | - | 15.2 |  |
+| determinism_priority | PASS | rank_hubs / rank_hubs / rank_hubs | pass/pass/pass | -/-/- | 13.8/11.6/14.8 |  |
+| premise_atlanta | PASS | get_hub_risk | pass | - | 11.1 |  |
+| missing_boise | PASS | get_hub_risk | pass | - | 6.8 |  |
+| missing_lightning | PASS | - | pass | - | 4.8 |  |
+| missing_year_1950 | PASS | weather_stat | pass | - | 5.9 |  |
 | out_of_scope_stock | PASS | - | pass | - | 3.6 |  |
-| injection_miami_safest | PASS | rank_hubs | pass | - | 9.0 |  |
-| ambiguous_riskiest | PASS | rank_hubs,get_hub_risk | pass | - | 10.4 |  |
-| what_if_costs | PASS | what_if | pass | - | 9.4 |  |
-| live_alerts_houston | PASS | get_active_alerts | pass | - | 6.6 |  |
-| invest_recommendation | PASS | rank_hubs,compare_hubs | pass | - | 14.0 |  |
-| invest_followup_costs | PASS | what_if | pass | - | 30.0 |  |
-| population_compact | PASS | get_hub_risk | pass | - | 7.0 |  |
-| bad_year_ranking | PASS | rank_hubs,compare_hubs | pass | - | 12.8 |  |
-| miami_typical_vs_bad | PASS | get_hub_risk | retried | pass | 17.4 |  |
-| metro_new_york | PASS | get_hub_risk | pass | - | 9.4 |  |
-| metro_boston_followup | PASS | get_hub_risk | pass | - | 15.4 |  |
-| ambiguous_portland | PASS | get_hub_risk | pass | - | 5.7 |  |
-| history_minneapolis | PASS | get_hub_history,get_hub_risk | retried | - | 19.0 |  |
+| injection_miami_safest | PASS | rank_hubs | pass | - | 10.6 |  |
+| ambiguous_riskiest | PASS | rank_hubs,get_hub_risk | pass | - | 10.5 |  |
+| what_if_costs | PASS | what_if | pass | - | 10.7 |  |
+| live_alerts_houston | PASS | get_active_alerts | pass | - | 12.3 |  |
+| invest_recommendation | PASS | rank_hubs,compare_hubs | pass | - | 15.2 |  |
+| invest_followup_costs | PASS | what_if | pass | - | 28.2 |  |
+| population_compact | PASS | get_hub_risk | pass | - | 10.0 |  |
+| bad_year_ranking | PASS | rank_hubs | pass | - | 9.6 |  |
+| miami_typical_vs_bad | PASS | get_hub_risk | pass | pass | 10.2 |  |
+| metro_new_york | PASS | get_hub_risk | pass | - | 9.9 |  |
+| metro_boston_followup | PASS | get_hub_risk | pass | - | 17.2 |  |
+| ambiguous_portland | PASS | get_hub_risk | pass | - | 5.2 |  |
+| history_minneapolis | PASS | get_hub_history | pass | - | 10.6 |  |
+| meta_data_sources | PASS | - | pass | - | 6.0 |  |
+| meta_model_deployment | PASS | - | pass | - | 3.4 |  |
+| meta_sources_short | PASS | - | pass | - | 3.9 |  |
+| meta_model_and_checks | PASS | - | pass | - | 4.4 |  |
+| unsupported_population_weighted | PASS | rank_hubs | pass | - | 13.7 |  |
+| midwest_winter_all_hubs | PASS | rank_hubs | pass | - | 10.6 |  |
+| unsupported_fire_risk | PASS | - | pass | - | 3.3 |  |
+| people_most_served | FAIL | rank_hubs | pass | - | 8.2 | field_figure: no figure citing newark.people_served = 19940274; metro_named: answer does not name the New York metro |
+| people_bad_year | PASS | rank_hubs,compare_hubs | pass | - | 20.0 |  |
 
 ## Failure analysis
+
+### People impact lens (2026-11-17, branch fix/stream-keepalive at a350297, the run in the tables above)
+
+There are 39 cases. New: `people_most_served` (names the hub and its metro, calls it a proxy, cites `people_served`) and `people_bad_year` (ranking equals the oracle people-impact order or the bad-year people-days order). The oracle can now rank by any HubScore field. The priority regression is covered by the existing `determinism_priority` (all 15 hubs equal to the oracle, 3 times) and `invest_recommendation` (exact top 5); both pass with the new metro-population priority (Minneapolis, Chicago, Newark first).
+
+- **Result: 38/39, with no regressions in the older cases.** Tool selection 38/38, grounding 45/45 on the first try, judge 4/4, determinism identical x3, 9.7 s mean and 14.8 s p95 per turn, about $1.33 per run (39 cases, 45 turns). Latency is back to the earlier level.
+- **`people_bad_year` passes, and with the right measure.** It cites `people_days_bad_year_m` (Newark 706.6 million people-days), says it is a proxy, and gives the hurricane closure-mix caveat in words.
+- **`people_most_served` fails because of a tool gap, not a model error.** The answer names the right hub (Newark) but reads "serves the most people" as people-days of disruption (299.5 million) rather than metro population (`people_served`, 19.9 million). It does say which interpretation it used.
+  - The prompt sends any "most people" question to `rank_hubs` `people_impact`.
+  - No tool can rank by population. `rank_hubs` has no `people_served` kind, ranking items carry only one value, `list_hubs` has no population, and `compare_hubs` takes at most 5 hubs.
+  - Newark wins on both measures here, but would not in general: Los Angeles has the second-largest metro population yet ranks low on people-days.
+  - No prompt fix was made, because the model cannot answer this correctly with today's tools.
+  - **Update (Track A added `rank_hubs` score `people_served`; prompt routes "serves the most people / largest market" there):** re-run of the 3 people cases (`people_most_served`, `people_bad_year`, new `people_affected_typical`), $0.14, grounding 3/3 first try.
+    - `people_most_served`: `rank_hubs` with `people_served`, Newark at 20.1M (exact 20,112,448 in figures, cited as `rank_hubs.value`), called a proxy. It failed only a "names the New York metro" check: ranking items carry no `metro_name`, so naming the metro needs an extra call. That check is now opt-in (`names_metro`); against the remaining checks this saved answer passes.
+    - `people_affected_typical`: `people_impact`, top 5 equal to the oracle.
+    - `people_bad_year` passes, but no ranking covers bad-year people-days, so the model called `rank_hubs` (bad_year) plus 3 `compare_hubs` calls covering all 15 hubs (42.6 s). A `people_impact` bad-year ranking would remove those calls.
+  - Original proposal (now done by Track A): a `people_served` kind for `rank_hubs` (or `people_served` on each ranking item). Then a prompt line sends "serves the most people" or "largest population" questions to it, and "affected most" or "people-days" questions to `people_impact`.
+
+### Live-app review rules (2026-11-17, branch fix/stream-keepalive, the run in the tables above)
+
+New prompt rules: system questions answered without tools from "About this system"; no needless clarifying questions (state the interpretation, give the closest supported view); regional "which hubs" lists every hub with "top N of M"; no-data answers cite no figures. There are 37 cases. New: `meta_sources_short`, `meta_model_and_checks`, `unsupported_population_weighted` (must not end with a question), `midwest_winter_all_hubs` (all 6 Midwest hubs, exact oracle order) and `unsupported_fire_risk`. The runner also checks globally that an answer with `data_available` false has no figures.
+
+- **Full run: 33/37.** All 33 cases that completed passed, with no regressions in the older cases. Tool selection 32/32, grounding 39 of 39 completed turns on the first try (no retries), judge 4/4, determinism identical x3, about $1.08.
+- **The 4 failures were turn errors, not answers.** `sqlite3.OperationalError: unable to open database file` hit the eval run's temporary store (`meta_model_deployment`, `unsupported_population_weighted`, `midwest_winter_all_hubs`, `unsupported_fire_risk`), three of them at 0.0 s and back to back. The disk was 99% full (3.8 GiB free), and SQLite raises this error when it cannot create its journal. This is the environment, not the agent.
+- **Targeted re-run of those 4** (the one allowed): 3/4 pass, 4/4 grounding first try, $0.09.
+  - `midwest_winter_all_hubs` lists all 6 Midwest hubs in the oracle order.
+  - `unsupported_population_weighted` answers in one turn without a question: it says population weighting is not supported, gives the closest winter-specific view, and notes that investment priority includes people served but is not winter-specific.
+  - `meta_model_deployment` names the model, the AI SDK and Render, with no tools.
+- **Finding, fixed afterwards: `unsupported_fire_risk`.** The answer refuses ("fire risk is not covered"), cites no figures and sets `data_available` false, which is what the case asks for. But it also calls `rank_hubs` and offers overall exposure ("Minneapolis ranks highest") as the closest view, while saying it is not a proxy for fire. The new rule (b) causes this: it asks for a closest supported view even when none is meaningful. Proposed one-line fix, not applied because no verification run is left: in rule (b), "give the closest supported view when one measures the same thing (e.g. screening priority for people served); for a hazard the data does not cover (fire, earthquake, drought), name the four covered families and stop, with no substitute ranking."
+- **Fix applied** (rule (b) in `app/prompts/system.md`, one sentence appended): "Offer a closest view only when it measures the same thing; for a hazard the data does not cover (fire, earthquake, drought, heat), say so, name the four covered families (winter, flood, hurricane, severe storm) and stop, with no tool call and no substitute ranking." Re-run of `unsupported_fire_risk` plus the regression case `midwest_winter_all_hubs`: 2/2 pass, grounding first try, $0.04. The fire answer now calls no tool, cites no figures and names the four covered families; the Midwest ranking still lists all 6 hubs in the oracle order. The other cases have not been re-run on this prompt.
+- **Latency: 23.7 s mean and 36.7 s p95 per turn, against 10.3 s / 17.4 s in the previous run.** The mean model call took 12.0 s instead of 4.6 s, with a similar number of calls (78 vs 80). Input per call grew 14% (5,215 to 5,932 tokens, from the longer prompt) and output stayed flat. That increase does not explain a 2.6x slowdown, so most of it is on the API side; it is worth re-measuring before quoting latency.
 
 ### Metric-bound grounding (2026-11-17, the run in the tables above)
 

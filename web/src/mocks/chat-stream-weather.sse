@@ -1,14 +1,14 @@
-data: {"type": "start", "messageId": "msg_e9c9566d8dfd"}
+data: {"type": "start", "messageId": "msg_35cd6f0569fa"}
 
 data: {"type": "start-step"}
 
-data: {"toolCallId": "call_baf22116c8cd", "toolName": "weather_stat", "type": "tool-input-start"}
+data: {"toolCallId": "call_5314eb9f3803", "toolName": "weather_stat", "type": "tool-input-start"}
 
-data: {"toolCallId": "call_baf22116c8cd", "inputTextDelta": "{\"hub_id\": \"denver\", \"metric\": \"snow_days_pct\", \"year\": 2025}", "type": "tool-input-delta"}
+data: {"toolCallId": "call_5314eb9f3803", "inputTextDelta": "{\"hub_id\": \"denver\", \"metric\": \"snow_days_pct\", \"year\": 2025}", "type": "tool-input-delta"}
 
-data: {"toolCallId": "call_baf22116c8cd", "toolName": "weather_stat", "input": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2025}, "type": "tool-input-available"}
+data: {"toolCallId": "call_5314eb9f3803", "toolName": "weather_stat", "input": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2025}, "type": "tool-input-available"}
 
-data: {"toolCallId": "call_baf22116c8cd", "output": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2025, "value": 10.1, "numerator": 37.0, "denominator": 365.0, "unit": "%", "definition": "share of days with snowfall >= 0.1 cm (numerator over all days in 2025)", "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive", "data_as_of": "2026-11-17"}, "type": "tool-output-available"}
+data: {"toolCallId": "call_5314eb9f3803", "output": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2025, "value": 10.1, "numerator": 37.0, "denominator": 365.0, "unit": "%", "definition": "share of days with snowfall >= 0.1 cm (numerator over all days in 2025)", "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive", "data_as_of": "2026-11-17"}, "type": "tool-output-available"}
 
 data: {"type": "finish-step"}
 
@@ -16,9 +16,9 @@ data: {"type": "start-step"}
 
 data: {"type": "finish-step"}
 
-data: {"data": {"session_id": "mock-weather", "answer": {"answer": "In 2025, Denver had snowfall on 10.1% of days (37 of 365 days).", "hubs": ["denver"], "ranking": null, "figures": [{"hub_id": "denver", "label": "snow days 2025", "value": 10.1, "unit": "%", "source_tool": "weather_stat", "source_field": "value", "family": null}, {"hub_id": "denver", "label": "days with snow 2025", "value": 37.0, "unit": "days", "source_tool": "weather_stat", "source_field": "numerator", "family": null}, {"hub_id": "denver", "label": "days in 2025", "value": 365.0, "unit": "days", "source_tool": "weather_stat", "source_field": "denominator", "family": null}], "assumptions": ["A snow day is a day with measurable snowfall in the reanalysis data."], "uncertainty": "Scores use the committed snapshot (FEMA NRI and Open-Meteo 2015-2025).", "data_available": true, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "db06143078bc4c7a884dbff72d440b33", "follow_ups": ["What upgrades would reduce Denver's weather risk?", "Are there active weather alerts at Denver?", "Where does Denver rank among all hubs?"]}, "type": "data-answer"}
+data: {"data": {"session_id": "mock-weather", "answer": {"answer": "In 2025, Denver had snowfall on 10.1% of days (37 of 365 days).", "hubs": ["denver"], "ranking": null, "figures": [{"hub_id": "denver", "label": "snow days 2025", "value": 10.1, "unit": "%", "source_tool": "weather_stat", "source_field": "value", "family": null}, {"hub_id": "denver", "label": "days with snow 2025", "value": 37.0, "unit": "days", "source_tool": "weather_stat", "source_field": "numerator", "family": null}, {"hub_id": "denver", "label": "days in 2025", "value": 365.0, "unit": "days", "source_tool": "weather_stat", "source_field": "denominator", "family": null}], "assumptions": ["A snow day is a day with measurable snowfall in the reanalysis data."], "uncertainty": "Scores use the committed snapshot (FEMA NRI and Open-Meteo 2015-2025).", "data_available": true, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "025ac4e70cb741b28deac3b81b91ca40", "follow_ups": ["What upgrades would reduce Denver's weather risk?", "Are there active weather alerts at Denver?", "Where does Denver rank among all hubs?"], "usage": {"latency_ms": 5.7, "input_tokens": 0, "output_tokens": 0, "cost_usd": null, "tool_calls": 1}}, "type": "data-answer"}
 
-data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_e9c9566d8dfd", "role": "assistant", "turnId": null, "partIds": ["call_baf22116c8cd"]}, {"id": "msg_e1a0efe03d61", "role": "tool", "turnId": null, "partIds": ["part_9f3b34171fef"]}, {"id": "msg_998f6d71df4d", "role": "assistant", "turnId": null, "partIds": ["part_69f72ae6d475"]}]}}}
+data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_35cd6f0569fa", "role": "assistant", "turnId": null, "partIds": ["call_5314eb9f3803"]}, {"id": "msg_62bbc2a942c1", "role": "tool", "turnId": null, "partIds": ["part_b24f972984ef"]}, {"id": "msg_5cdc00e96325", "role": "assistant", "turnId": null, "partIds": ["part_013e512707b7"]}]}}}
 
 data: [DONE]
 

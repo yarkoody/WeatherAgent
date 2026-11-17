@@ -11,16 +11,24 @@ import weather from '../mocks/chat-stream-weather.sse?raw'
 import ranking from '../mocks/chat-stream.sse?raw'
 import type { MockScenario } from './mockFetch'
 import scoresJson from '../mocks/scores.json'
-import secondOpinionJson from '../mocks/second-opinion.json'
 import whatIfJson from '../mocks/what-if.json'
 import history from '../mocks/chat-stream-history.sse?raw'
-import type { ScoreRow, SecondOpinion, WhatIfResult } from './types'
+import hubsJson from '../mocks/hubs.json'
+import hubScoresJson from '../mocks/hub-scores.json'
+import hubHistoriesJson from '../mocks/hub-histories.json'
+import methodologyMd from '../mocks/methodology.md?raw'
+import type { Hub, HubHistory, HubScore, ScoreRow, WhatIfResult } from './types'
 
 export const MOCK_STREAMS: Record<MockScenario, string> = { ranking, compare, weather, alerts, nodata, outofscope, failed, resolution, badyear, history }
 export const scores = scoresJson as ScoreRow[]
+/** GET /hubs and GET /hubs/{id}/score, from scoring.load_hubs() and get_hub_risk on the committed snapshot. */
+export const hubs = hubsJson as Hub[]
+export const hubScores = hubScoresJson as unknown as Record<string, HubScore>
+/** GET /methodology.md: a copy of docs/METHODOLOGY.md. */
+export const methodology = methodologyMd
+/** GET /hubs/{id}/history, recorded from get_hub_history on the committed snapshot. */
+export const hubHistories = hubHistoriesJson as unknown as Record<string, HubHistory>
 
-/** Synthetic JEV cross-check for UI development (not a real JEV run): real formula bands, a few deliberate disagreements. */
-export const secondOpinion = secondOpinionJson as SecondOpinion
 
 /** Recorded from scoring.what_if: the default inputs, and hurricane x3 / flood x1.5 with three upgrade costs. */
 export const whatIf = whatIfJson as { baseline: WhatIfResult; example: WhatIfResult }

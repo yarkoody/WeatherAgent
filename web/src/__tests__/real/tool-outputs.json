@@ -10,6 +10,10 @@
    "exposure_days_per_year": 27.6,
    "bad_year_days": 38.7,
    "hurricane_10yr_probability_pct": 0.0,
+   "metro_name": "Minneapolis-St. Paul-Bloomington, MN-WI",
+   "people_served": 3790295,
+   "people_days_m": 104.5,
+   "people_days_bad_year_m": 146.8,
    "exposure_band": "high",
    "families": {
     "winter": {
@@ -187,7 +191,7 @@
     "hurricane": 0.0,
     "severe_storm": 8.2
    },
-   "priority": 66.7,
+   "priority": 73.2,
    "priority_band": "high",
    "priority_signals": [
     {
@@ -202,15 +206,15 @@
      "note": null
     },
     {
-     "name": "people served (county population)",
-     "source": "FEMA National Risk Index, population (county)",
-     "raw": 1281172.0,
+     "name": "people served (metro-area population)",
+     "source": "Census Bureau population estimates (CBSA)",
+     "raw": 3790295.0,
      "unit": "people",
-     "cap": 5000000.0,
-     "normalized": 25.62,
+     "cap": 25000000.0,
+     "normalized": 51.78,
      "weight": 0.25,
-     "contribution": 6.41,
-     "note": "multiplies exposure"
+     "contribution": 12.94,
+     "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
     },
     {
      "name": "resilience gap (100 - FEMA community resilience score)",
@@ -526,6 +530,10 @@
    "exposure_days_per_year": 7.8,
    "bad_year_days": 42.8,
    "hurricane_10yr_probability_pct": 95.3,
+   "metro_name": "Miami-Fort Lauderdale-West Palm Beach, FL",
+   "people_served": 6391072,
+   "people_days_m": 49.9,
+   "people_days_bad_year_m": 273.5,
    "exposure_band": "low",
    "families": {
     "winter": {
@@ -703,7 +711,7 @@
     "hurricane": 39.0,
     "severe_storm": 11.1
    },
-   "priority": 25.6,
+   "priority": 26.5,
    "priority_band": "low",
    "priority_signals": [
     {
@@ -718,15 +726,15 @@
      "note": null
     },
     {
-     "name": "people served (county population)",
-     "source": "FEMA National Risk Index, population (county)",
-     "raw": 2698679.0,
+     "name": "people served (metro-area population)",
+     "source": "Census Bureau population estimates (CBSA)",
+     "raw": 6391072.0,
      "unit": "people",
-     "cap": 5000000.0,
-     "normalized": 53.97,
+     "cap": 25000000.0,
+     "normalized": 65.13,
      "weight": 0.25,
-     "contribution": 4.22,
-     "note": "multiplies exposure"
+     "contribution": 5.09,
+     "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
     },
     {
      "name": "resilience gap (100 - FEMA community resilience score)",
@@ -1055,6 +1063,10 @@
    "exposure_days_per_year": 1.6,
    "bad_year_days": 7.2,
    "hurricane_10yr_probability_pct": 10.9,
+   "metro_name": "Phoenix-Mesa-Chandler, AZ",
+   "people_served": 5228938,
+   "people_days_m": 8.2,
+   "people_days_bad_year_m": 37.6,
    "exposure_band": "low",
    "families": {
     "winter": {
@@ -1232,7 +1244,7 @@
     "hurricane": 7.4,
     "severe_storm": 7.5
    },
-   "priority": 5.9,
+   "priority": 5.5,
    "priority_band": "low",
    "priority_signals": [
     {
@@ -1247,15 +1259,15 @@
      "note": null
     },
     {
-     "name": "people served (county population)",
-     "source": "FEMA National Risk Index, population (county)",
-     "raw": 4418836.0,
+     "name": "people served (metro-area population)",
+     "source": "Census Bureau population estimates (CBSA)",
+     "raw": 5228938.0,
      "unit": "people",
-     "cap": 5000000.0,
-     "normalized": 88.38,
+     "cap": 25000000.0,
+     "normalized": 60.0,
      "weight": 0.25,
-     "contribution": 1.38,
-     "note": "multiplies exposure"
+     "contribution": 0.94,
+     "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
     },
     {
      "name": "resilience gap (100 - FEMA community resilience score)",
@@ -1571,6 +1583,10 @@
    "exposure_days_per_year": 10.5,
    "bad_year_days": 38.2,
    "hurricane_10yr_probability_pct": 84.1,
+   "metro_name": "Houston-Pasadena-The Woodlands, TX",
+   "people_served": 7904627,
+   "people_days_m": 83.0,
+   "people_days_bad_year_m": 302.3,
    "exposure_band": "medium",
    "families": {
     "winter": {
@@ -1748,7 +1764,7 @@
     "hurricane": 17.5,
     "severe_storm": 10.1
    },
-   "priority": 40.3,
+   "priority": 37.8,
    "priority_band": "medium",
    "priority_signals": [
     {
@@ -1763,15 +1779,15 @@
      "note": null
     },
     {
-     "name": "people served (county population)",
-     "source": "FEMA National Risk Index, population (county)",
-     "raw": 4726200.0,
+     "name": "people served (metro-area population)",
+     "source": "Census Bureau population estimates (CBSA)",
+     "raw": 7904627.0,
      "unit": "people",
-     "cap": 5000000.0,
-     "normalized": 94.52,
+     "cap": 25000000.0,
+     "normalized": 70.57,
      "weight": 0.25,
-     "contribution": 9.92,
-     "note": "multiplies exposure"
+     "contribution": 7.41,
+     "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
     },
     {
      "name": "resilience gap (100 - FEMA community resilience score)",
@@ -2087,6 +2103,10 @@
    "exposure_days_per_year": 17.0,
    "bad_year_days": 27.0,
    "hurricane_10yr_probability_pct": 0.0,
+   "metro_name": "Kansas City, MO-KS",
+   "people_served": 2270682,
+   "people_days_m": 38.5,
+   "people_days_bad_year_m": 61.4,
    "exposure_band": "high",
    "families": {
     "winter": {
@@ -2264,7 +2284,7 @@
     "hurricane": 0.0,
     "severe_storm": 19.4
    },
-   "priority": 47.8,
+   "priority": 52.0,
    "priority_band": "medium",
    "priority_signals": [
     {
@@ -2279,15 +2299,15 @@
      "note": null
     },
     {
-     "name": "people served (county population)",
-     "source": "FEMA National Risk Index, population (county)",
-     "raw": 716764.0,
+     "name": "people served (metro-area population)",
+     "source": "Census Bureau population estimates (CBSA)",
+     "raw": 2270682.0,
      "unit": "people",
-     "cap": 5000000.0,
-     "normalized": 14.34,
+     "cap": 25000000.0,
+     "normalized": 38.68,
      "weight": 0.25,
-     "contribution": 2.43,
-     "note": "multiplies exposure"
+     "contribution": 6.56,
+     "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
     },
     {
      "name": "resilience gap (100 - FEMA community resilience score)",
@@ -2603,6 +2623,10 @@
    "exposure_days_per_year": 13.2,
    "bad_year_days": 20.6,
    "hurricane_10yr_probability_pct": 0.0,
+   "metro_name": "Denver-Aurora-Centennial, CO",
+   "people_served": 3092037,
+   "people_days_m": 40.7,
+   "people_days_bad_year_m": 63.7,
    "exposure_band": "medium",
    "families": {
     "winter": {
@@ -2780,7 +2804,7 @@
     "hurricane": 0.0,
     "severe_storm": 15.9
    },
-   "priority": 36.0,
+   "priority": 40.2,
    "priority_band": "medium",
    "priority_signals": [
     {
@@ -2795,15 +2819,15 @@
      "note": null
     },
     {
-     "name": "people served (county population)",
-     "source": "FEMA National Risk Index, population (county)",
-     "raw": 715210.0,
+     "name": "people served (metro-area population)",
+     "source": "Census Bureau population estimates (CBSA)",
+     "raw": 3092037.0,
      "unit": "people",
-     "cap": 5000000.0,
-     "normalized": 14.3,
+     "cap": 25000000.0,
+     "normalized": 46.57,
      "weight": 0.25,
-     "contribution": 1.88,
-     "note": "multiplies exposure"
+     "contribution": 6.13,
+     "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
     },
     {
      "name": "resilience gap (100 - FEMA community resilience score)",
@@ -3260,6 +3284,7 @@
      "band": "low"
     }
    ],
+   "total": 15,
    "band_thresholds": {
     "medium_from": 35.0,
     "high_from": 60.0,
@@ -3291,108 +3316,109 @@
      "rank": 1,
      "hub_id": "minneapolis",
      "name": "Minneapolis Hub",
-     "value": 66.7,
+     "value": 73.2,
      "band": "high"
     },
     {
      "rank": 2,
      "hub_id": "chicago",
      "name": "Chicago Hub",
-     "value": 64.5,
+     "value": 60.0,
      "band": "high"
     },
     {
      "rank": 3,
-     "hub_id": "detroit",
-     "name": "Detroit Hub",
-     "value": 50.8,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 56.7,
      "band": "medium"
     },
     {
      "rank": 4,
-     "hub_id": "kansas_city",
-     "name": "Kansas City Hub",
-     "value": 47.8,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 54.1,
      "band": "medium"
     },
     {
      "rank": 5,
-     "hub_id": "dallas",
-     "name": "Dallas Hub",
-     "value": 47.1,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 52.0,
      "band": "medium"
     },
     {
      "rank": 6,
-     "hub_id": "newark",
-     "name": "Newark Hub",
-     "value": 45.2,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 49.9,
      "band": "medium"
     },
     {
      "rank": 7,
-     "hub_id": "columbus",
-     "name": "Columbus Hub",
-     "value": 44.1,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 46.0,
      "band": "medium"
     },
     {
      "rank": 8,
-     "hub_id": "indianapolis",
-     "name": "Indianapolis Hub",
-     "value": 43.3,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 45.9,
      "band": "medium"
     },
     {
      "rank": 9,
-     "hub_id": "houston",
-     "name": "Houston Hub",
-     "value": 40.3,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 40.2,
      "band": "medium"
     },
     {
      "rank": 10,
      "hub_id": "memphis",
      "name": "Memphis Hub",
-     "value": 39.0,
+     "value": 40.0,
      "band": "medium"
     },
     {
      "rank": 11,
-     "hub_id": "denver",
-     "name": "Denver Hub",
-     "value": 36.0,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 37.8,
      "band": "medium"
     },
     {
      "rank": 12,
      "hub_id": "atlanta",
      "name": "Atlanta Hub",
-     "value": 26.3,
+     "value": 30.6,
      "band": "low"
     },
     {
      "rank": 13,
      "hub_id": "miami",
      "name": "Miami Hub",
-     "value": 25.6,
+     "value": 26.5,
      "band": "low"
     },
     {
      "rank": 14,
      "hub_id": "los_angeles",
      "name": "Los Angeles Hub",
-     "value": 14.4,
+     "value": 13.8,
      "band": "low"
     },
     {
      "rank": 15,
      "hub_id": "phoenix",
      "name": "Phoenix Hub",
-     "value": 5.9,
+     "value": 5.5,
      "band": "low"
     }
    ],
+   "total": 15,
    "band_thresholds": {
     "medium_from": 35.0,
     "high_from": 60.0,
@@ -3526,6 +3552,7 @@
      "band": null
     }
    ],
+   "total": 15,
    "band_thresholds": {
     "medium_from": 35.0,
     "high_from": 60.0,
@@ -3659,6 +3686,7 @@
      "band": "low"
     }
    ],
+   "total": 15,
    "band_thresholds": {
     "medium_from": 35.0,
     "high_from": 60.0,
@@ -3792,6 +3820,7 @@
      "band": "low"
     }
    ],
+   "total": 15,
    "band_thresholds": {
     "medium_from": 35.0,
     "high_from": 60.0,
@@ -3925,6 +3954,7 @@
      "band": "low"
     }
    ],
+   "total": 15,
    "band_thresholds": {
     "medium_from": 35.0,
     "high_from": 60.0,
@@ -4058,6 +4088,7 @@
      "band": "low"
     }
    ],
+   "total": 15,
    "band_thresholds": {
     "medium_from": 35.0,
     "high_from": 60.0,
@@ -4089,24 +4120,25 @@
      "rank": 1,
      "hub_id": "dallas",
      "name": "Dallas Hub",
-     "value": 47.1,
+     "value": 49.9,
      "band": "medium"
     },
     {
      "rank": 2,
-     "hub_id": "houston",
-     "name": "Houston Hub",
-     "value": 40.3,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 40.0,
      "band": "medium"
     },
     {
      "rank": 3,
-     "hub_id": "memphis",
-     "name": "Memphis Hub",
-     "value": 39.0,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 37.8,
      "band": "medium"
     }
    ],
+   "total": 5,
    "band_thresholds": {
     "medium_from": 35.0,
     "high_from": 60.0,
@@ -4140,6 +4172,10 @@
      "exposure_days_per_year": 27.6,
      "bad_year_days": 38.7,
      "hurricane_10yr_probability_pct": 0.0,
+     "metro_name": "Minneapolis-St. Paul-Bloomington, MN-WI",
+     "people_served": 3790295,
+     "people_days_m": 104.5,
+     "people_days_bad_year_m": 146.8,
      "exposure_band": "high",
      "families": {
       "winter": {
@@ -4317,7 +4353,7 @@
       "hurricane": 0.0,
       "severe_storm": 8.2
      },
-     "priority": 66.7,
+     "priority": 73.2,
      "priority_band": "high",
      "priority_signals": [
       {
@@ -4332,15 +4368,15 @@
        "note": null
       },
       {
-       "name": "people served (county population)",
-       "source": "FEMA National Risk Index, population (county)",
-       "raw": 1281172.0,
+       "name": "people served (metro-area population)",
+       "source": "Census Bureau population estimates (CBSA)",
+       "raw": 3790295.0,
        "unit": "people",
-       "cap": 5000000.0,
-       "normalized": 25.62,
+       "cap": 25000000.0,
+       "normalized": 51.78,
        "weight": 0.25,
-       "contribution": 6.41,
-       "note": "multiplies exposure"
+       "contribution": 12.94,
+       "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
       },
       {
        "name": "resilience gap (100 - FEMA community resilience score)",
@@ -4379,6 +4415,10 @@
      "exposure_days_per_year": 7.8,
      "bad_year_days": 42.8,
      "hurricane_10yr_probability_pct": 95.3,
+     "metro_name": "Miami-Fort Lauderdale-West Palm Beach, FL",
+     "people_served": 6391072,
+     "people_days_m": 49.9,
+     "people_days_bad_year_m": 273.5,
      "exposure_band": "low",
      "families": {
       "winter": {
@@ -4556,7 +4596,7 @@
       "hurricane": 39.0,
       "severe_storm": 11.1
      },
-     "priority": 25.6,
+     "priority": 26.5,
      "priority_band": "low",
      "priority_signals": [
       {
@@ -4571,15 +4611,15 @@
        "note": null
       },
       {
-       "name": "people served (county population)",
-       "source": "FEMA National Risk Index, population (county)",
-       "raw": 2698679.0,
+       "name": "people served (metro-area population)",
+       "source": "Census Bureau population estimates (CBSA)",
+       "raw": 6391072.0,
        "unit": "people",
-       "cap": 5000000.0,
-       "normalized": 53.97,
+       "cap": 25000000.0,
+       "normalized": 65.13,
        "weight": 0.25,
-       "contribution": 4.22,
-       "note": "multiplies exposure"
+       "contribution": 5.09,
+       "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
       },
       {
        "name": "resilience gap (100 - FEMA community resilience score)",
@@ -4640,6 +4680,10 @@
      "exposure_days_per_year": 1.6,
      "bad_year_days": 7.2,
      "hurricane_10yr_probability_pct": 10.9,
+     "metro_name": "Phoenix-Mesa-Chandler, AZ",
+     "people_served": 5228938,
+     "people_days_m": 8.2,
+     "people_days_bad_year_m": 37.6,
      "exposure_band": "low",
      "families": {
       "winter": {
@@ -4817,7 +4861,7 @@
       "hurricane": 7.4,
       "severe_storm": 7.5
      },
-     "priority": 5.9,
+     "priority": 5.5,
      "priority_band": "low",
      "priority_signals": [
       {
@@ -4832,15 +4876,15 @@
        "note": null
       },
       {
-       "name": "people served (county population)",
-       "source": "FEMA National Risk Index, population (county)",
-       "raw": 4418836.0,
+       "name": "people served (metro-area population)",
+       "source": "Census Bureau population estimates (CBSA)",
+       "raw": 5228938.0,
        "unit": "people",
-       "cap": 5000000.0,
-       "normalized": 88.38,
+       "cap": 25000000.0,
+       "normalized": 60.0,
        "weight": 0.25,
-       "contribution": 1.38,
-       "note": "multiplies exposure"
+       "contribution": 0.94,
+       "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
       },
       {
        "name": "resilience gap (100 - FEMA community resilience score)",
@@ -4879,6 +4923,10 @@
      "exposure_days_per_year": 10.5,
      "bad_year_days": 38.2,
      "hurricane_10yr_probability_pct": 84.1,
+     "metro_name": "Houston-Pasadena-The Woodlands, TX",
+     "people_served": 7904627,
+     "people_days_m": 83.0,
+     "people_days_bad_year_m": 302.3,
      "exposure_band": "medium",
      "families": {
       "winter": {
@@ -5056,7 +5104,7 @@
       "hurricane": 17.5,
       "severe_storm": 10.1
      },
-     "priority": 40.3,
+     "priority": 37.8,
      "priority_band": "medium",
      "priority_signals": [
       {
@@ -5071,15 +5119,15 @@
        "note": null
       },
       {
-       "name": "people served (county population)",
-       "source": "FEMA National Risk Index, population (county)",
-       "raw": 4726200.0,
+       "name": "people served (metro-area population)",
+       "source": "Census Bureau population estimates (CBSA)",
+       "raw": 7904627.0,
        "unit": "people",
-       "cap": 5000000.0,
-       "normalized": 94.52,
+       "cap": 25000000.0,
+       "normalized": 70.57,
        "weight": 0.25,
-       "contribution": 9.92,
-       "note": "multiplies exposure"
+       "contribution": 7.41,
+       "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
       },
       {
        "name": "resilience gap (100 - FEMA community resilience score)",
@@ -5118,6 +5166,10 @@
      "exposure_days_per_year": 13.2,
      "bad_year_days": 20.6,
      "hurricane_10yr_probability_pct": 0.0,
+     "metro_name": "Denver-Aurora-Centennial, CO",
+     "people_served": 3092037,
+     "people_days_m": 40.7,
+     "people_days_bad_year_m": 63.7,
      "exposure_band": "medium",
      "families": {
       "winter": {
@@ -5295,7 +5347,7 @@
       "hurricane": 0.0,
       "severe_storm": 15.9
      },
-     "priority": 36.0,
+     "priority": 40.2,
      "priority_band": "medium",
      "priority_signals": [
       {
@@ -5310,15 +5362,15 @@
        "note": null
       },
       {
-       "name": "people served (county population)",
-       "source": "FEMA National Risk Index, population (county)",
-       "raw": 715210.0,
+       "name": "people served (metro-area population)",
+       "source": "Census Bureau population estimates (CBSA)",
+       "raw": 3092037.0,
        "unit": "people",
-       "cap": 5000000.0,
-       "normalized": 14.3,
+       "cap": 25000000.0,
+       "normalized": 46.57,
        "weight": 0.25,
-       "contribution": 1.88,
-       "note": "multiplies exposure"
+       "contribution": 6.13,
+       "note": "log scale: log10(pop / 0.5M) / log10(25M / 0.5M); multiplies exposure"
       },
       {
        "name": "resilience gap (100 - FEMA community resilience score)",
@@ -5622,105 +5674,105 @@
      "rank": 1,
      "hub_id": "miami",
      "name": "Miami Hub",
-     "value": 36.2,
+     "value": 37.4,
      "band": "medium"
     },
     {
      "rank": 2,
      "hub_id": "houston",
      "name": "Houston Hub",
-     "value": 31.4,
+     "value": 29.5,
      "band": "low"
     },
     {
      "rank": 3,
      "hub_id": "newark",
      "name": "Newark Hub",
-     "value": 21.5,
+     "value": 27.0,
      "band": "low"
     },
     {
      "rank": 4,
      "hub_id": "minneapolis",
      "name": "Minneapolis Hub",
-     "value": 19.6,
+     "value": 21.5,
      "band": "low"
     },
     {
      "rank": 5,
      "hub_id": "chicago",
      "name": "Chicago Hub",
-     "value": 18.2,
+     "value": 16.9,
      "band": "low"
     },
     {
      "rank": 6,
      "hub_id": "detroit",
      "name": "Detroit Hub",
-     "value": 14.5,
+     "value": 15.5,
      "band": "low"
     },
     {
      "rank": 7,
      "hub_id": "dallas",
      "name": "Dallas Hub",
-     "value": 13.7,
+     "value": 14.5,
      "band": "low"
     },
     {
      "rank": 8,
      "hub_id": "kansas_city",
      "name": "Kansas City Hub",
-     "value": 12.8,
+     "value": 13.9,
      "band": "low"
     },
     {
      "rank": 9,
-     "hub_id": "memphis",
-     "name": "Memphis Hub",
-     "value": 12.4,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 13.0,
      "band": "low"
     },
     {
      "rank": 10,
      "hub_id": "columbus",
      "name": "Columbus Hub",
-     "value": 12.2,
+     "value": 12.7,
      "band": "low"
     },
     {
      "rank": 11,
-     "hub_id": "indianapolis",
-     "name": "Indianapolis Hub",
-     "value": 12.2,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 12.7,
      "band": "low"
     },
     {
      "rank": 12,
      "hub_id": "atlanta",
      "name": "Atlanta Hub",
-     "value": 10.1,
+     "value": 11.7,
      "band": "low"
     },
     {
      "rank": 13,
      "hub_id": "denver",
      "name": "Denver Hub",
-     "value": 9.6,
+     "value": 10.7,
      "band": "low"
     },
     {
      "rank": 14,
      "hub_id": "los_angeles",
      "name": "Los Angeles Hub",
-     "value": 3.8,
+     "value": 3.7,
      "band": "low"
     },
     {
      "rank": 15,
      "hub_id": "phoenix",
      "name": "Phoenix Hub",
-     "value": 2.9,
+     "value": 2.6,
      "band": "low"
     }
    ],
@@ -5755,105 +5807,105 @@
      "rank": 1,
      "hub_id": "minneapolis",
      "name": "Minneapolis Hub",
-     "value": 66.7,
+     "value": 73.2,
      "band": "high"
     },
     {
      "rank": 2,
      "hub_id": "chicago",
      "name": "Chicago Hub",
-     "value": 64.5,
+     "value": 60.0,
      "band": "high"
     },
     {
      "rank": 3,
-     "hub_id": "detroit",
-     "name": "Detroit Hub",
-     "value": 50.8,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 56.7,
      "band": "medium"
     },
     {
      "rank": 4,
-     "hub_id": "kansas_city",
-     "name": "Kansas City Hub",
-     "value": 47.8,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 54.1,
      "band": "medium"
     },
     {
      "rank": 5,
-     "hub_id": "dallas",
-     "name": "Dallas Hub",
-     "value": 47.1,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 52.0,
      "band": "medium"
     },
     {
      "rank": 6,
-     "hub_id": "newark",
-     "name": "Newark Hub",
-     "value": 45.2,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 49.9,
      "band": "medium"
     },
     {
      "rank": 7,
-     "hub_id": "columbus",
-     "name": "Columbus Hub",
-     "value": 44.1,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 46.0,
      "band": "medium"
     },
     {
      "rank": 8,
-     "hub_id": "indianapolis",
-     "name": "Indianapolis Hub",
-     "value": 43.3,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 45.9,
      "band": "medium"
     },
     {
      "rank": 9,
-     "hub_id": "houston",
-     "name": "Houston Hub",
-     "value": 40.3,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 40.2,
      "band": "medium"
     },
     {
      "rank": 10,
      "hub_id": "memphis",
      "name": "Memphis Hub",
-     "value": 39.0,
+     "value": 40.0,
      "band": "medium"
     },
     {
      "rank": 11,
-     "hub_id": "denver",
-     "name": "Denver Hub",
-     "value": 36.0,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 37.8,
      "band": "medium"
     },
     {
      "rank": 12,
      "hub_id": "atlanta",
      "name": "Atlanta Hub",
-     "value": 26.3,
+     "value": 30.6,
      "band": "low"
     },
     {
      "rank": 13,
      "hub_id": "miami",
      "name": "Miami Hub",
-     "value": 25.6,
+     "value": 26.5,
      "band": "low"
     },
     {
      "rank": 14,
      "hub_id": "los_angeles",
      "name": "Los Angeles Hub",
-     "value": 14.4,
+     "value": 13.8,
      "band": "low"
     },
     {
      "rank": 15,
      "hub_id": "phoenix",
      "name": "Phoenix Hub",
-     "value": 5.9,
+     "value": 5.5,
      "band": "low"
     }
    ],
@@ -5862,9 +5914,9 @@
      "rank": 1,
      "hub_id": "miami",
      "name": "Miami Hub",
-     "priority": 25.6,
+     "priority": 26.5,
      "cost_musd": 12.0,
-     "priority_per_million": 2.13
+     "priority_per_million": 2.21
     }
    ],
    "note": "Recomputed investment priority with analyst-supplied inputs. Family weights set how much one disruption day from each family counts (renormalized: winter 0.25, flood 0.25, hurricane 0.25, severe_storm 0.25; default is equal). Upgrade costs are analyst-supplied, in USD millions.",

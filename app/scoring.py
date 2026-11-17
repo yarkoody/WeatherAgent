@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -36,6 +36,9 @@ __all__ = [
     "UPGRADE_CATEGORIES", "band", "load_hubs", "load_snapshot", "normalize", "rank", "score_all",
     "score_rows", "weather_stat", "what_if", "hub_history", "disruption_rules",
 ]
+
+# Stored with the alerts baseline: a new version resets the baseline instead of alerting on a formula change.
+SCORING_VERSION = "v4-metro-2025"
 
 FAMILIES: tuple[Family, ...] = ("winter", "flood", "hurricane", "severe_storm")
 
@@ -95,7 +98,11 @@ class ScoringConfig(BaseModel):
     priority_exposure_weight: float = 0.6
     priority_people_weight: float = 0.25
     priority_resilience_weight: float = 0.15
-    population_cap: float = 5_000_000
+    # people served = metro-area (CBSA) population; share on a log scale between floor and cap (each doubling of the
+    # metro counts the same: a hub serves part of its metro), or "linear" = min(pop / cap, 1)
+    people_scale: Literal["log", "linear"] = "log"
+    people_floor: float = 500_000
+    people_cap: float = 25_000_000  # above the largest hub metro (New York 20.1M, Vintage 2025): no hub clips
 
     medium_from: float = 35.0
     high_from: float = 60.0
@@ -117,15 +124,13 @@ class ScoringConfig(BaseModel):
 
 
 DEFAULT_CONFIG = ScoringConfig()
-# Bump when the scoring method changes (not only its config). Score alerts hash this with the config, and on a
-# change they reset their comparison state instead of reporting the method change as score changes.
-SCORING_VERSION = "v2-tvar"
 
 
 @dataclass(frozen=True)
 class Snapshot:
     nri: dict[str, Any]
     weather: dict[str, Any]
+    population: dict[str, Any] | None = None  # metro_population.json: hub id -> CBSA, name, population
 
     @property
     def data_as_of(self) -> str:
@@ -138,9 +143,11 @@ def load_hubs(path: Path = DATA_DIR / "hubs.json") -> list[Hub]:
 
 def load_snapshot(dir: Path = DATA_DIR / "snapshot") -> Snapshot:
     dir = Path(dir)
+    pop = dir / "metro_population.json"
     return Snapshot(
         nri=json.loads((dir / "nri.json").read_text()),
         weather=json.loads((dir / "weather.json").read_text()),
+        population=json.loads(pop.read_text()) if pop.exists() else None,
     )
 
 
@@ -374,23 +381,50 @@ def _family_days(
     return out
 
 
-def _priority(exposure: float, county: dict, config: ScoringConfig) -> tuple[float, list[Signal]]:
+def people_share(population: float, config: ScoringConfig = DEFAULT_CONFIG) -> float:
+    """0-1 share of the people-served term: log10(pop / floor) / log10(cap / floor) clipped, or linear pop / cap."""
+    if config.people_scale == "linear":
+        return min(max(population, 0.0) / config.people_cap, 1.0)
+    if population <= config.people_floor:
+        return 0.0
+    return min(math.log10(population / config.people_floor) / math.log10(config.people_cap / config.people_floor), 1.0)
+
+
+def _people(hub: Hub, snapshot: Snapshot) -> tuple[int | None, str]:
+    """(metro population, metro name), or (None, "") when the snapshot has no metro population for the hub."""
+    entry = ((snapshot.population or {}).get("hubs") or {}).get(hub.id)
+    return (int(entry["population"]), entry["name"]) if entry else (None, "")
+
+
+def _priority(exposure: float, county: dict, config: ScoringConfig, metro_pop: int | None) -> tuple[float, list[Signal]]:
     """priority = exposure x (0.6 + 0.25 x people share + 0.15 x resilience-gap share), 0-100.
 
     Multiplicative: people served and low resilience amplify weather exposure; they cannot create
-    priority where there is no exposure. Signal contributions add up to the priority.
+    priority where there is no exposure. People served = metro population (county population if missing).
+    Signal contributions add up to the priority.
     """
-    pop = county.get("POPULATION")
+    county_pop = county.get("POPULATION")
+    pop = metro_pop if metro_pop is not None else county_pop
     resl = county.get("RESL_SCORE")
-    people = normalize(pop or 0, config.population_cap)  # 0-100
+    people = 100 * people_share(pop or 0, config)  # 0-100
     gap = 100 - (resl or 0)  # 0-100
+    floor_m, cap_m = f"{config.people_floor / 1e6:g}M", f"{config.people_cap / 1e6:g}M"
+    scale = (f"log scale: log10(pop / {floor_m}) / log10({cap_m} / {floor_m})" if config.people_scale == "log"
+             else f"linear: pop / {cap_m}")
+    if metro_pop is not None:
+        people_name, people_source, people_note = (
+            "people served (metro-area population)", "Census Bureau population estimates (CBSA)",
+            f"{scale}; multiplies exposure")
+    else:
+        people_name, people_source = "people served (county population)", NRI_SOURCE.replace("annualized frequency", "population")
+        people_note = ("missing in NRI" if pop is None
+                       else f"metro population missing; county population used; {scale}; multiplies exposure")
     parts = [
         ("overall exposure (base share)", "scoring", exposure, "score 0-100", None, exposure,
          config.priority_exposure_weight, config.priority_exposure_weight * exposure, None),
-        ("people served (county population)", NRI_SOURCE.replace("annualized frequency", "population"),
-         pop, "people", config.population_cap, people, config.priority_people_weight,
-         exposure * config.priority_people_weight * people / 100,
-         "missing in NRI" if pop is None else "multiplies exposure"),
+        (people_name, people_source,
+         pop, "people", config.people_cap, people, config.priority_people_weight,
+         exposure * config.priority_people_weight * people / 100, people_note),
         ("resilience gap (100 - FEMA community resilience score)",
          "FEMA National Risk Index, community resilience (county)", resl, "score 0-100", None, gap,
          config.priority_resilience_weight, exposure * config.priority_resilience_weight * gap / 100,
@@ -436,7 +470,9 @@ def _score_hub(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> HubScore:
     total_days = sum(d for d, _, _ in fam.values())
     exposure = normalize(total_days, config.exposure_days_cap)
     county = snapshot.nri["counties"][hub.county_fips]
-    priority, priority_signals = _priority(exposure, county, config)
+    metro_pop, metro_name = _people(hub, snapshot)
+    priority, priority_signals = _priority(exposure, county, config, metro_pop)
+    served = metro_pop if metro_pop is not None else int(county.get("POPULATION") or 0)
     top = max(FAMILIES, key=lambda f: (fam[f][0], -FAMILIES.index(f)))
     shares = {f: 100 * (fam[f][0] / total_days if total_days else 1 / len(FAMILIES)) for f in FAMILIES}
     hurricane_pct = _r(hurricane_probability_pct(county.get("HRCN_AFREQ") or 0.0, config), 1)
@@ -457,6 +493,10 @@ def _score_hub(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> HubScore:
         exposure_days_per_year=_r(total_days, 1),
         bad_year_days=_r(bad_year, 1),
         hurricane_10yr_probability_pct=_r(hurricane_pct, 1),
+        metro_name=metro_name,
+        people_served=served,
+        people_days_m=_r(served * total_days / 1e6, 1),
+        people_days_bad_year_m=_r(served * bad_year / 1e6, 1),
         exposure_band=band(exposure_r, config),
         families=families,
         family_weights={f: _r(shares[f], 1) for f in FAMILIES},
@@ -473,6 +513,12 @@ def _score_hub(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> HubScore:
 def expected_days(hub: Hub, snapshot: Snapshot, config: ScoringConfig = DEFAULT_CONFIG) -> float:
     """Unrounded expected disruption days per year (typical year)."""
     return sum(d for d, _, _ in _family_days(hub, snapshot, config).values())
+
+
+def priority_value(hub: Hub, snapshot: Snapshot, config: ScoringConfig = DEFAULT_CONFIG) -> float:
+    """Unrounded investment priority (0-100)."""
+    exposure = normalize(expected_days(hub, snapshot, config), config.exposure_days_cap)
+    return _priority(exposure, snapshot.nri["counties"][hub.county_fips], config, _people(hub, snapshot)[0])[0]
 
 
 def bad_year_days(hub: Hub, snapshot: Snapshot, config: ScoringConfig = DEFAULT_CONFIG) -> float:
@@ -509,13 +555,17 @@ def rank(
             values[hub_id] = s.priority
         elif kind == "bad_year":
             values[hub_id] = s.bad_year_days
+        elif kind == "people_impact":
+            values[hub_id] = s.people_days_m
+        elif kind == "people_served":
+            values[hub_id] = float(s.people_served)
         elif hazard == "overall":
             values[hub_id] = s.exposure
         else:
             values[hub_id] = s.families[hazard].score
 
     def item_band(hub_id: str, v: float) -> Band | None:
-        if kind == "bad_year":  # no meaningful band on the tail lens: most hubs would read "high"
+        if kind in ("bad_year", "people_impact", "people_served"):  # no meaningful band on these lenses
             return None
         if kind == "exposure" and hazard != "overall":
             return scores[hub_id].families[hazard].band
@@ -526,7 +576,7 @@ def rank(
         for i, (hub_id, v) in enumerate(_ordered(values)[:top_n], start=1)
     ]
     data_as_of = next(iter(scores.values())).data_as_of if scores else ""
-    return Ranking(kind=kind, hazard=hazard, region=region, items=items,
+    return Ranking(kind=kind, hazard=hazard, region=region, items=items, total=len(values),
                    band_thresholds=_thresholds(config), data_as_of=data_as_of)
 
 
@@ -538,6 +588,8 @@ def score_rows(scores: dict[str, HubScore], hubs: list[Hub]) -> list[ScoreRow]:
                  exposure_band=scores[k].exposure_band, priority=scores[k].priority,
                  priority_band=scores[k].priority_band, top_driver=scores[k].top_driver,
                  exposure_days_per_year=scores[k].exposure_days_per_year, bad_year_days=scores[k].bad_year_days,
+                 metro_name=scores[k].metro_name, people_served=scores[k].people_served,
+                 people_days_m=scores[k].people_days_m, people_days_bad_year_m=scores[k].people_days_bad_year_m,
                  hurricane_10yr_probability_pct=scores[k].hurricane_10yr_probability_pct)
         for k, _ in order
     ]
@@ -614,7 +666,8 @@ def what_if(hubs: list[Hub], snapshot: Snapshot, inputs: WhatIfInput,
     for hub in sorted(hubs, key=lambda h: h.id):
         fam = _family_days(hub, snapshot, config)
         days = sum(mult[f] * fam[f][0] for f in FAMILIES)
-        p, _ = _priority(normalize(days, config.exposure_days_cap), snapshot.nri["counties"][hub.county_fips], config)
+        p, _ = _priority(normalize(days, config.exposure_days_cap), snapshot.nri["counties"][hub.county_fips], config,
+                         _people(hub, snapshot)[0])
         priorities[hub.id] = _r(p, 1)
     ranking = [
         RankedHub(rank=i, hub_id=k, name=by_id[k].name, value=v, band=band(v, config))
@@ -697,3 +750,11 @@ def hub_history(hubs: list[Hub], snapshot: Snapshot, hub_id: str, config: Scorin
         worst_year=worst, peak_months=peaks, thresholds=disruption_rules(config), note=HISTORY_NOTE,
         data_as_of=snapshot.weather["fetched_at"][:10],
     )
+
+
+def provenance(dir: Path = DATA_DIR / "snapshot") -> dict:
+    """Period or vintage and fetch time of every source (data/snapshot/provenance.json, written by refresh)."""
+    path = Path(dir) / "provenance.json"
+    if not path.exists():
+        raise DataUnavailable("no provenance file; run python -m app.data provenance")
+    return json.loads(path.read_text())

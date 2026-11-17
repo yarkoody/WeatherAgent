@@ -198,7 +198,7 @@ describe('hub breakdown thresholds', () => {
     const hub = toolOutput('chat-stream.sse', 'get_hub_risk') as HubScore
     const custom: HubScore = { ...hub, band_thresholds: { ...hub.band_thresholds, medium_from_days: 7.5, high_from_days: 12.25 } }
     render(<HubBreakdown data={custom} />)
-    expect(screen.getByText(/medium band from 7\.5 days, high from 12\.25 days/)).toBeInTheDocument()
+    expect(screen.getByText(/medium level from 7\.5 days, high from 12\.25 days/)).toBeInTheDocument()
   })
 })
 

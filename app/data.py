@@ -7,6 +7,7 @@ snapshot. NWS alerts are fetched live by the tool and the alert job.
 
 from __future__ import annotations
 
+import csv
 import io
 import json
 import os
@@ -35,6 +36,7 @@ NWS_USER_AGENT = "weather-risk-agent (demo)"
 _METRO_BASE = "https://www2.census.gov/programs-surveys/metro-micro/geographies/reference-files/2023/delineation-files"
 METRO_LIST1_URL = f"{_METRO_BASE}/list1_2023.xlsx"  # county -> CBSA
 METRO_LIST2_URL = f"{_METRO_BASE}/list2_2023.xlsx"  # principal cities per CBSA
+CBSA_POP_URL = "https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/metro/totals/cbsa-est2025-alldata.csv"
 METRO_DELINEATION = "OMB Bulletin 23-01, July 2023 metropolitan and micropolitan delineations (Census files)"
 
 STATE_FIPS = {
@@ -252,11 +254,103 @@ def _load_hubs(data_dir: Path) -> list[Hub]:
     return [Hub(**h) for h in json.loads((data_dir / "hubs.json").read_text())]
 
 
+def fetch_metro_population(hub_cbsa: dict[str, str]) -> dict:
+    """Latest population estimate of each hub's metro area (CBSA total row), from the Census CSV (latin-1)."""
+    text = _get(CBSA_POP_URL, timeout=30.0).content.decode("latin-1")
+    reader = csv.DictReader(io.StringIO(text))
+    years = sorted(int(c[len("POPESTIMATE"):]) for c in reader.fieldnames or [] if re.fullmatch(r"POPESTIMATE\d{4}", c))
+    if not years:
+        raise UpstreamError("population file has no POPESTIMATE columns", retryable=False)
+    col = f"POPESTIMATE{years[-1]}"
+    totals = {r["CBSA"]: r for r in reader if not r["MDIV"] and not r["STCOU"]}  # CBSA total rows only
+    missing = sorted(code for code in hub_cbsa.values() if code not in totals)
+    if missing:
+        raise UpstreamError(f"population file has no total row for CBSA {missing}", retryable=False)
+    return {
+        "source": CBSA_POP_URL, "year": years[-1],
+        "vintage": f"Census Bureau population estimates, Vintage {years[-1]} (July 1, {years[-1]} estimate), CBSA totals",
+        "hubs": {hub: {"cbsa": code, "name": totals[code]["NAME"], "population": int(totals[code][col])}
+                 for hub, code in sorted(hub_cbsa.items())},
+    }
+
+
+def fetch_nri_version(fips: str) -> str | None:
+    """NRI release label from the service's NRI_VER field (e.g. "December 2025"), or None if absent."""
+    body = _get_json(NRI_URL, {"where": f"STCOFIPS='{fips}'", "outFields": "NRI_VER", "returnGeometry": "false", "f": "json"})
+    features = body.get("features") or []
+    return (features[0].get("attributes") or {}).get("NRI_VER") if features else None
+
+
+def _read(path: Path) -> dict:
+    return json.loads(path.read_text()) if path.exists() else {}
+
+
+def build_provenance(data_dir: Path, nri_version: str | None) -> dict:
+    """What period or vintage each source covers and when it was fetched, read from the data files themselves."""
+    snap = data_dir / "snapshot"
+    nri, weather = _read(snap / "nri.json"), _read(snap / "weather.json")
+    pop, metro = _read(snap / "metro_population.json"), _read(data_dir / "metro_cities.json")
+    nri_fetched = nri.get("fetched_at")
+    year = pop.get("year")
+    return {
+        "written_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "sources": {
+            "fema_nri": {
+                "name": "FEMA National Risk Index, counties (annualized frequency, exposure area, resilience)",
+                "url": NRI_URL, "version": nri_version or f"fetched {(nri_fetched or '')[:10]}",
+                "period": "long-term modeled frequencies", "fetched_at": nri_fetched},
+            "open_meteo": {
+                "name": "Open-Meteo Historical Weather API (ERA5 reanalysis), daily at the hub point",
+                "url": OPEN_METEO_URL, "period": f"{weather.get('start')} to {weather.get('end')}",
+                "fetched_at": weather.get("fetched_at")},
+            "census_population": {
+                "name": "Census Bureau population estimates, metro-area (CBSA) totals",
+                "url": CBSA_POP_URL, "vintage": f"Vintage {year}" if year else None,
+                "period": f"July 1, {year} estimate" if year else None, "fetched_at": pop.get("fetched_at")},
+            "omb_delineations": {
+                "name": "OMB metropolitan and micropolitan delineations (Census list 1 and list 2)",
+                "url": METRO_LIST2_URL, "vintage": METRO_DELINEATION, "fetched_at": metro.get("fetched_at")},
+            "nws_alerts": {
+                "name": "National Weather Service active alerts (api.weather.gov)",
+                "url": NWS_URL, "period": "live at question time", "fetched_at": None},
+        },
+    }
+
+
+def write_provenance(data_dir: Path = DATA_DIR, nri_version: str | None = None) -> None:
+    """Write data/snapshot/provenance.json; without a new NRI version, keep the one already recorded."""
+    path = data_dir / "snapshot" / "provenance.json"
+    if nri_version is None:
+        old = _read(path).get("sources", {}).get("fema_nri", {}).get("version", "")
+        nri_version = old if old and not old.startswith("fetched") else None
+    _write_atomic(path, build_provenance(data_dir, nri_version))
+
+
+def _update_provenance(data_dir: Path) -> None:
+    if (data_dir / "snapshot" / "provenance.json").exists():
+        write_provenance(data_dir)
+
+
+def _hub_cbsas(metro: dict) -> dict[str, str]:
+    return {v["hub_id"]: code for code, v in metro["cbsas"].items() if v.get("hub_id")}
+
+
+def refresh_population(data_dir: Path = DATA_DIR) -> None:
+    """Rebuild data/snapshot/metro_population.json from the committed metro_cities.json (`python -m app.data population`)."""
+    metro = json.loads((data_dir / "metro_cities.json").read_text())
+    pop = fetch_metro_population(_hub_cbsas(metro))
+    pop["fetched_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    (data_dir / "snapshot").mkdir(parents=True, exist_ok=True)
+    _write_atomic(data_dir / "snapshot" / "metro_population.json", pop)
+    _update_provenance(data_dir)
+
+
 def refresh_metro(data_dir: Path = DATA_DIR) -> None:
     """Rebuild data/metro_cities.json only (`python -m app.data metro`)."""
     metro = fetch_metro_cities(_load_hubs(data_dir))
     metro["fetched_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     _write_atomic(data_dir / "metro_cities.json", metro)
+    _update_provenance(data_dir)
 
 
 def _write_atomic(path: Path, payload: dict) -> None:
@@ -288,12 +382,20 @@ def refresh(data_dir: Path = DATA_DIR) -> None:
         weather[hub.id] = fetch_weather(hub, SNAPSHOT_START, SNAPSHOT_END)
     metro = fetch_metro_cities(hubs)
     metro["fetched_at"] = fetched_at
+    population = fetch_metro_population(_hub_cbsas(metro))
+    population["fetched_at"] = fetched_at
+    try:
+        nri_version = fetch_nri_version(hubs[0].county_fips)
+    except UpstreamError:
+        nri_version = None  # provenance then says "fetched <date>"
     _write_atomic(snap / "nri.json", {"fetched_at": fetched_at, "source": NRI_URL, "counties": nri})
     _write_atomic(snap / "weather.json", {
         "fetched_at": fetched_at, "source": OPEN_METEO_URL,
         "start": SNAPSHOT_START, "end": SNAPSHOT_END, "hubs": weather,
     })
     _write_atomic(data_dir / "metro_cities.json", metro)
+    _write_atomic(snap / "metro_population.json", population)
+    write_provenance(data_dir, nri_version)
 
 
 if __name__ == "__main__":
@@ -302,6 +404,12 @@ if __name__ == "__main__":
     if sys.argv[1:] == ["metro"]:
         refresh_metro()
         print("written", DATA_DIR / "metro_cities.json")
+    elif sys.argv[1:] == ["provenance"]:
+        write_provenance(nri_version=fetch_nri_version(_load_hubs(DATA_DIR)[0].county_fips))
+        print("written", DATA_DIR / "snapshot" / "provenance.json")
+    elif sys.argv[1:] == ["population"]:
+        refresh_population()
+        print("written", DATA_DIR / "snapshot" / "metro_population.json")
     else:
         refresh()
         print("snapshot written to", DATA_DIR / "snapshot", "and", DATA_DIR / "metro_cities.json")

@@ -1,18 +1,22 @@
+import { ChevronDownIcon, SigmaIcon } from 'lucide-react'
 import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { ReadingGuide } from '@/components/ReadingGuide'
-import { LENS_EXPLAINER, badYearSteps, hubDetail, readingGuide } from '@/lib/explain'
+import { PEOPLE_DAYS_LINE, bandGapLine, hubDetail, readingGuide } from '@/lib/explain'
+import { mathSections } from '@/lib/math'
+import { openMethodology } from '@/lib/methodology'
 import { HazardIcon } from '@/components/HazardIcon'
 import { ExportReportButton } from '@/components/PrintReport'
 import { HubReport } from '@/components/reports'
-import { Button } from '@/components/ui/button'
 import { useAsk } from '@/lib/ask'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { HistoryCharts } from './HistoryWidget'
-import { BAND_COLOR, BAND_LABEL_COLOR, FAMILIES, FAMILY_COLOR, FAMILY_LABEL, fmt, formatDate, hubName, isNum, pct } from '@/lib/format'
+import { BAND_COLOR, BAND_LABEL_COLOR, FAMILIES, FAMILY_COLOR, FAMILY_LABEL, fmt, formatDate, hubName, isNum, pct, compact, hasPeople } from '@/lib/format'
 import { normalizeHub } from '@/lib/normalize'
 import { useCountUp, useReducedMotion } from '@/lib/motion'
-import type { HubScore } from '@/lib/types'
+import type { HubHistory, HubScore } from '@/lib/types'
+import { apiFetch } from '@/lib/mockFetch'
+import { Skeleton } from '@/components/ui/skeleton'
 import { BandText, WidgetFrame } from './WidgetFrame'
 
 const config = {
@@ -27,24 +31,32 @@ function CountUp({ value }: { value: number }) {
 /** Typical year and bad year side by side (the widget's "How to read this" explains both). Saved pre-v2 data has no bad year. */
 export function Lenses({ data: raw }: { data: HubScore }) {
   const data = useMemo(() => normalizeHub(raw), [raw])
+  // Same label row, same number size, same unit position: the two headline numbers always sit on one line.
   const number = 'heading-tight text-3xl leading-none font-semibold tracking-tight tabular-nums'
+  const unit = 'ml-1 text-xs font-normal tracking-normal text-muted-foreground'
   return (
-    <div className="flex items-end gap-x-7 gap-y-2">
+    <dl className="grid w-fit grid-cols-[repeat(2,auto)] gap-x-8" aria-label="Lost operating days">
       <div role="group" aria-label="Typical year">
-        <p className={number}>
-          <CountUp value={data.exposure_days_per_year} />
-        </p>
-        <p className="mt-1.5 text-xs text-muted-foreground">modeled lost days/yr, typical year (estimate)</p>
+        <dt className="text-xs text-muted-foreground">Typical year</dt>
+        <dd className={`mt-1.5 ${number}`}>
+          <span>
+            <CountUp value={data.exposure_days_per_year} />
+          </span>
+          <span className={unit}>days/yr</span>
+        </dd>
       </div>
       {typeof data.bad_year_days === 'number' && (
-        <div role="group" aria-label="Bad year (1 in 20)">
-          <p className={number}>
-            <CountUp value={data.bad_year_days} />
-          </p>
-          <p className="mt-1.5 text-xs text-muted-foreground">days in a bad year (1 in 20)</p>
+        <div role="group" aria-label="Bad year">
+          <dt className="text-xs text-muted-foreground">Bad year</dt>
+          <dd className={`mt-1.5 ${number}`}>
+            <span>
+              <CountUp value={data.bad_year_days} />
+            </span>
+            <span className={unit}>days/yr</span>
+          </dd>
         </div>
       )}
-    </div>
+    </dl>
   )
 }
 
@@ -75,7 +87,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
       title={
         <span className="flex items-center gap-1">
           {name} risk breakdown
-          <ReadingGuide legend={readingGuide(t)} steps={[...badYearSteps(data).slice(0, 1), LENS_EXPLAINER]} detail={hubDetail(data)} />
+          <ReadingGuide legend={readingGuide(t)} detail={hubDetail(data)} />
         </span>
       }
       note={`Data as of ${formatDate(data.data_as_of)}.`}
@@ -104,7 +116,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
           <HistoryTab hubId={data.hub_id} name={name} />
         </div>
       ) : (
-      <div role="tabpanel" id={`${data.hub_id}-panel-overview`} aria-labelledby={`${data.hub_id}-tab-overview`}>
+      <div role="tabpanel" id={`${data.hub_id}-panel-overview`} aria-labelledby={`${data.hub_id}-tab-overview`} className="@container">
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <Lenses data={data} />
         <dl className="flex gap-6 text-sm">
@@ -117,15 +129,23 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Screening priority</dt>
+            <dt className="text-xs text-muted-foreground">Review priority (typical year)</dt>
             <dd className="mt-0.5 font-semibold tabular-nums">
               {fmt(data.priority)}
               {data.priority_band && <span aria-hidden="true" className="font-normal text-muted-foreground">{' · '}</span>}
               <BandText band={data.priority_band} />
             </dd>
+            {/* The bad year beside it, so a hub with a low typical priority never reads as safe. */}
+            {isNum(data.bad_year_days) && (
+              <dd data-testid="priority-bad-year" className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                Bad year: {fmt(data.bad_year_days)} lost days
+              </dd>
+            )}
           </div>
         </dl>
       </div>
+      {bandGapLine(data) && <p className="mt-2 text-xs text-muted-foreground">{bandGapLine(data)}</p>}
+      {hasPeople(data) && <PeopleImpactRows data={data} />}
 
       <ChartContainer config={config} className="mt-4 aspect-auto w-full" style={{ height }} initialDimension={{ width: 560, height }}>
         <BarChart data={rows} layout="vertical" margin={{ top: 16, right: 12, bottom: 0, left: 0 }} barCategoryGap={6} accessibilityLayer>
@@ -165,17 +185,17 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
       </ChartContainer>
       <p className="text-[0.7rem] text-muted-foreground">
         Lost days by hazard{shares ? ', in a typical year and in the worst 1 year in 20' : ''}.{hasBadYear && !shares && ' Hatched: extra days in a bad year.'}
-        {cutoffs && ` Dashed lines: medium band from ${fmt(mediumDays, 2)} days, high from ${fmt(highDays, 2)} days a year.`}
+        {cutoffs && ` Dashed lines: medium level from ${fmt(mediumDays, 2)} days, high from ${fmt(highDays, 2)} days a year.`}
       </p>
 
-      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
+      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm @lg:grid-cols-4">
         {FAMILIES.map((f) => {
           const fam = data.families[f]
           if (!fam) return null
           const top = f === data.top_driver
           const isHurricane = f === 'hurricane' && hasHurricanePct
           return (
-            <li key={f} aria-label={fam.band ? `${FAMILY_LABEL[f]}: ${fam.band} band` : FAMILY_LABEL[f]} data-band={fam.band} className="flex items-start gap-2">
+            <li key={f} aria-label={fam.band ? `${FAMILY_LABEL[f]}: ${fam.band} level` : FAMILY_LABEL[f]} data-band={fam.band} className="flex items-start gap-2">
               <HazardIcon hazard={f} className="mt-0.5 size-4" />
               <span className="min-w-0">
                 <span className={`block ${top ? 'font-semibold' : ''}`}>{FAMILY_LABEL[f]}</span>
@@ -189,12 +209,14 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
                     </>
                   )}
                 </span>
-                {top && <span className="text-xs font-semibold text-isobar">Top driver</span>}
+                {top && <span className="text-xs font-semibold text-isobar">Biggest risk</span>}
               </span>
             </li>
           )
         })}
       </ul>
+
+      <SeeTheMath data={data} />
 
       {data.upgrade_categories.length > 0 && (
         <p className="mt-4 border-t border-border/60 pt-3 text-sm text-muted-foreground">
@@ -213,21 +235,122 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
   )
 }
 
-/** History tab: the observed history the agent fetched in this chat, or a button that asks for it. */
+/** History tab: the history the agent already fetched in this chat, otherwise GET /hubs/{hub_id}/history. */
 function HistoryTab({ hubId, name }: { hubId: string; name: string }) {
-  const { ask, histories } = useAsk()
-  const history = histories[hubId]
-  if (history) return <HistoryCharts data={history} />
+  const { histories } = useAsk()
+  const known = histories[hubId]
+  const [state, setState] = useState<{ data?: HubHistory; error?: string } | null>(null)
+  useEffect(() => {
+    if (known) return
+    const ctl = new AbortController()
+    setState(null)
+    apiFetch(`/hubs/${encodeURIComponent(hubId)}/history`, { signal: ctl.signal })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { detail?: string } | null)?.detail ?? `HTTP ${r.status}`)
+        return r.json() as Promise<HubHistory>
+      })
+      .then((data) => setState({ data }))
+      .catch((e: Error) => {
+        if (e.name !== 'AbortError') setState({ error: e.message })
+      })
+    return () => ctl.abort()
+  }, [hubId, known])
+  const data = known ?? state?.data
+  if (data) return <HistoryCharts data={data} />
+  if (state?.error)
+    return (
+      <p className="rounded-2xl bg-band-high-soft px-4 py-3 text-sm text-band-high-text" role="alert">
+        The observed history for {name} could not be loaded ({state.error}).
+      </p>
+    )
   return (
-    <div className="flex flex-col items-start gap-2 py-2 text-sm text-muted-foreground">
-      <p>Observed disruption-threshold days per year and by month: days when weather at the hub crossed a disruption threshold. Not confirmed closures.</p>
-      {ask ? (
-        <Button variant="outline" size="sm" onClick={() => ask(`Show the observed weather history for ${name}.`)}>
-          Show observed history
-        </Button>
-      ) : (
-        <p>Ask in chat for the observed history of {name}.</p>
-      )}
+    <div role="status" aria-label={`Loading the observed history for ${name}`} className="space-y-2 py-2">
+      <Skeleton className="h-32 w-full rounded-2xl" />
+      <Skeleton className="h-20 w-full rounded-2xl" />
     </div>
   )
+}
+
+/** People impact: people served (metro estimate) and people-days, typical and bad year, with one plain line. */
+function PeopleImpactRows({ data }: { data: HubScore }) {
+  return (
+    <section aria-label="People impact" className="mt-3 border-t border-border/60 pt-3">
+      <dl className="grid grid-cols-3 gap-x-4 text-sm">
+        <div>
+          <dt className="text-xs text-muted-foreground">People served (metro)</dt>
+          <dd className="mt-0.5 font-semibold tabular-nums">{compact(data.people_served)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">People-days, typical (M/yr)</dt>
+          <dd className="mt-0.5 font-semibold tabular-nums">{fmt(data.people_days_m)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">People-days, bad year (M/yr)</dt>
+          <dd className="mt-0.5 font-semibold tabular-nums">{fmt(data.people_days_bad_year_m)}</dd>
+        </div>
+      </dl>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        {PEOPLE_DAYS_LINE} People served is the metro-area population{data.metro_name ? ` (${data.metro_name})` : ''}, an estimate, not the hub&apos;s customers.
+      </p>
+    </section>
+  )
+}
+
+/** "See the math": closed by default; KaTeX loads when it opens. Every number comes from the tool output. */
+function SeeTheMath({ data }: { data: HubScore }) {
+  const sections = mathSections(data)
+  const [katex, setKatex] = useState<KatexApi | null>(null)
+  const load = () => {
+    if (katex) return
+    void Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([k]) => setKatex(k.default as KatexApi))
+  }
+  return (
+    <details
+      data-testid="see-the-math"
+      className="group/math mt-4 rounded-2xl bg-foreground/[0.03] ring-1 ring-border/60"
+      onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && load()}
+    >
+      {/* Same header as "How the scores work": a full-width row, the title on the left, a chevron that turns when open. */}
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-3 py-2 text-sm font-medium focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <span className="inline-flex items-center gap-1.5">
+          <SigmaIcon className="size-3.5 text-muted-foreground" aria-hidden="true" />
+          See the math
+        </span>
+        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-open/math:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="space-y-3 border-t border-border/50 px-3 pt-2.5 pb-3">
+        {sections.map((sec) => (
+          <section key={sec.title} aria-label={sec.title}>
+            <h4 className="text-xs font-semibold text-foreground">{sec.title}</h4>
+            <ul className="mt-1 space-y-1 text-[0.8rem] leading-relaxed text-muted-foreground tabular-nums">
+              {sec.lines.map((l) => (
+                <li key={l.text} className="overflow-x-auto">
+                  {katex && l.tex ? (
+                    // KaTeX output carries MathML for screen readers; the plain line stays as the accessible fallback.
+                    <span data-math className="text-foreground/90" dangerouslySetInnerHTML={{ __html: katex.renderToString(l.tex, { throwOnError: false }) }} />
+                  ) : l.tex ? (
+                    // A formula before KaTeX has loaded: the plain form, in a fixed-width font.
+                    <span className="font-mono text-[0.7rem]">{l.text}</span>
+                  ) : (
+                    // A sentence, not a formula: the normal font.
+                    <span>{l.text}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+        <p className="text-xs text-muted-foreground">
+          Every number above is this hub&apos;s own value from the scoring data.{' '}
+          <button type="button" onClick={() => openMethodology()} className="font-medium text-isobar underline-offset-2 hover:underline">
+            Methodology
+          </button>
+        </p>
+      </div>
+    </details>
+  )
+}
+
+interface KatexApi {
+  renderToString: (tex: string, options?: { throwOnError?: boolean }) => string
 }

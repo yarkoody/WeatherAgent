@@ -4,10 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ScoresView } from '../components/ScoresView'
 import { DebugProvider } from '../lib/debug'
 import { LENS_EXPLAINER, badYearLines, hurricaneLines } from '../lib/explain'
-import { pct } from '../lib/format'
-import type { HubComparison, HubScore, Ranking, ScoreRow, SecondOpinion } from '../lib/types'
+import { fmt } from '../lib/format'
+import type { HubComparison, HubScore, Ranking, ScoreRow } from '../lib/types'
 import scoresJson from '../mocks/scores.json'
-import opinionJson from '../mocks/second-opinion.json'
 import { ComparisonCards } from '../widgets/ComparisonCards'
 import { HubBreakdown } from '../widgets/HubBreakdown'
 import { RankingWidget, rankingTitle } from '../widgets/RankingWidget'
@@ -17,7 +16,6 @@ const hub = toolOutput('chat-stream.sse', 'get_hub_risk') as HubScore
 const ranking = toolOutput('chat-stream.sse', 'rank_hubs') as Ranking
 const comparison = toolOutput('chat-stream-compare.sse', 'compare_hubs') as HubComparison
 const scores = scoresJson as ScoreRow[]
-const opinion = opinionJson as SecondOpinion
 
 describe('explanations built from tool data', () => {
   it('bad-year lines cite the typical and bad-year days', () => {
@@ -53,7 +51,7 @@ describe('hub breakdown', () => {
     render(<HubBreakdown data={hub} />)
     const typical = screen.getByRole('group', { name: 'Typical year' })
     expect(typical).toHaveTextContent(`${hub.exposure_days_per_year}`)
-    const bad = screen.getByRole('group', { name: 'Bad year (1 in 20)' })
+    const bad = screen.getByRole('group', { name: 'Bad year' })
     expect(bad).toHaveTextContent(`${hub.bad_year_days}`)
 
     for (const f of ['winter', 'flood', 'severe_storm'] as const) {
@@ -79,23 +77,23 @@ describe('history saved before formula v2', () => {
     for (const f of Object.values(v1.families)) delete (f as Partial<typeof f>).band
     render(<HubBreakdown data={v1} />)
     expect(screen.getByRole('group', { name: 'Typical year' })).toHaveTextContent(`${hub.exposure_days_per_year}`)
-    expect(screen.queryByRole('group', { name: 'Bad year (1 in 20)' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Bad year' })).not.toBeInTheDocument()
     expect(screen.queryByText(/chance in 10 years/)).not.toBeInTheDocument()
 
     const cmp = structuredClone(comparison)
     for (const h of cmp.hubs) delete (h as Partial<HubScore>).bad_year_days
     render(<ComparisonCards data={cmp} />)
-    expect(screen.queryByText('Bad year (1 in 20)')).not.toBeInTheDocument()
+    for (const td of document.querySelectorAll('td[data-column="bad"]')) expect(td).toHaveTextContent('n/a')
   })
 })
 
-describe('comparison cards', () => {
-  it('show typical and bad-year days for every hub', () => {
+describe('comparison table', () => {
+  it('shows typical and bad-year days for every hub, in its own row', () => {
     render(<ComparisonCards data={comparison} />)
     for (const h of comparison.hubs) {
-      const card = screen.getByRole('group', { name: new RegExp(h.hub_id, 'i') })
-      expect(within(card).getByText('Bad year (1 in 20)')).toBeInTheDocument()
-      expect(card).toHaveTextContent(`${h.bad_year_days} d`)
+      const row = screen.getByRole('rowheader', { name: new RegExp(h.hub_id.replace('_', ' '), 'i') }).closest('tr')!
+      expect(row.querySelector('td[data-column="bad"]')).toHaveTextContent(String(h.bad_year_days))
+      expect(row.querySelector('td[data-column="typical"]')).toHaveTextContent(String(h.exposure_days_per_year))
     }
   })
 })
@@ -109,11 +107,11 @@ describe('ranking widget', () => {
       region: null,
       items: ranking.items.map((i, n) => ({ ...i, value: 40 - n * 3 })),
     }
-    expect(rankingTitle(bad)).toBe('Bad-year disruption days (1 in 20)')
+    expect(rankingTitle(bad)).toBe('Bad-year lost operating days')
     const { container } = render(<RankingWidget data={bad} />)
-    expect(screen.getByRole('heading')).toHaveTextContent('Bad-year disruption days (1 in 20)')
+    expect(screen.getByRole('heading')).toHaveTextContent('Bad-year lost operating days')
     expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(0)
-    expect(rankingTitle({ ...bad, region: 'Midwest' })).toBe('Bad-year disruption days (1 in 20) in the Midwest')
+    expect(rankingTitle({ ...bad, region: 'Midwest' })).toBe('Bad-year lost operating days in the Midwest')
   })
 })
 
@@ -125,7 +123,6 @@ describe('scores table', () => {
       vi.fn(async (url: string) => {
         const path = new URL(url, 'http://test').pathname
         if (path === '/scores') return Response.json(scores)
-        if (path === '/second-opinion') return Response.json({ ...opinion, rank_correlation: { winter: 0.87 } })
         return Response.json({ detail: 'not found' }, { status: 404 })
       }),
     )
@@ -152,15 +149,18 @@ describe('scores table', () => {
     await waitFor(() => expect(firstHub()).toHaveTextContent(top('exposure_days_per_year').name.replace(/ Hub$/, '')))
 
     const miami = screen.getByRole('row', { name: /Miami/ })
-    expect(miami).toHaveTextContent(pct(scores.find((r) => r.hub_id === 'miami')!.hurricane_10yr_probability_pct))
+    expect(within(miami).getAllByRole('cell')[4]).toHaveTextContent(new RegExp(`^${fmt(scores.find((r) => r.hub_id === 'miami')!.hurricane_10yr_probability_pct)}$`)) // bare number; the unit is in the header
   })
 
-  it('shows rank agreement in the JEV summary when the contract provides it', async () => {
+  it('shows no JEV second opinion anywhere', async () => {
     render(
-      <DebugProvider debug={false}>
+      <DebugProvider debug>
         <ScoresView />
       </DebugProvider>,
     )
-    expect(await screen.findByRole('group', { name: 'Rank agreement by hazard' })).toHaveTextContent('Winter 0.87')
+    await screen.findAllByRole('rowheader')
+    expect(document.body.textContent).not.toMatch(/JEV|second opinion|Rank agreement/i)
+    expect(screen.queryByRole('button', { name: /Re-run/ })).not.toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('/second-opinion'), expect.anything())
   })
 })

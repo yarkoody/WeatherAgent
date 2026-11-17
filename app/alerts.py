@@ -60,43 +60,40 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
-def formula_version(config: Any = None) -> str:
-    """SCORING_VERSION plus a hash of the scoring config: scores are comparable only within one version.
+def formula_version() -> str:
+    """SCORING_VERSION plus a hash of the scoring config: scores compare only within one formula.
 
-    The observed-window fields are left out: the scheduled job rescores on a rolling window every day and
-    --demo-window changes it on purpose, and both must still compare with the baseline.
+    The hash catches a changed config value even when SCORING_VERSION was not bumped. It is always
+    taken from DEFAULT_CONFIG, so the scheduled job's rolling observed window does not change it.
     """
     from app import scoring
 
-    data = (config or scoring.DEFAULT_CONFIG).model_dump(mode="json", exclude=set(WINDOW_FIELDS))
-    digest = hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:12]
-    return f"{scoring.SCORING_VERSION}-{digest}"
+    config = json.dumps(scoring.DEFAULT_CONFIG.model_dump(mode="json"), sort_keys=True)
+    return f"{scoring.SCORING_VERSION}-{hashlib.sha256(config.encode()).hexdigest()[:12]}"
 
 
-_compute_formula_version = formula_version  # check_alerts has a parameter of the same name
-
-
-def baseline_version(path: Path) -> str | None:
-    try:
-        return json.loads(path.read_text(encoding="utf-8")).get("formula_version")
-    except (OSError, ValueError):
-        return None
+_scoring_version = formula_version
 
 
 def load_baseline(path: Path) -> dict[str, ScoreRow] | None:
+    """The baseline rows (any version; check baseline_version), or None when there is no baseline."""
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
     return {r["hub_id"]: ScoreRow.model_validate(r) for r in data["rows"]}
 
 
-def write_baseline(path: Path, rows: list[ScoreRow], computed_at: str, version: str) -> None:
+def baseline_version(path: Path) -> str | None:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("scoring_version")
+    except (OSError, ValueError):
+        return None
+
+
+def write_baseline(path: Path, rows: list[ScoreRow], computed_at: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "computed_at": computed_at,
-        "formula_version": version,
-        "rows": [r.model_dump(mode="json") for r in sorted(rows, key=lambda r: r.hub_id)],
-    }
+    payload = {"computed_at": computed_at, "scoring_version": _scoring_version(),
+               "rows": [r.model_dump(mode="json") for r in sorted(rows, key=lambda r: r.hub_id)]}
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
@@ -151,17 +148,17 @@ def compare(old: ScoreRow, new: ScoreRow) -> dict[str, Any] | None:
 
 
 def load_state(path: Path) -> dict[str, Any]:
-    """{"formula_version", "hubs": {hub_id: last alerted ScoreRow}, "nws_seen": {key: forget_after_iso}}.
+    """{"scoring_version", "hubs": {hub_id: last alerted ScoreRow}, "nws_seen": {key: forget_after_iso}}.
 
     A missing file gives an empty state with "exists": False ("exists" is never written).
     """
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {"exists": False, "formula_version": None, "hubs": {}, "nws_seen": {}}
+        return {"exists": False, "scoring_version": None, "hubs": {}, "nws_seen": {}}
     return {
         "exists": True,
-        "formula_version": data.get("formula_version"),
+        "scoring_version": data.get("scoring_version"),
         "hubs": dict(data.get("hubs") or {}),
         "nws_seen": dict(data.get("nws_seen") or {}),
     }
@@ -219,7 +216,6 @@ def check_alerts(
     log_path: Path = LOG_PATH,
     state_path: Path = STATE_PATH,
     update_baseline: bool = False,
-    formula_version: str | None = None,
 ) -> dict[str, Any]:
     """Alert once per new change.
 
@@ -228,11 +224,12 @@ def check_alerts(
     while further drift does. NWS alerts are sent once and remembered until they expire. If a
     configured webhook fails, the state is not advanced, so the next run tries again.
 
-    Scores are compared only when the reference was made by the same scoring formula
-    (formula_version). Otherwise one short "scoring method changed" message replaces the score
-    alerts and the state is reset to the current scores; NWS alerts work as usual.
+    Scores compare only when the reference comes from the current formula (formula_version, stored
+    in the state and the baseline). Otherwise one short "scoring method changed" message replaces
+    the score alerts and the state is reset to the current scores; NWS alerts work as usual. The
+    committed baseline is replaced only on purpose (update_baseline).
     """
-    current = formula_version if formula_version is not None else _compute_formula_version()
+    current = formula_version()
     now = datetime.now(UTC)
     computed_at = now.isoformat(timespec="seconds")
     rows = compute_rows()
@@ -244,20 +241,18 @@ def check_alerts(
     baseline_created = baseline is None
     changes: list[dict] = []
     reset: dict[str, str] | None = None
-    if baseline is not None:
-        # The reference is the state for hubs alerted before and the baseline for the rest; both must
-        # come from the current formula, or the method change would show up as score changes.
+    if baseline is not None and not update_baseline:
+        # The reference is the state for hubs alerted before and the baseline for the rest: both must
+        # come from the current formula, or a method change would show up as score changes.
         old_baseline = baseline_version(baseline_path)
-        if state["exists"] and state["formula_version"] != current:
-            reset = {"old": state["formula_version"] or "unknown", "new": current}
+        if state["exists"] and state["scoring_version"] != current:
+            reset = {"old": state["scoring_version"] or "unknown", "new": current}
         elif old_baseline != current and any(r.hub_id not in state["hubs"] for r in rows):
             reset = {"old": old_baseline or "unknown", "new": current}
-    if baseline is None:
-        write_baseline(baseline_path, rows, computed_at, current)
+    if baseline is None or update_baseline:
+        write_baseline(baseline_path, rows, computed_at)
     elif reset is not None:
         alerted_hubs = {r.hub_id: r.model_dump(mode="json") for r in rows}
-        if update_baseline:
-            write_baseline(baseline_path, rows, computed_at, current)
     else:
         for new in sorted(rows, key=lambda r: r.hub_id):
             last = state["hubs"].get(new.hub_id)
@@ -268,8 +263,6 @@ def check_alerts(
                     store.record_alert(new.hub_id, a, b, reason)
                 changes.append(change)
                 alerted_hubs[new.hub_id] = new.model_dump(mode="json")
-        if update_baseline:
-            write_baseline(baseline_path, rows, computed_at, current)
 
     # Seen NWS keys, minus the ones past their forget time.
     seen = {k: t for k, t in state["nws_seen"].items() if t > computed_at}
@@ -304,15 +297,15 @@ def check_alerts(
     sent = delivered == "webhook" or (delivered == "jsonl" and not webhook_url)
     if update_baseline:
         state["hubs"] = {}  # the new baseline is the reference again
-        state["formula_version"] = current
+        state["scoring_version"] = current
     elif reset is not None:
         if sent:  # a failed webhook keeps the old state, so the reset message is sent again next run
             state["hubs"] = alerted_hubs
-            state["formula_version"] = current
+            state["scoring_version"] = current
     else:
         if sent:
             state["hubs"].update(alerted_hubs)
-        state["formula_version"] = current
+        state["scoring_version"] = current
     state["nws_seen"] = {**seen, **new_seen} if sent else seen
     write_state(state_path, state, computed_at)
     return {

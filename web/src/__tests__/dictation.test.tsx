@@ -144,4 +144,66 @@ describe('dictation', () => {
     rec.end()
     expect(mic()).toHaveAttribute('aria-pressed', 'false')
   })
+
+  it('Enter during dictation sends once with the captured text (interim words included) and empties the box', () => {
+    const onSend = vi.fn()
+    render(<Composer busy={false} onSend={onSend} onStop={() => {}} />)
+    fireEvent.click(mic())
+    expect(box()).toHaveFocus() // the keyboard stays in the text box, so Enter sends
+    current().say('rank the Midwest hubs')
+    current().say('by winter', true) // still interim when Enter is pressed
+    const rec = current()
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    expect(onSend).toHaveBeenCalledTimes(1)
+    expect(onSend).toHaveBeenCalledWith('rank the Midwest hubs by winter')
+    expect(box().value).toBe('')
+    expect(mic()).toHaveAttribute('aria-pressed', 'false')
+    expect(rec.stopped).toBe(1)
+  })
+
+  it('late results and the late end after sending neither refill the box nor restart listening', () => {
+    const onSend = vi.fn()
+    render(<Composer busy={false} onSend={onSend} onStop={() => {}} />)
+    fireEvent.click(mic())
+    current().say('compare Houston and Dallas')
+    const rec = current()
+    const sessions = FakeRecognition.instances.length
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    rec.say('compare Houston and Dallas on flood') // the recognizer delivers a final result after the send
+    rec.end()
+    expect(box().value).toBe('')
+    expect(FakeRecognition.instances.length).toBe(sessions) // no new session
+    expect(rec.started).toBe(1)
+    expect(mic()).toHaveAttribute('aria-pressed', 'false')
+    expect(onSend).toHaveBeenCalledTimes(1)
+  })
+
+  it('Enter on the focused mic while listening sends too; a click on the mic only stops', () => {
+    const onSend = vi.fn()
+    render(<Composer busy={false} onSend={onSend} onStop={() => {}} />)
+    fireEvent.click(mic())
+    current().say('rank hubs')
+    mic().focus()
+    fireEvent.keyDown(mic(), { key: 'Enter' })
+    expect(onSend).toHaveBeenCalledWith('rank hubs')
+    expect(box().value).toBe('')
+
+    fireEvent.click(mic()) // start again
+    current().say('alerts in Houston')
+    fireEvent.click(mic()) // a click stops listening, nothing is sent
+    current().end()
+    expect(onSend).toHaveBeenCalledTimes(1)
+    expect(box().value).toBe('alerts in Houston')
+    expect(mic()).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('Shift+Enter keeps a newline (nothing is sent)', () => {
+    const onSend = vi.fn()
+    render(<Composer busy={false} onSend={onSend} onStop={() => {}} />)
+    fireEvent.click(mic())
+    current().say('rank hubs')
+    fireEvent.keyDown(box(), { key: 'Enter', shiftKey: true })
+    expect(onSend).not.toHaveBeenCalled()
+    expect(mic()).toHaveAttribute('aria-pressed', 'true')
+  })
 })
