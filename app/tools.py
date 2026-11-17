@@ -38,7 +38,8 @@ class ListHubsArgs(_Args):
 class RankHubsArgs(_Args):
     score: ScoreKind = Field(description="'exposure' (typical-year weather disruption), 'priority' (investment priority) "
                                          "'bad_year' (average lost days in the worst 1 in 20 years; no band) or "
-                                         "'people_impact' (people-days of disruption a year, a proxy; no band).")
+                                         "'people_impact' (people-days of disruption a year, a proxy; no band) or "
+                                         "'people_served' (metro-area population, a proxy for market size; no band).")
     hazard: Hazard = Field(description="Hazard family to rank by; anything but 'overall' needs score='exposure'.")
     region: Region | None = Field(default=None, description="Region filter, or null for all hubs.")
     top_n: int = Field(ge=1, le=15, description="How many hubs to return (1-15).")
@@ -270,7 +271,8 @@ async def rank_hubs(score: ScoreKind, hazard: Hazard = "overall", region: Region
     hazard family), by 'priority' (investment priority: exposure amplified by people served and resilience gap) or
     by 'bad_year' (average lost days in the worst 1 in 20 years; overall only, items have no band), or by
     'people_impact' (people-days of disruption a year in millions = metro population x typical-year days, a proxy for
-    who would be affected most; overall only, no band). Returns the ordered hubs with value and band, `total` (how many hubs matched the filter before top_n), the band thresholds
+    who would be affected most; overall only, no band), or by 'people_served' (the metro-area population, a
+    metro-population proxy for how many people a hub serves; overall only, no band). Returns the ordered hubs with value and band, `total` (how many hubs matched the filter before top_n), the band thresholds
     and the data date. Use it for any 'which hubs are most/least...' question. For 'which hubs in <region>' use the
     region filter with top_n 15 so every hub there is listed; when items are fewer than total, say "top N of M"."""
     hubs, _, scores = _state()

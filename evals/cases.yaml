@@ -24,8 +24,8 @@
 #                      (family: index, share % or days/yr; score: exposure index or days/yr, or priority)
 #     figure           {hub_id, metric, year}: the oracle weather_stat value is in figures and in the answer text
 #     history          {hub_id}: the answer names every oracle peak month and the worst year (get_hub_history)
-#     field_figure     {rank_of: <spec>, field}: figures cite that field of the rank-1 hub, and the answer
-#                      names its metro area (ranking specs may also be {field: <HubScore field>})
+#     field_figure     {rank_of: <spec>, field, names_metro?}: figures cite that field (or rank_hubs value) of the
+#                      rank-1 hub; names_metro: true also requires its metro area (specs may be {field: <HubScore field>})
 #     compact_figure   {hub_id, signal}: the priority signal's raw value is exact in figures and
 #                      written in compact form ("2.6M") in the answer text
 #     grounding_first_try  true: grounding must pass without the retry
@@ -427,7 +427,10 @@ cases:
     about: Most people served; names the hub and its metro, calls it a proxy, cites people_served
     turns: ["Which hub serves the most people?"]
     expect:
-      tools_required: ["rank_hubs|get_hub_risk|compare_hubs"]
+      tools_required: [rank_hubs]
+      tool_args: [{tool: rank_hubs, equals: {score: people_served}}]
+      ranking_from: {kind: people_served, hazard: overall}
+      ranking_required: false
       mentions_top_of: [{field: people_served}]
       field_figure: {rank_of: {field: people_served}, field: people_served}
       text_must_match: ["(?i)proxy|estimate"]
@@ -440,6 +443,17 @@ cases:
     expect:
       tools_required: ["rank_hubs|compare_hubs|get_hub_risk"]
       ranking_from: [{kind: people_impact, hazard: overall}, {field: people_days_bad_year_m}]
+      text_must_match: ["(?i)proxy|estimate"]
+      in_scope: true
+      data_available: true
+
+  - id: people_affected_typical
+    about: Typical-year people impact routes to people_impact, not people_served; ranking equals the oracle
+    turns: ["Where does weather disruption affect the most people in a typical year?"]
+    expect:
+      tools_required: [rank_hubs]
+      tool_args: [{tool: rank_hubs, equals: {score: people_impact}}]
+      ranking_from: {kind: people_impact, hazard: overall}
       text_must_match: ["(?i)proxy|estimate"]
       in_scope: true
       data_available: true

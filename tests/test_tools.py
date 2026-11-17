@@ -301,3 +301,10 @@ async def test_hub_risk_carries_the_people_fields():
     assert out["metro_name"] == "Dallas-Fort Worth-Arlington, TX"
     assert out["people_served"] > 8_000_000 and out["people_days_m"] > 0 and out["people_days_bad_year_m"] > out["people_days_m"]
     assert "people-days" in tools.rank_hubs.__doc__ and "proxy" in tools.rank_hubs.__doc__
+
+
+async def test_rank_hubs_people_served_kind():
+    out = await tools.run_tool("rank_hubs", json.dumps({"score": "people_served", "hazard": "overall", "region": None, "top_n": 2}))
+    assert [i["hub_id"] for i in out["items"]] == ["newark", "los_angeles"]  # 20.1M, 12.8M metro population
+    assert out["items"][0]["value"] == 20112448 and out["items"][0]["band"] is None and out["total"] == 15
+    assert "metro-population proxy" in tools.rank_hubs.__doc__

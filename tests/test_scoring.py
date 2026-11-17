@@ -542,3 +542,11 @@ def test_rank_total_counts_matching_hubs_before_top_n(scores):
     assert len(top_one.items) == 1 and top_one.total == len(HUBS)
     midwest = scoring.rank(scores, HUBS, "priority", region="Midwest", top_n=15)
     assert midwest.total == len(midwest.items) == 1
+
+
+def test_rank_by_people_served(scores):
+    r = scoring.rank(scores, HUBS, "people_served", top_n=2)
+    assert [(i.hub_id, i.value) for i in r.items] == [("bravo", 20_000_000.0), ("alpha", 2_000_000.0)]
+    assert r.total == 4 and all(i.band is None for i in r.items)
+    with pytest.raises(ValueError):
+        scoring.rank(scores, HUBS, "people_served", hazard="winter")

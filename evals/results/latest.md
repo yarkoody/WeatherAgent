@@ -97,7 +97,11 @@ There are 39 cases. New: `people_most_served` (names the hub and its metro, call
   - No tool can rank by population. `rank_hubs` has no `people_served` kind, ranking items carry only one value, `list_hubs` has no population, and `compare_hubs` takes at most 5 hubs.
   - Newark wins on both measures here, but would not in general: Los Angeles has the second-largest metro population yet ranks low on people-days.
   - No prompt fix was made, because the model cannot answer this correctly with today's tools.
-  - Proposed contract change for the orchestrator: a `people_served` kind for `rank_hubs` (or `people_served` on each ranking item). Then a prompt line sends "serves the most people" or "largest population" questions to it, and "affected most" or "people-days" questions to `people_impact`.
+  - **Update (Track A added `rank_hubs` score `people_served`; prompt routes "serves the most people / largest market" there):** re-run of the 3 people cases (`people_most_served`, `people_bad_year`, new `people_affected_typical`), $0.14, grounding 3/3 first try.
+    - `people_most_served`: `rank_hubs` with `people_served`, Newark at 20.1M (exact 20,112,448 in figures, cited as `rank_hubs.value`), called a proxy. It failed only a "names the New York metro" check: ranking items carry no `metro_name`, so naming the metro needs an extra call. That check is now opt-in (`names_metro`); against the remaining checks this saved answer passes.
+    - `people_affected_typical`: `people_impact`, top 5 equal to the oracle.
+    - `people_bad_year` passes, but no ranking covers bad-year people-days, so the model called `rank_hubs` (bad_year) plus 3 `compare_hubs` calls covering all 15 hubs (42.6 s). A `people_impact` bad-year ranking would remove those calls.
+  - Original proposal (now done by Track A): a `people_served` kind for `rank_hubs` (or `people_served` on each ranking item). Then a prompt line sends "serves the most people" or "largest population" questions to it, and "affected most" or "people-days" questions to `people_impact`.
 
 ### Live-app review rules (2026-11-17, branch fix/stream-keepalive, the run in the tables above)
 

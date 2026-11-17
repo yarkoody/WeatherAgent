@@ -299,11 +299,15 @@ def check_run(run: Run, case: dict, oracle: Oracle) -> None:
         spec = expect["field_figure"]
         hub_id = oracle.ranking(spec["rank_of"])[0]
         value = getattr(oracle.scores[hub_id], spec["field"])
-        ok = any(f.hub_id == hub_id and f.source_field == spec["field"] and matches(f.value, value) for f in answer.figures)
+        # The field itself (get_hub_risk / compare_hubs) or the ranking item's value (rank_hubs for that field).
+        ok = any(f.hub_id == hub_id and matches(f.value, value)
+                 and (f.source_field == spec["field"] or (f.source_tool == "rank_hubs" and f.source_field == "value"))
+                 for f in answer.figures)
         add(("field_figure", ok, "" if ok else f"no figure citing {hub_id}.{spec['field']} = {value}"))
-        metro = oracle.scores[hub_id].metro_name.split("-")[0].split(",")[0]
-        named = re.search(re.escape(metro), text, re.IGNORECASE) is not None
-        add(("metro_named", named, "" if named else f"answer does not name the {metro} metro"))
+        if spec.get("names_metro"):  # opt-in: ranking items carry no metro_name, so this needs get_hub_risk
+            metro = oracle.scores[hub_id].metro_name.split("-")[0].split(",")[0]
+            named = re.search(re.escape(metro), text, re.IGNORECASE) is not None
+            add(("metro_named", named, "" if named else f"answer does not name the {metro} metro"))
 
     if "states_band" in expect:
         spec = expect["states_band"]

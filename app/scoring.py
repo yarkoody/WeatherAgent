@@ -557,13 +557,15 @@ def rank(
             values[hub_id] = s.bad_year_days
         elif kind == "people_impact":
             values[hub_id] = s.people_days_m
+        elif kind == "people_served":
+            values[hub_id] = float(s.people_served)
         elif hazard == "overall":
             values[hub_id] = s.exposure
         else:
             values[hub_id] = s.families[hazard].score
 
     def item_band(hub_id: str, v: float) -> Band | None:
-        if kind in ("bad_year", "people_impact"):  # no meaningful band on these lenses
+        if kind in ("bad_year", "people_impact", "people_served"):  # no meaningful band on these lenses
             return None
         if kind == "exposure" and hazard != "overall":
             return scores[hub_id].families[hazard].band
