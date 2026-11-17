@@ -143,7 +143,7 @@ Each piece of work was reviewed by an independent AI reviewer that had not seen 
 - A resent question replaces the failed one, and a per-minute 429 offers Try again.
 - "Ask next" no longer repeats a two-hub comparison.
 - Winter and flood colors differ in lightness.
-- Three new eval cases cover the what-if movers and the heat and wildfire scope. The latest full run, after these fixes, passed 44/44: tool selection 43/43, grounding 50/51 on the first try and 1/51 after one retry, 9.4 s mean and 16.9 s p95 per turn, about $1.74.
+- Three new eval cases cover the what-if movers and the heat and wildfire scope. The full run after these fixes passed 44/44: tool selection 43/43, grounding 50/51 on the first try and 1/51 after one retry, 9.4 s mean and 16.9 s p95 per turn, about $1.74.
 
 **Checked and not changed:**
 - **Chicago 59.99 reads high by design.** Levels follow the shown, rounded value (60.0), so the number and its level never disagree on screen. The methodology already said so; the line was reworded to make it clearer.
