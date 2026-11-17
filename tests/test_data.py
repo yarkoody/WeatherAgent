@@ -12,7 +12,9 @@ import io
 import zipfile
 from xml.sax.saxutils import escape
 
-from app.data import METRO_LIST1_URL, METRO_LIST2_URL, NRI_URL, NWS_URL, OPEN_METEO_URL, UpstreamError
+from app.data import (
+    CBSA_POP_URL, METRO_LIST1_URL, METRO_LIST2_URL, NRI_URL, NWS_URL, OPEN_METEO_URL, UpstreamError,
+)
 from app.schemas import Hub
 
 FIX = Path(__file__).parent / "fixtures"
@@ -160,14 +162,18 @@ def test_refresh_writes_both_snapshot_files(tmp_path, monkeypatch):
     respx.get(NRI_URL).mock(return_value=httpx.Response(200, json=_fixture("nri_query.json")))
     respx.get(OPEN_METEO_URL).mock(return_value=httpx.Response(200, json=_fixture("openmeteo_archive.json")))
     _mock_metro_lists()
+    _mock_population()
     data.refresh(tmp_path)
     metro = json.loads((tmp_path / "metro_cities.json").read_text())
     assert metro["cbsas"]["33100"]["hub_id"] == "miami"
+    pop = json.loads((snap / "metro_population.json").read_text())
+    assert pop["hubs"]["miami"] == {"cbsa": "33100", "name": "Miami-Fort Lauderdale-West Palm Beach, FL",
+                                    "population": 6457988}
     nri = json.loads((snap / "nri.json").read_text())
     weather = json.loads((snap / "weather.json").read_text())
     assert nri["fetched_at"] == weather["fetched_at"]
     assert "12086" in nri["counties"] and "miami" in weather["hubs"]
-    assert sorted(p.name for p in snap.iterdir()) == ["nri.json", "weather.json"]
+    assert sorted(p.name for p in snap.iterdir()) == ["metro_population.json", "nri.json", "weather.json"]
 
 
 # ---------- OMB metro delineations ----------
@@ -243,3 +249,45 @@ def test_refresh_metro_writes_only_the_metro_file(tmp_path):
     assert metro["cbsas"]["33100"]["hub_id"] == "miami"
     assert sorted(p.name for p in (tmp_path / "snapshot").iterdir()) == []
     assert (tmp_path / "metro_cities.json").stat().st_mode & 0o777 == 0o644  # readable data file, like a normal write
+
+
+# ---------- metro-area population (Census population estimates) ----------
+
+POP_CSV = (  # the real file is latin-1 ("Cañon City"), names with commas are quoted
+    "CBSA,MDIV,STCOU,NAME,LSAD,ESTIMATESBASE2020,POPESTIMATE2020,POPESTIMATE2023,POPESTIMATE2024,NPOPCHG2024\r\n"
+    '33100,,,"Miami-Fort Lauderdale-West Palm Beach, FL",Metropolitan Statistical Area,6138357,6133502,6334517,6457988,1\r\n'
+    '33100,22744,,"Fort Lauderdale-Pompano Beach-Sunrise, FL",Metropolitan Division,1944404,1943497,2002786,2037472,1\r\n'
+    '33100,22744,12011,"Broward County, FL",County or equivalent,1944404,1943497,2002786,2037472,1\r\n'
+    '15860,,,"Cañon City, CO",Micropolitan Statistical Area,49000,49100,49500,49600,1\r\n'
+).encode("latin-1")
+
+
+def _mock_population():
+    respx.get(CBSA_POP_URL).mock(return_value=httpx.Response(200, content=POP_CSV))
+
+
+@respx.mock
+def test_fetch_metro_population_uses_the_latest_estimate_of_each_cbsa():
+    _mock_population()
+    out = data.fetch_metro_population({"miami": "33100"})
+    assert out["year"] == 2024 and "Vintage 2024" in out["vintage"] and out["source"] == CBSA_POP_URL
+    assert out["hubs"] == {"miami": {"cbsa": "33100", "name": "Miami-Fort Lauderdale-West Palm Beach, FL",
+                                     "population": 6457988}}  # the CBSA total, not a division or county row
+
+
+@respx.mock
+def test_fetch_metro_population_missing_cbsa_raises():
+    _mock_population()
+    with pytest.raises(UpstreamError):
+        data.fetch_metro_population({"miami": "33100", "boston": "14460"})
+
+
+@respx.mock
+def test_refresh_population_uses_the_committed_metro_file(tmp_path):
+    snap = _hubs_dir(tmp_path)
+    (tmp_path / "metro_cities.json").write_text(json.dumps({"cbsas": {"33100": {"title": "Miami", "type": "Metropolitan",
+                                                                             "hub_id": "miami"}}, "cities": []}))
+    _mock_population()
+    data.refresh_population(tmp_path)
+    pop = json.loads((snap / "metro_population.json").read_text())
+    assert pop["hubs"]["miami"]["population"] == 6457988 and pop["fetched_at"]

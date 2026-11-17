@@ -5,6 +5,7 @@
 Typical-year (expected days) ranking: each days-per-event value halved and doubled one at a time, the NRI /
 observed blend from 0.3 to 1.0, and the large-county reference area at 500 and 2,000 sq mi.
 Bad-year (TVaR95) ranking: the hurricane closure mix at 70/30 and 90/10, and the long closure at 20 and 50 days.
+Priority ranking: the people-served term linear (cap 20M), log with a 10M or 40M cap, and without people.
 For each variant: Spearman rank correlation with the current ranking (on unrounded values), the top hub, and the
 hub whose rank moved most. Deterministic: same snapshot, same report.
 """
@@ -40,6 +41,7 @@ class Result:
     rows: list[Row]
     data_as_of: str
     base_bad_year_order: list[str]
+    base_priority_order: list[str]
 
 
 def spearman(a: list[str], b: list[str]) -> float:
@@ -58,6 +60,10 @@ def _sorted(values: dict[str, float]) -> list[str]:
 
 def expected_order(hubs: list[Hub], snapshot: scoring.Snapshot, config: scoring.ScoringConfig) -> list[str]:
     return _sorted({h.id: scoring.expected_days(h, snapshot, config) for h in hubs})
+
+
+def priority_order(hubs: list[Hub], snapshot: scoring.Snapshot, config: scoring.ScoringConfig) -> list[str]:
+    return _sorted({h.id: scoring.priority_value(h, snapshot, config) for h in hubs})
 
 
 def bad_year_order(hubs: list[Hub], snapshot: scoring.Snapshot, config: scoring.ScoringConfig) -> list[str]:
@@ -97,7 +103,16 @@ def run(hubs: list[Hub], snapshot: scoring.Snapshot, config: scoring.ScoringConf
     ):
         cfg = config.model_copy(update={"hurricane_days_mix": mix})
         rows.append(_row("bad-year: hurricane closures", label, bad_base, bad_year_order(hubs, snapshot, cfg)))
-    return Result(base, rows, snapshot.data_as_of, bad_base)
+    pri_base = priority_order(hubs, snapshot, config)
+    for label, update in (
+        ("linear, cap 20M", {"people_scale": "linear"}),
+        ("log, cap 10M", {"people_cap": 10_000_000}),
+        ("log, cap 40M", {"people_cap": 40_000_000}),
+        ("no people term", {"priority_people_weight": 0.0}),
+    ):
+        cfg = config.model_copy(update=update)
+        rows.append(_row("priority: people term", label, pri_base, priority_order(hubs, snapshot, cfg)))
+    return Result(base, rows, snapshot.data_as_of, bad_base, pri_base)
 
 
 def to_markdown(result: Result) -> str:
@@ -111,12 +126,15 @@ def to_markdown(result: Result) -> str:
         f"Current bad-year ranking (average lost days in the worst 1 in 20 years): "
         f"{', '.join(result.base_bad_year_order)}.",
         "",
+        f"Current priority ranking: {', '.join(result.base_priority_order)}.",
+        "",
         "Each row changes one assumption and compares the new ranking of all hubs with the current one, on unrounded",
-        "values. The first three groups test the typical-year ranking; the last tests the bad-year ranking.",
+        "values. The first three groups test the typical-year ranking, then the bad-year ranking, then priority.",
         "Spearman 1.0 = identical order. Biggest move: the hub whose rank changed most (+ = moved up).",
         "",
     ]
-    for group in ("days per event", "NRI / observed blend", "reference area", "bad-year: hurricane closures"):
+    for group in ("days per event", "NRI / observed blend", "reference area", "bad-year: hurricane closures",
+                  "priority: people term"):
         rows = [r for r in result.rows if r.group == group]
         lines += [f"## {group[0].upper() + group[1:]}", "", "| Variant | Spearman | Top hub | Top changed | Biggest move |",
                   "|---|---|---|---|---|"]

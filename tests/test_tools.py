@@ -287,3 +287,17 @@ async def test_rank_hubs_reports_total_for_a_top_n_subset():
     out = await tools.run_tool("rank_hubs", json.dumps({"score": "priority", "hazard": "overall", "region": "Midwest", "top_n": 2}))
     region_size = sum(1 for h in scoring.load_hubs() if h.region == "Midwest")
     assert len(out["items"]) == 2 and out["total"] == region_size > 2
+
+
+async def test_rank_hubs_people_impact_kind():
+    out = await tools.run_tool("rank_hubs", json.dumps({"score": "people_impact", "hazard": "overall", "region": None, "top_n": 3}))
+    assert out["kind"] == "people_impact" and len(out["items"]) == 3
+    assert out["items"][0]["hub_id"] == "newark"  # 19.9M people x 15.0 days
+    assert all(i["band"] is None for i in out["items"])
+
+
+async def test_hub_risk_carries_the_people_fields():
+    out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": "Dallas"}))
+    assert out["metro_name"] == "Dallas-Fort Worth-Arlington, TX"
+    assert out["people_served"] > 8_000_000 and out["people_days_m"] > 0 and out["people_days_bad_year_m"] > out["people_days_m"]
+    assert "people-days" in tools.rank_hubs.__doc__ and "proxy" in tools.rank_hubs.__doc__

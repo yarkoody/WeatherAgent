@@ -7,6 +7,7 @@ snapshot. NWS alerts are fetched live by the tool and the alert job.
 
 from __future__ import annotations
 
+import csv
 import io
 import json
 import os
@@ -35,6 +36,8 @@ NWS_USER_AGENT = "weather-risk-agent (demo)"
 _METRO_BASE = "https://www2.census.gov/programs-surveys/metro-micro/geographies/reference-files/2023/delineation-files"
 METRO_LIST1_URL = f"{_METRO_BASE}/list1_2023.xlsx"  # county -> CBSA
 METRO_LIST2_URL = f"{_METRO_BASE}/list2_2023.xlsx"  # principal cities per CBSA
+CBSA_POP_URL = "https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/metro/totals/cbsa-est2024-alldata.csv"
+CBSA_POP_VINTAGE = "Census Bureau population estimates, Vintage 2024 (July 1 estimates), CBSA totals"
 METRO_DELINEATION = "OMB Bulletin 23-01, July 2023 metropolitan and micropolitan delineations (Census files)"
 
 STATE_FIPS = {
@@ -252,6 +255,38 @@ def _load_hubs(data_dir: Path) -> list[Hub]:
     return [Hub(**h) for h in json.loads((data_dir / "hubs.json").read_text())]
 
 
+def fetch_metro_population(hub_cbsa: dict[str, str]) -> dict:
+    """Latest population estimate of each hub's metro area (CBSA total row), from the Census CSV (latin-1)."""
+    text = _get(CBSA_POP_URL, timeout=30.0).content.decode("latin-1")
+    reader = csv.DictReader(io.StringIO(text))
+    years = sorted(int(c[len("POPESTIMATE"):]) for c in reader.fieldnames or [] if re.fullmatch(r"POPESTIMATE\d{4}", c))
+    if not years:
+        raise UpstreamError("population file has no POPESTIMATE columns", retryable=False)
+    col = f"POPESTIMATE{years[-1]}"
+    totals = {r["CBSA"]: r for r in reader if not r["MDIV"] and not r["STCOU"]}  # CBSA total rows only
+    missing = sorted(code for code in hub_cbsa.values() if code not in totals)
+    if missing:
+        raise UpstreamError(f"population file has no total row for CBSA {missing}", retryable=False)
+    return {
+        "source": CBSA_POP_URL, "vintage": CBSA_POP_VINTAGE, "year": years[-1],
+        "hubs": {hub: {"cbsa": code, "name": totals[code]["NAME"], "population": int(totals[code][col])}
+                 for hub, code in sorted(hub_cbsa.items())},
+    }
+
+
+def _hub_cbsas(metro: dict) -> dict[str, str]:
+    return {v["hub_id"]: code for code, v in metro["cbsas"].items() if v.get("hub_id")}
+
+
+def refresh_population(data_dir: Path = DATA_DIR) -> None:
+    """Rebuild data/snapshot/metro_population.json from the committed metro_cities.json (`python -m app.data population`)."""
+    metro = json.loads((data_dir / "metro_cities.json").read_text())
+    pop = fetch_metro_population(_hub_cbsas(metro))
+    pop["fetched_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    (data_dir / "snapshot").mkdir(parents=True, exist_ok=True)
+    _write_atomic(data_dir / "snapshot" / "metro_population.json", pop)
+
+
 def refresh_metro(data_dir: Path = DATA_DIR) -> None:
     """Rebuild data/metro_cities.json only (`python -m app.data metro`)."""
     metro = fetch_metro_cities(_load_hubs(data_dir))
@@ -288,12 +323,15 @@ def refresh(data_dir: Path = DATA_DIR) -> None:
         weather[hub.id] = fetch_weather(hub, SNAPSHOT_START, SNAPSHOT_END)
     metro = fetch_metro_cities(hubs)
     metro["fetched_at"] = fetched_at
+    population = fetch_metro_population(_hub_cbsas(metro))
+    population["fetched_at"] = fetched_at
     _write_atomic(snap / "nri.json", {"fetched_at": fetched_at, "source": NRI_URL, "counties": nri})
     _write_atomic(snap / "weather.json", {
         "fetched_at": fetched_at, "source": OPEN_METEO_URL,
         "start": SNAPSHOT_START, "end": SNAPSHOT_END, "hubs": weather,
     })
     _write_atomic(data_dir / "metro_cities.json", metro)
+    _write_atomic(snap / "metro_population.json", population)
 
 
 if __name__ == "__main__":
@@ -302,6 +340,9 @@ if __name__ == "__main__":
     if sys.argv[1:] == ["metro"]:
         refresh_metro()
         print("written", DATA_DIR / "metro_cities.json")
+    elif sys.argv[1:] == ["population"]:
+        refresh_population()
+        print("written", DATA_DIR / "snapshot" / "metro_population.json")
     else:
         refresh()
         print("snapshot written to", DATA_DIR / "snapshot", "and", DATA_DIR / "metro_cities.json")

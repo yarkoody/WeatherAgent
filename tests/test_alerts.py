@@ -266,3 +266,18 @@ def test_hurricane_probability_change_of_10_points_alerts():
     assert compare(row(hurricane_pct=60.0), row(hurricane_pct=69.9)) is None
     out = compare(row(hurricane_pct=60.0), row(hurricane_pct=70.0))
     assert out and any("hurricane 10-year probability +10.0" in r for r in out["reasons"])
+
+
+def test_new_scoring_version_resets_the_baseline_instead_of_alerting(tmp_path):
+    from app import scoring
+
+    run(tmp_path, [row(exposure=50.0)])
+    stored = json.loads((tmp_path / "score_baseline.json").read_text())
+    assert stored["scoring_version"] == scoring.SCORING_VERSION
+    stored["scoring_version"] = "v2-old-formula"
+    (tmp_path / "score_baseline.json").write_text(json.dumps(stored))
+    result = run(tmp_path, [row(exposure=80.0, exposure_band="high")])  # would alert under the same version
+    assert result["changes"] == [] and result["baseline_created"] is True
+    assert json.loads((tmp_path / "score_baseline.json").read_text())["scoring_version"] == scoring.SCORING_VERSION
+    again = run(tmp_path, [row(exposure=50.0)])  # now compared against the new baseline
+    assert again["changes"] and again["baseline_created"] is False

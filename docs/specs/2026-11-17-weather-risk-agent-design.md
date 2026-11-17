@@ -143,16 +143,21 @@ On the snapshot the bad-year order differs from the typical-year order where the
 ### 6.3 Priority score (0-100)
 
 priority = exposure index × (0.6 + 0.25 × people share + 0.15 × resilience-gap share)
-- people share = min(county population ÷ 5,000,000, 1) (county population is a proxy; a regional hub serves more than its county).
+- people share = log10(metro population ÷ 0.5M) ÷ log10(20M ÷ 0.5M), clipped to 0-1 (Eden's choice, formula v3: each doubling of the metro counts the same, 2.2M → 0.40, 9.4M → 0.80, 20M → 1.0). People served = the population of the hub's OMB metro area (CBSA), Census Bureau population estimates, Vintage 2024, stored in `data/snapshot/metro_population.json`. A linear cap at 5M (the v2 county version) would saturate most metros; the reviewed alternative, linear ÷ 20M, gave weight only to the New York metro. County population is the fallback when a metro value is missing (with a note).
 - resilience-gap share = (100 − FEMA community resilience score) ÷ 100.
-- Multiplicative: people served and low resilience **amplify** weather exposure (up to × 1.0 instead of × 0.6), but cannot create priority where there is little weather. This replaces the additive v1 formula, under which Los Angeles ranked 6th on priority (55.3) with low exposure. Now Los Angeles has exposure 14.7 and priority 14.4. Signal contributions add up to the priority: the base share 0.6 × exposure plus the people and resilience uplifts.
-- Priority bands use the same 35 / 60 cut-offs as exposure, but priority is at most the exposure index (the multiplier runs from 0.6 to 1.0), so by construction priority bands run lower than exposure bands: on the snapshot 2 hubs are high on priority against 6 on exposure.
+- Multiplicative: people served and low resilience **amplify** weather exposure (up to × 1.0 instead of × 0.6), but cannot create priority where there is little weather. This replaces the additive v1 formula, under which Los Angeles ranked 6th on priority (55.3) with low exposure. Now Los Angeles has exposure 14.7 and priority 14.0. Signal contributions add up to the priority: the base share 0.6 × exposure plus the people and resilience uplifts.
+- Priority bands use the same 35 / 60 cut-offs as exposure, but priority is at most the exposure index (the multiplier runs from 0.6 to 1.0), so by construction priority bands run lower than exposure bands: on the snapshot 2 hubs are high on priority (Minneapolis 74.0, Chicago 60.8) against 6 on exposure. Moving from county to metro population moved Newark (New York metro, 19.9M) from 6th to 3rd and Houston (whose county is most of its metro) from 9th to 11th.
+
+**People-impact lens (`people_days_m`).** people-days of disruption a year, in millions = people served × typical-year days ÷ 1M (`people_days_bad_year_m` with bad-year days). It answers "who would be affected most"; `rank_hubs` with `score="people_impact"` ranks by it, no band. Order on the snapshot: Newark 299.5, Chicago 170.5, Dallas 114.1, Minneapolis 103.6, Houston 81.9. It is a proxy: a hub serves part of its metro area, and customers beyond it; the metro population says how many people live where the disruption happens, not how many the hub ships to.
+
+**Scoring version.** `SCORING_VERSION` ("v3-metro-people") is stored in the alerts baseline; a different version resets the baseline instead of alerting, because a formula change is not a weather change.
 
 ### 6.4 Sensitivity (`python -m app.sensitivity` → `evals/results/sensitivity.md`)
 
 All rankings compared on unrounded values (Spearman rank correlation with the current order).
 - **Typical year:** each days-per-event value halved and doubled: >= 0.961 (lowest: inland flood × 2). NRI / observed blend 0.3-1.0: >= 0.893 (lowest: NRI 0.3 / observed 0.7, Denver +6). Reference area 500 / 2,000 sq mi: >= 0.961. The top hub (Minneapolis) never changes.
 - **Bad year:** hurricane mix 70/30 and 90/10, long closure 20 and 50 days: >= 0.925 (lowest: long closure 20 days, Miami −4). The top hub changes (Houston at 70/30, Minneapolis at 90/10 and at 20 days, Miami otherwise): for the coastal hubs the yearly chance of a long closure sits near 5%, exactly where TVaR95 looks, so the bad-year order among Miami, Houston, Minneapolis and Newark rests on the assumed closure mix. The typical-year ranking is robust to any single assumption within a factor of two; the bad-year top 4 is not, and answers say so.
+- **Priority, people term:** linear ÷ 20M 0.993, log with a 10M cap 1.000, log with a 40M cap 0.996, no people term at all 0.971 (Dallas −2). The top hub (Minneapolis) never changes: the people term reorders neighbours, not the top.
 
 ### 6.5 Breakdown and upgrade types
 - Every score returns its breakdown: each signal's raw value, normalized value, weight, contribution and source. The top driver is the largest weighted contribution. "Why is X high" answers are built from this.
@@ -172,7 +177,7 @@ All rankings compared on unrounded values (Spearman rank correlation with the cu
 - **County-level location vs flood zone is unknown:** the hub's actual site could be inside or outside the exposed area.
 - **Artefacts:** NRI's cold-wave count is relative to local normals (Miami 1.28 cold waves per year); Los Angeles County includes mountains, so winter weather (6.59 events per year) gives LA a winter top driver it does not have at sea level.
 - **Area scaling for tornado, wind and hail may double-adjust:** NRI already models these on a grid of roughly 930 sq mi, so scaling by county area can understate large counties.
-- **Population is a county proxy; no climate trend** (2015-2025 rates are treated as stationary).
+- **People served is a metro-population proxy for demand near a regional hub:** a regional hub serves part of its metro and places beyond it, and national or air-cargo hubs (Memphis- or Louisville-style) serve far beyond their metro, so their people term understates what a disruption there reaches. In production, the hub's own shipment volume per region would replace metro population. Resilience stays county-level (FEMA). **No climate trend** (2015-2025 rates are treated as stationary).
 - NRI is county-level and modeled; Open-Meteo is reanalysis grid data, not station observations.
 
 ## 7. Agent

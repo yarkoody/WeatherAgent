@@ -59,16 +59,29 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def _scoring_version() -> str:
+    from app import scoring
+
+    return scoring.SCORING_VERSION
+
+
 def load_baseline(path: Path) -> dict[str, ScoreRow] | None:
+    """The baseline rows, or None when there is none or it was computed with another scoring version.
+
+    A formula change is not a weather change: a version mismatch resets the baseline instead of alerting.
+    """
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("scoring_version") != _scoring_version():
+        return None
     return {r["hub_id"]: ScoreRow.model_validate(r) for r in data["rows"]}
 
 
 def write_baseline(path: Path, rows: list[ScoreRow], computed_at: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"computed_at": computed_at, "rows": [r.model_dump(mode="json") for r in sorted(rows, key=lambda r: r.hub_id)]}
+    payload = {"computed_at": computed_at, "scoring_version": _scoring_version(),
+               "rows": [r.model_dump(mode="json") for r in sorted(rows, key=lambda r: r.hub_id)]}
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 

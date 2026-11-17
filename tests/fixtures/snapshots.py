@@ -60,4 +60,10 @@ SNAPSHOT = Snapshot(
         "bravo": _weather(rain=5, gust=1),
         "charlie": _weather(snow=30, cold=30),
     }},
+    population={"source": "test", "vintage": "test vintage", "year": 2024, "fetched_at": FETCHED_AT, "hubs": {
+        "alpha": {"cbsa": "10001", "name": "Alpha Metro", "population": 2_000_000},
+        "delta": {"cbsa": "10001", "name": "Alpha Metro", "population": 2_000_000},
+        "bravo": {"cbsa": "10002", "name": "Bravo Metro", "population": 20_000_000},
+        "charlie": {"cbsa": "10003", "name": "Charlie Metro", "population": 500_000},
+    }},
 )
