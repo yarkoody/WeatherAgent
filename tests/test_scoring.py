@@ -114,15 +114,16 @@ def test_observed_signal_counts_disruption_days(scores):
 
 def test_priority_formula(scores):
     # multiplicative: exposure index x (0.6 + 0.25 x people share + 0.15 x resilience-gap share), people share on a
-    # log scale of the metro population: log10(pop / 0.5M) / log10(20M / 0.5M), clipped to 0-1
-    share = math.log10(2_000_000 / 500_000) / math.log10(40)  # 0.376
-    assert scores["alpha"].priority == round(57.279 * (0.6 + 0.25 * share + 0.15 * 0.4), 1) == 43.2
-    assert scores["bravo"].priority == 32.4  # 33.36 * 0.97 (20M people: share 1.0)
+    # log scale of the metro population: log10(pop / 0.5M) / log10(25M / 0.5M), clipped to 0-1
+    share = math.log10(2_000_000 / 500_000) / math.log10(50)  # 0.354
+    assert scores["alpha"].priority == round(57.279 * (0.6 + 0.25 * share + 0.15 * 0.4), 1) == 42.9
+    bravo_share = math.log10(20_000_000 / 500_000) / math.log10(50)  # 0.943: no hub reaches the 25M cap
+    assert scores["bravo"].priority == round(33.359 * (0.6 + 0.25 * bravo_share + 0.15 * 0.8), 1) == 31.9
     assert scores["bravo"].priority_band == "low"
     assert scores["charlie"].priority == 61.5  # 100 * (0.6 + 0 + 0.015): 0.5M people, share 0
     people = scores["alpha"].priority_signals[1]
-    assert (people.raw, people.cap, people.normalized) == (2_000_000, 20_000_000, round(100 * share, 2))
-    assert "metro" in people.name and "log scale" in people.note
+    assert (people.raw, people.cap, people.normalized) == (2_000_000, 25_000_000, round(100 * share, 2))
+    assert "metro" in people.name and "log10(pop / 0.5M) / log10(25M / 0.5M)" in people.note
     sig = scores["alpha"].priority_signals
     assert [s.weight for s in sig] == [0.6, 0.25, 0.15]
     assert sum(s.contribution for s in sig) == pytest.approx(scores["alpha"].priority, abs=0.05)
@@ -135,8 +136,9 @@ def test_priority_is_zero_without_exposure():
 def test_people_share_linear_alternative():
     cfg = ScoringConfig(people_scale="linear")
     alpha = scoring.score_all(HUBS, SNAPSHOT, cfg)["alpha"]
-    assert alpha.priority == round(57.279 * (0.6 + 0.25 * 0.1 + 0.15 * 0.4), 1)  # 2M / 20M
-    assert [scoring.people_share(p) for p in (250_000, 500_000, 20_000_000, 40_000_000)] == [0.0, 0.0, 1.0, 1.0]
+    assert alpha.priority == round(57.279 * (0.6 + 0.25 * 0.08 + 0.15 * 0.4), 1)  # 2M / 25M
+    assert [scoring.people_share(p) for p in (250_000, 500_000, 25_000_000, 40_000_000)] == [0.0, 0.0, 1.0, 1.0]
+    assert DEFAULT_CONFIG.people_cap == 25_000_000
 
 
 def test_people_fields_use_metro_population(scores):
@@ -163,7 +165,14 @@ def test_rank_by_people_impact(scores):
 
 
 def test_scoring_version_names_this_formula():
-    assert scoring.SCORING_VERSION == "v3-metro-people"
+    assert scoring.SCORING_VERSION == "v4-metro-2025"
+
+
+def test_provenance_helper_reads_the_committed_file():
+    p = scoring.provenance()
+    assert set(p["sources"]) == {"fema_nri", "open_meteo", "census_population", "omb_delineations", "nws_alerts"}
+    assert p["sources"]["census_population"]["period"] == "July 1, 2025 estimate"
+    assert p["sources"]["open_meteo"]["period"] == "2015-01-01 to 2025-12-31"
 
 
 def test_bands_thresholds(scores):
@@ -353,8 +362,8 @@ def test_what_if_renormalizes_weights_and_ranks_per_million():
     r = scoring.what_if(HUBS, SNAPSHOT, inputs)
     assert r.kind == "priority"
     assert [(i.hub_id, i.value) for i in r.ranking] == [
-        ("charlie", 61.5), ("bravo", 35.2), ("alpha", 34.5), ("delta", 34.5)]
-    assert [(p.hub_id, p.priority_per_million) for p in r.per_million_ranking] == [("alpha", 17.25), ("bravo", 3.52)]
+        ("charlie", 61.5), ("bravo", 34.7), ("alpha", 34.3), ("delta", 34.3)]
+    assert [(p.hub_id, p.priority_per_million) for p in r.per_million_ranking] == [("alpha", 17.15), ("bravo", 3.47)]
     assert r.inputs_echo == inputs
     assert "analyst-supplied" in r.note
     assert "hurricane 0.4" in r.note and "winter 0.2" in r.note  # 0.5 / 1.25 and 0.25 / 1.25
@@ -417,20 +426,21 @@ def test_committed_snapshot_matches_spec_values():
     bands = [x.exposure_band for x in s.values()]
     assert (bands.count("low"), bands.count("medium"), bands.count("high")) == (3, 6, 6)
     assert s["miami"].hurricane_10yr_probability_pct == 95.3
-    assert (s["newark"].metro_name, s["newark"].people_served) == ("New York-Newark-Jersey City, NY-NJ", 19940274)
-    assert snap.population["year"] == 2024
+    assert (s["newark"].metro_name, s["newark"].people_served) == ("New York-Newark-Jersey City, NY-NJ", 20112448)
+    assert snap.population["year"] == 2025
+    assert max(p["population"] for p in snap.population["hubs"].values()) < DEFAULT_CONFIG.people_cap  # no hub clips
     # bands follow the displayed (rounded) value: LA winter is 1.97 days, shown as 2.0, so medium
     assert (s["los_angeles"].families["winter"].days_per_year, s["los_angeles"].families["winter"].band) == (2.0, "medium")
 
 
 # (expected days, bad-year TVaR95 days, priority) from the reviewed run; spec section 6 quotes these
 REGRESSION = {
-    "minneapolis": (27.6, 38.7, 74.0),
-    "chicago": (18.1, 29.1, 60.8),
-    "newark": (15.0, 35.4, 57.6),
-    "houston": (10.5, 38.2, 38.2),
-    "miami": (7.8, 42.8, 26.8),
-    "los_angeles": (3.7, 8.4, 14.0),
+    "minneapolis": (27.6, 38.7, 73.2),
+    "chicago": (18.1, 29.1, 60.0),
+    "newark": (15.0, 35.4, 56.7),
+    "houston": (10.5, 38.2, 37.8),
+    "miami": (7.8, 42.8, 26.5),
+    "los_angeles": (3.7, 8.4, 13.8),
     "phoenix": (1.6, 7.2, 5.5),
 }
 

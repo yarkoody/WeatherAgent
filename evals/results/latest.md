@@ -1,22 +1,22 @@
 # Eval results
 
-Run 2026-11-17 15:26 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot data as of 2026-11-17. Command: `uv run python -m evals.run`. Expected values come from `app/scoring.py` at run time (oracle). Traces of this run: a temp directory, not the repo.
+Run 2026-11-17 16:21 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot data as of 2026-11-17. Command: `uv run python -m evals.run`. Expected values come from `app/scoring.py` at run time (oracle). Traces of this run: a temp directory, not the repo.
 
 ## Summary
 
 | Metric | Value |
 |---|---|
-| Cases passed (all checks, all repeats) | 33/37 (89%) |
-| Tool-selection accuracy (runs with tool expectations) | 32/32 (100%) |
-| Grounding passed first try (all turns) | 39/43 (91%) |
-| Grounding passed after one retry | 0/43 (0%) |
-| Grounding failed or turn errored | 4/43 (9%) |
+| Cases passed (all checks, all repeats) | 38/39 (97%) |
+| Tool-selection accuracy (runs with tool expectations) | 38/38 (100%) |
+| Grounding passed first try (all turns) | 45/45 (100%) |
+| Grounding passed after one retry | 0/45 (0%) |
+| Grounding failed or turn errored | 0/45 (0%) |
 | Judge: names the actual top driver | 4/4 (100%) |
 | Determinism | determinism_priority: 3 runs, identical ranking: yes |
-| Latency per turn, mean / p95 | 23.7 s / 36.7 s (39 turns) |
-| Tokens, agent (input / output) | 457,718 / 16,092 |
-| Tokens, judge (input / output) | 1,433 / 139 |
-| Cost estimate for this run | $1.08 (agent $1.08, judge $0.00; list prices in `app/agent.py`, cached input not discounted) |
+| Latency per turn, mean / p95 | 9.7 s / 14.8 s (45 turns) |
+| Tokens, agent (input / output) | 572,154 / 18,488 |
+| Tokens, judge (input / output) | 1,448 / 140 |
+| Cost estimate for this run | $1.33 (agent $1.33, judge $0.00; list prices in `app/agent.py`, cached input not discounted) |
 
 ## Offline grounding probes
 
@@ -34,7 +34,7 @@ Run 2026-11-17 15:26 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot 
 
 ## Grounding breakdown
 
-Turns: 43. First try: 39. Passed after one retry: 0. Failed after the retry: 0. Turn errors: 4.
+Turns: 45. First try: 45. Passed after one retry: 0. Failed after the retry: 0. Turn errors: 0.
 
 No grounding errors in this run.
 
@@ -44,45 +44,60 @@ Latency is per run, all turns summed; repeated cases show one value per run.
 
 | Case | Result | Tools called (last turn) | Grounding | Judge | Latency (s) | Failed checks |
 |---|---|---|---|---|---|---|
-| brief_midwest_winter | PASS | rank_hubs | pass | - | 29.3 |  |
-| brief_miami_houston | PASS | compare_hubs | pass | - | 27.3 |  |
-| brief_denver_snow | PASS | weather_stat | pass | - | 24.4 |  |
-| brief_dallas_why_high | PASS | get_hub_risk | pass | pass | 22.9 |  |
-| para_midwest_rank | PASS | rank_hubs | pass | - | 24.4 |  |
-| para_priority_top5 | PASS | rank_hubs,compare_hubs | pass | - | 31.6 |  |
-| para_houston_miami | PASS | compare_hubs | pass | - | 22.6 |  |
-| para_chicago_snow | PASS | weather_stat | pass | - | 20.3 |  |
-| para_kc_drivers | PASS | get_hub_risk | pass | pass | 23.5 |  |
-| followup_first_one | PASS | get_hub_risk | pass | pass | 53.5 |  |
-| followup_and_chicago | PASS | weather_stat | pass | - | 40.2 |  |
-| determinism_priority | PASS | rank_hubs / rank_hubs / rank_hubs | pass/pass/pass | -/-/- | 24.7/30.4/28.1 |  |
-| premise_atlanta | PASS | get_hub_risk | pass | - | 21.8 |  |
-| missing_boise | PASS | get_hub_risk | pass | - | 21.0 |  |
-| missing_lightning | PASS | - | pass | - | 13.0 |  |
-| missing_year_1950 | PASS | weather_stat | pass | - | 20.0 |  |
-| out_of_scope_stock | PASS | - | pass | - | 10.6 |  |
-| injection_miami_safest | PASS | get_hub_risk | pass | - | 24.0 |  |
-| ambiguous_riskiest | PASS | rank_hubs,get_hub_risk | pass | - | 31.5 |  |
-| what_if_costs | PASS | what_if | pass | - | 23.8 |  |
-| live_alerts_houston | PASS | get_active_alerts | pass | - | 19.1 |  |
-| invest_recommendation | PASS | rank_hubs,compare_hubs | pass | - | 36.7 |  |
-| invest_followup_costs | PASS | what_if | pass | - | 66.2 |  |
-| population_compact | PASS | get_hub_risk | pass | - | 21.8 |  |
-| bad_year_ranking | PASS | rank_hubs | pass | - | 24.5 |  |
-| miami_typical_vs_bad | PASS | get_hub_risk | pass | pass | 29.6 |  |
-| metro_new_york | PASS | get_hub_risk | pass | - | 26.7 |  |
-| metro_boston_followup | PASS | get_hub_risk | pass | - | 43.1 |  |
-| ambiguous_portland | PASS | get_hub_risk | pass | - | 20.9 |  |
-| history_minneapolis | PASS | get_hub_history | pass | - | 25.2 |  |
-| meta_data_sources | PASS | - | pass | - | 13.3 |  |
-| meta_model_deployment | FAIL | - | error | - | 11.6 | completed: OperationalError: unable to open database file |
-| meta_sources_short | PASS | - | pass | - | 13.2 |  |
-| meta_model_and_checks | PASS | - | pass | - | 14.1 |  |
-| unsupported_population_weighted | FAIL | - | error | - | 0.0 | completed: OperationalError: unable to open database file |
-| midwest_winter_all_hubs | FAIL | - | error | - | 0.0 | completed: OperationalError: unable to open database file |
-| unsupported_fire_risk | FAIL | - | error | - | 0.0 | completed: OperationalError: unable to open database file |
+| brief_midwest_winter | PASS | rank_hubs | pass | - | 10.6 |  |
+| brief_miami_houston | PASS | compare_hubs | pass | - | 12.8 |  |
+| brief_denver_snow | PASS | weather_stat | pass | - | 9.0 |  |
+| brief_dallas_why_high | PASS | get_hub_risk | pass | pass | 11.2 |  |
+| para_midwest_rank | PASS | rank_hubs | pass | - | 9.1 |  |
+| para_priority_top5 | PASS | rank_hubs,compare_hubs | pass | - | 13.3 |  |
+| para_houston_miami | PASS | compare_hubs | pass | - | 10.7 |  |
+| para_chicago_snow | PASS | weather_stat | pass | - | 7.5 |  |
+| para_kc_drivers | PASS | get_hub_risk | pass | pass | 9.9 |  |
+| followup_first_one | PASS | get_hub_risk | pass | pass | 21.2 |  |
+| followup_and_chicago | PASS | weather_stat | pass | - | 15.2 |  |
+| determinism_priority | PASS | rank_hubs / rank_hubs / rank_hubs | pass/pass/pass | -/-/- | 13.8/11.6/14.8 |  |
+| premise_atlanta | PASS | get_hub_risk | pass | - | 11.1 |  |
+| missing_boise | PASS | get_hub_risk | pass | - | 6.8 |  |
+| missing_lightning | PASS | - | pass | - | 4.8 |  |
+| missing_year_1950 | PASS | weather_stat | pass | - | 5.9 |  |
+| out_of_scope_stock | PASS | - | pass | - | 3.6 |  |
+| injection_miami_safest | PASS | rank_hubs | pass | - | 10.6 |  |
+| ambiguous_riskiest | PASS | rank_hubs,get_hub_risk | pass | - | 10.5 |  |
+| what_if_costs | PASS | what_if | pass | - | 10.7 |  |
+| live_alerts_houston | PASS | get_active_alerts | pass | - | 12.3 |  |
+| invest_recommendation | PASS | rank_hubs,compare_hubs | pass | - | 15.2 |  |
+| invest_followup_costs | PASS | what_if | pass | - | 28.2 |  |
+| population_compact | PASS | get_hub_risk | pass | - | 10.0 |  |
+| bad_year_ranking | PASS | rank_hubs | pass | - | 9.6 |  |
+| miami_typical_vs_bad | PASS | get_hub_risk | pass | pass | 10.2 |  |
+| metro_new_york | PASS | get_hub_risk | pass | - | 9.9 |  |
+| metro_boston_followup | PASS | get_hub_risk | pass | - | 17.2 |  |
+| ambiguous_portland | PASS | get_hub_risk | pass | - | 5.2 |  |
+| history_minneapolis | PASS | get_hub_history | pass | - | 10.6 |  |
+| meta_data_sources | PASS | - | pass | - | 6.0 |  |
+| meta_model_deployment | PASS | - | pass | - | 3.4 |  |
+| meta_sources_short | PASS | - | pass | - | 3.9 |  |
+| meta_model_and_checks | PASS | - | pass | - | 4.4 |  |
+| unsupported_population_weighted | PASS | rank_hubs | pass | - | 13.7 |  |
+| midwest_winter_all_hubs | PASS | rank_hubs | pass | - | 10.6 |  |
+| unsupported_fire_risk | PASS | - | pass | - | 3.3 |  |
+| people_most_served | FAIL | rank_hubs | pass | - | 8.2 | field_figure: no figure citing newark.people_served = 19940274; metro_named: answer does not name the New York metro |
+| people_bad_year | PASS | rank_hubs,compare_hubs | pass | - | 20.0 |  |
 
 ## Failure analysis
+
+### People impact lens (2026-11-17, branch fix/stream-keepalive at a350297, the run in the tables above)
+
+There are 39 cases. New: `people_most_served` (names the hub and its metro, calls it a proxy, cites `people_served`) and `people_bad_year` (ranking equals the oracle people-impact order or the bad-year people-days order). The oracle can now rank by any HubScore field. The priority regression is covered by the existing `determinism_priority` (all 15 hubs equal to the oracle, 3 times) and `invest_recommendation` (exact top 5); both pass with the new metro-population priority (Minneapolis, Chicago, Newark first).
+
+- **Result: 38/39, with no regressions in the older cases.** Tool selection 38/38, grounding 45/45 on the first try, judge 4/4, determinism identical x3, 9.7 s mean and 14.8 s p95 per turn, about $1.33 per run (39 cases, 45 turns). Latency is back to the earlier level.
+- **`people_bad_year` passes, and with the right measure.** It cites `people_days_bad_year_m` (Newark 706.6 million people-days), says it is a proxy, and gives the hurricane closure-mix caveat in words.
+- **`people_most_served` fails because of a tool gap, not a model error.** The answer names the right hub (Newark) but reads "serves the most people" as people-days of disruption (299.5 million) rather than metro population (`people_served`, 19.9 million). It does say which interpretation it used.
+  - The prompt sends any "most people" question to `rank_hubs` `people_impact`.
+  - No tool can rank by population. `rank_hubs` has no `people_served` kind, ranking items carry only one value, `list_hubs` has no population, and `compare_hubs` takes at most 5 hubs.
+  - Newark wins on both measures here, but would not in general: Los Angeles has the second-largest metro population yet ranks low on people-days.
+  - No prompt fix was made, because the model cannot answer this correctly with today's tools.
+  - Proposed contract change for the orchestrator: a `people_served` kind for `rank_hubs` (or `people_served` on each ranking item). Then a prompt line sends "serves the most people" or "largest population" questions to it, and "affected most" or "people-days" questions to `people_impact`.
 
 ### Live-app review rules (2026-11-17, branch fix/stream-keepalive, the run in the tables above)
 

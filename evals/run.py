@@ -59,6 +59,8 @@ class Oracle:
         self.by_id = {h.id: h for h in self.hubs}
 
     def ranking(self, spec: dict[str, Any]) -> list[str]:
+        if "field" in spec:  # any HubScore field, highest first, ties by hub_id (e.g. people_days_bad_year_m)
+            return [k for k, _ in sorted(self.scores.items(), key=lambda kv: (-getattr(kv[1], spec["field"]), kv[0]))]
         if "what_if" in spec:
             from app.schemas import WhatIfInput
 
@@ -292,6 +294,16 @@ def check_run(run: Run, case: dict, oracle: Oracle) -> None:
 
     if expect.get("grounding_first_try"):
         add(("grounding_first_try", resp.grounding.status == "pass", f"status {resp.grounding.status}"))
+
+    if "field_figure" in expect:
+        spec = expect["field_figure"]
+        hub_id = oracle.ranking(spec["rank_of"])[0]
+        value = getattr(oracle.scores[hub_id], spec["field"])
+        ok = any(f.hub_id == hub_id and f.source_field == spec["field"] and matches(f.value, value) for f in answer.figures)
+        add(("field_figure", ok, "" if ok else f"no figure citing {hub_id}.{spec['field']} = {value}"))
+        metro = oracle.scores[hub_id].metro_name.split("-")[0].split(",")[0]
+        named = re.search(re.escape(metro), text, re.IGNORECASE) is not None
+        add(("metro_named", named, "" if named else f"answer does not name the {metro} metro"))
 
     if "states_band" in expect:
         spec = expect["states_band"]

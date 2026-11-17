@@ -76,7 +76,7 @@ Lowest Spearman: 0.925 (long closure 20 days). Top hub changes under: mix 70% / 
 
 | Variant | Spearman | Top hub | Top changed | Biggest move |
 |---|---|---|---|---|
-| linear, cap 20M | 0.993 | minneapolis | no | chicago -1 |
+| linear, cap 25M | 0.993 | minneapolis | no | chicago -1 |
 | log, cap 10M | 1.000 | minneapolis | no | none |
 | log, cap 40M | 0.996 | minneapolis | no | denver -1 |
 | no people term | 0.971 | minneapolis | no | dallas -2 |

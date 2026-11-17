@@ -469,3 +469,36 @@ def test_hub_score_is_rate_limited(tmp_path, monkeypatch):
     c = client(tmp_path)
     assert c.get("/hubs/houston/score").status_code == 200
     assert c.get("/hubs/houston/score").status_code == 429
+
+
+# ---------- GET /hubs/{hub_id}/history (observed history for the Scores side panel, no LLM) ----------
+
+
+def test_hub_history_returns_the_observed_history(tmp_path):
+    from app.schemas import HubHistory
+
+    res = client(tmp_path).get("/hubs/denver/history")
+    assert res.status_code == 200
+    history = HubHistory.model_validate(res.json())
+    assert history.hub_id == "denver" and history.years and len(history.months) == 12
+    assert "x-resolution-note" not in res.headers
+
+
+def test_hub_history_resolves_a_metro_name(tmp_path):
+    res = client(tmp_path).get("/hubs/new york/history")
+    assert res.status_code == 200 and res.json()["hub_id"] == "newark"
+    assert "New York-Newark-Jersey City" in res.headers["x-resolution-note"]
+
+
+def test_hub_history_unknown_or_ambiguous_name_is_404(tmp_path):
+    c = client(tmp_path)
+    for name in ("gotham", "portland"):
+        res = c.get(f"/hubs/{name}/history")
+        assert res.status_code == 404 and name in res.json()["detail"]
+
+
+def test_hub_history_is_rate_limited(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_PER_MIN", "1")
+    c = client(tmp_path)
+    assert c.get("/hubs/denver/history").status_code == 200
+    assert c.get("/hubs/denver/history").status_code == 429

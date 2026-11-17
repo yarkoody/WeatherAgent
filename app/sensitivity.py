@@ -5,7 +5,7 @@
 Typical-year (expected days) ranking: each days-per-event value halved and doubled one at a time, the NRI /
 observed blend from 0.3 to 1.0, and the large-county reference area at 500 and 2,000 sq mi.
 Bad-year (TVaR95) ranking: the hurricane closure mix at 70/30 and 90/10, and the long closure at 20 and 50 days.
-Priority ranking: the people-served term linear (cap 20M), log with a 10M or 40M cap, and without people.
+Priority ranking: the people-served term linear (same cap), log with a 10M or 40M cap, and without people.
 For each variant: Spearman rank correlation with the current ranking (on unrounded values), the top hub, and the
 hub whose rank moved most. Deterministic: same snapshot, same report.
 """
@@ -105,7 +105,7 @@ def run(hubs: list[Hub], snapshot: scoring.Snapshot, config: scoring.ScoringConf
         rows.append(_row("bad-year: hurricane closures", label, bad_base, bad_year_order(hubs, snapshot, cfg)))
     pri_base = priority_order(hubs, snapshot, config)
     for label, update in (
-        ("linear, cap 20M", {"people_scale": "linear"}),
+        (f"linear, cap {config.people_cap / 1e6:g}M", {"people_scale": "linear"}),
         ("log, cap 10M", {"people_cap": 10_000_000}),
         ("log, cap 40M", {"people_cap": 40_000_000}),
         ("no people term", {"priority_people_weight": 0.0}),

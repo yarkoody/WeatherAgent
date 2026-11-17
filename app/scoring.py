@@ -38,7 +38,7 @@ __all__ = [
 ]
 
 # Stored with the alerts baseline: a new version resets the baseline instead of alerting on a formula change.
-SCORING_VERSION = "v3-metro-people"
+SCORING_VERSION = "v4-metro-2025"
 
 FAMILIES: tuple[Family, ...] = ("winter", "flood", "hurricane", "severe_storm")
 
@@ -102,7 +102,7 @@ class ScoringConfig(BaseModel):
     # metro counts the same: a hub serves part of its metro), or "linear" = min(pop / cap, 1)
     people_scale: Literal["log", "linear"] = "log"
     people_floor: float = 500_000
-    people_cap: float = 20_000_000
+    people_cap: float = 25_000_000  # above the largest hub metro (New York 20.1M, Vintage 2025): no hub clips
 
     medium_from: float = 35.0
     high_from: float = 60.0
@@ -408,8 +408,9 @@ def _priority(exposure: float, county: dict, config: ScoringConfig, metro_pop: i
     resl = county.get("RESL_SCORE")
     people = 100 * people_share(pop or 0, config)  # 0-100
     gap = 100 - (resl or 0)  # 0-100
-    scale = ("log scale: log10(pop / 0.5M) / log10(20M / 0.5M)" if config.people_scale == "log"
-             else "linear: pop / 20M")
+    floor_m, cap_m = f"{config.people_floor / 1e6:g}M", f"{config.people_cap / 1e6:g}M"
+    scale = (f"log scale: log10(pop / {floor_m}) / log10({cap_m} / {floor_m})" if config.people_scale == "log"
+             else f"linear: pop / {cap_m}")
     if metro_pop is not None:
         people_name, people_source, people_note = (
             "people served (metro-area population)", "Census Bureau population estimates (CBSA)",
@@ -747,3 +748,11 @@ def hub_history(hubs: list[Hub], snapshot: Snapshot, hub_id: str, config: Scorin
         worst_year=worst, peak_months=peaks, thresholds=disruption_rules(config), note=HISTORY_NOTE,
         data_as_of=snapshot.weather["fetched_at"][:10],
     )
+
+
+def provenance(dir: Path = DATA_DIR / "snapshot") -> dict:
+    """Period or vintage and fetch time of every source (data/snapshot/provenance.json, written by refresh)."""
+    path = Path(dir) / "provenance.json"
+    if not path.exists():
+        raise DataUnavailable("no provenance file; run python -m app.data provenance")
+    return json.loads(path.read_text())

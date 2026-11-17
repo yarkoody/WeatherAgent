@@ -62,6 +62,6 @@ def test_priority_people_term_group():
 
     result = sensitivity.run(HUBS, SNAPSHOT)
     rows = [r for r in result.rows if r.group == "priority: people term"]
-    assert [r.label for r in rows] == ["linear, cap 20M", "log, cap 10M", "log, cap 40M", "no people term"]
+    assert [r.label for r in rows] == ["linear, cap 25M", "log, cap 10M", "log, cap 40M", "no people term"]
     pr = {h.id: scoring.priority_value(h, SNAPSHOT) for h in HUBS}
     assert result.base_priority_order == sorted(pr, key=lambda k: (-pr[k], k))

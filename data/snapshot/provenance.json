@@ -1,0 +1,37 @@
+{
+ "written_at": "2026-11-17T16:26:50+00:00",
+ "sources": {
+  "fema_nri": {
+   "name": "FEMA National Risk Index, counties (annualized frequency, exposure area, resilience)",
+   "url": "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Counties/FeatureServer/0/query",
+   "version": "December 2025",
+   "period": "long-term modeled frequencies",
+   "fetched_at": "2026-11-17T11:48:24+00:00"
+  },
+  "open_meteo": {
+   "name": "Open-Meteo Historical Weather API (ERA5 reanalysis), daily at the hub point",
+   "url": "https://archive-api.open-meteo.com/v1/archive",
+   "period": "2015-01-01 to 2025-12-31",
+   "fetched_at": "2026-11-17T11:48:24+00:00"
+  },
+  "census_population": {
+   "name": "Census Bureau population estimates, metro-area (CBSA) totals",
+   "url": "https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/metro/totals/cbsa-est2025-alldata.csv",
+   "vintage": "Vintage 2025",
+   "period": "July 1, 2025 estimate",
+   "fetched_at": "2026-11-17T16:26:49+00:00"
+  },
+  "omb_delineations": {
+   "name": "OMB metropolitan and micropolitan delineations (Census list 1 and list 2)",
+   "url": "https://www2.census.gov/programs-surveys/metro-micro/geographies/reference-files/2023/delineation-files/list2_2023.xlsx",
+   "vintage": "OMB Bulletin 23-01, July 2023 metropolitan and micropolitan delineations (Census files)",
+   "fetched_at": "2026-11-17T11:58:56+00:00"
+  },
+  "nws_alerts": {
+   "name": "National Weather Service active alerts (api.weather.gov)",
+   "url": "https://api.weather.gov/alerts/active",
+   "period": "live at question time",
+   "fetched_at": null
+  }
+ }
+}

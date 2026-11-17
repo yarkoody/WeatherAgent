@@ -71,6 +71,12 @@ Returns one hub's full `HubScore`: both scores with bands, every family with its
 - **Errors:** an unknown name, an ambiguous city (for example "portland") or a metro area with no hub returns 404 with `{ "detail": string }`, which says what to use instead.
 - **Rate limit:** it is rate-limited like `/what-if`.
 
+## `GET /hubs/{hub_id}/history`
+
+Returns one hub's `HubHistory`: observed disruption days per calendar year and per month (2015 to 2025), the worst year, the peak months and the disruption-day rules. It is the same result as the `get_hub_history` tool, and no LLM is called. The Scores side panel uses it.
+
+Name resolution, the `X-Resolution-Note` header, the 404 errors and the rate limit are the same as for `GET /hubs/{hub_id}/score`.
+
 ## `GET /health`
 
 Returns `{ "status": "ok" }`.
@@ -88,7 +94,7 @@ The body is always `{ "detail": string }`. The status codes:
 | 422 | Validation failed |
 | 429 | Rate limit or daily cap reached |
 | 401 | Bad alert token |
-| 404 | Unknown or ambiguous hub name (`GET /hubs/{hub_id}/score`) |
+| 404 | Unknown or ambiguous hub name (`GET /hubs/{hub_id}/score` and `/history`) |
 | 503 | The model or an upstream service is unavailable |
 
 ## `GET /second-opinion`
