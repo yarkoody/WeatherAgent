@@ -3,7 +3,7 @@
 // The recorded data is loaded on first use, so it stays out of the production bundle.
 const loadMocks = () => import('./mockData')
 
-export type MockScenario = 'ranking' | 'compare' | 'weather' | 'alerts' | 'nodata' | 'outofscope'
+export type MockScenario = 'ranking' | 'compare' | 'weather' | 'alerts' | 'nodata' | 'outofscope' | 'failed'
 
 const IN_SCOPE =
   /hub|risk|expos|priorit|rank|weather|snow|rain|flood|storm|hurricane|winter|wind|freez|alert|invest|chicago|minneapolis|detroit|indianapolis|kansas|columbus|dallas|houston|miami|atlanta|memphis|denver|phoenix|los angeles|newark|midwest|south|west|northeast/i
@@ -12,6 +12,7 @@ const IN_SCOPE =
 export function pickScenario(text: string): MockScenario {
   const t = text.toLowerCase()
   if (!IN_SCOPE.test(t)) return 'outofscope'
+  if (/how exposed is houston|unverified/.test(t)) return 'failed' // demo of a failed grounding check
   if (/alert|warning|right now|today/.test(t)) return 'alerts'
   if (/compare|\bvs\.?\b|versus/.test(t)) return 'compare'
   if (/20(2[6-9]|[3-9]\d)/.test(t)) return 'nodata'

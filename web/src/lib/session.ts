@@ -33,10 +33,23 @@ export function resetSession(previous: string): string {
   return id
 }
 
+function isMessage(m: unknown): m is UIMessage {
+  if (typeof m !== 'object' || m === null) return false
+  const { id, role, parts } = m as Record<string, unknown>
+  return (
+    typeof id === 'string' &&
+    (role === 'user' || role === 'assistant' || role === 'system') &&
+    Array.isArray(parts) &&
+    parts.every((p) => typeof p === 'object' && p !== null && typeof (p as { type?: unknown }).type === 'string')
+  )
+}
+
+/** Restored history, loosely validated: a bad entry is dropped instead of breaking the app on every load. */
 export function loadMessages(id: string): UIMessage[] {
   try {
     const raw = storage()?.getItem(messagesKey(id))
-    return raw ? (JSON.parse(raw) as UIMessage[]) : []
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter(isMessage) : []
   } catch {
     return []
   }

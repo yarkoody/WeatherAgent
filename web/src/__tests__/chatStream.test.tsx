@@ -13,6 +13,7 @@ describe('mock transport', () => {
     expect(pickScenario('Are there any active weather alerts for Houston?')).toBe('alerts')
     expect(pickScenario('How many snow days did Denver have in 2026?')).toBe('nodata')
     expect(pickScenario('Give me a banana bread recipe')).toBe('outofscope')
+    expect(pickScenario('How exposed is Houston?')).toBe('failed')
   })
 
   it('writes progress chips in plain language', () => {
@@ -36,7 +37,7 @@ describe('chat over the recorded stream (real AI SDK parser)', () => {
     expect(screen.getByText('Checked Minneapolis risk')).toBeInTheDocument()
     expect(screen.getAllByLabelText('Answer')).toHaveLength(1)
     expect(screen.getByText('Numbers verified')).toBeInTheDocument()
-    expect(screen.getByLabelText('Ranking chart')).toBeInTheDocument()
-    expect(screen.getByLabelText('Minneapolis risk breakdown')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Ranking chart')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Minneapolis risk breakdown')).toBeInTheDocument()
   }, 10000)
 })

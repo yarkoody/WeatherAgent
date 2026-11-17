@@ -5,7 +5,7 @@ import type { Band } from '@/lib/types'
 
 export function WidgetFrame({ title, note, children, label }: { title: ReactNode; note?: ReactNode; children: ReactNode; label: string }) {
   return (
-    <Card size="sm" className="w-full" aria-label={label} role="region">
+    <Card className="w-full" aria-label={label} role="region">
       <CardHeader>
         <CardTitle role="heading" aria-level={3} className="font-wide font-semibold tracking-tight">{title}</CardTitle>
         {note && <CardDescription className="text-xs">{note}</CardDescription>}

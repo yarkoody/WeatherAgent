@@ -1,5 +1,7 @@
 import { FAMILY_LABEL, HAZARD_LABEL, fmt, hubName } from '@/lib/format'
 import type { Hazard, HubComparison, HubScore } from '@/lib/types'
+import { InfoTip } from '@/components/InfoTip'
+import { exposureLines, familyLines, indexLine, priorityLines } from '@/lib/explain'
 import { BandPill, WidgetFrame } from './WidgetFrame'
 
 function hazardValue(s: HubScore, h: Hazard): { score: number; days: number } {
@@ -29,8 +31,15 @@ export function ComparisonCards({ data }: { data: HubComparison }) {
                 const v = hazardValue(s, h)
                 const lead = data.hubs.length > 1 && v.score === best(h)
                 return (
-                  <div key={h} className="flex items-baseline justify-between gap-2">
-                    <dt className="text-muted-foreground">{h === 'overall' ? 'Overall exposure' : HAZARD_LABEL[h]}</dt>
+                  <div key={h} className="flex items-center justify-between gap-2">
+                    <dt className="flex items-center gap-1 text-muted-foreground">
+                      {h === 'overall' ? 'Overall exposure' : HAZARD_LABEL[h]}
+                      <InfoTip
+                        subject={`${hubName(s.hub_id)} ${h === 'overall' ? 'exposure' : HAZARD_LABEL[h]} score`}
+                        lines={h === 'overall' ? exposureLines(s) : s.families[h] ? familyLines(s.families[h]) : []}
+                        note={indexLine(s.band_thresholds)}
+                      />
+                    </dt>
                     <dd className="text-right">
                       <span className={`font-semibold ${lead ? 'text-band-high' : ''}`}>{fmt(v.score)}</span>
                       <span className="ml-1.5 text-xs text-muted-foreground">{fmt(v.days)} d/yr</span>
@@ -42,8 +51,11 @@ export function ComparisonCards({ data }: { data: HubComparison }) {
                 <dt className="text-muted-foreground">Exposure band</dt>
                 <dd><BandPill band={s.exposure_band} /></dd>
               </div>
-              <div className="flex items-baseline justify-between gap-2">
-                <dt className="text-muted-foreground">Investment priority</dt>
+              <div className="flex items-center justify-between gap-2">
+                <dt className="flex items-center gap-1 text-muted-foreground">
+                  Investment priority
+                  <InfoTip subject={`${hubName(s.hub_id)} investment priority`} lines={priorityLines(s)} />
+                </dt>
                 <dd className="flex items-center gap-1.5">
                   <span className="font-semibold">{fmt(s.priority)}</span> <BandPill band={s.priority_band} />
                 </dd>

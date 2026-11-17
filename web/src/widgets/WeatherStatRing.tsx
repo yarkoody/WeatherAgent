@@ -2,6 +2,7 @@ import { Cell, Pie, PieChart } from 'recharts'
 import { ChartContainer, type ChartConfig } from '@/components/ui/chart'
 import { METRIC_LABEL, fmt, hubName } from '@/lib/format'
 import type { WeatherStat } from '@/lib/types'
+import { InfoTip } from '@/components/InfoTip'
 import { WidgetFrame } from './WidgetFrame'
 
 const RING_COLOR: Record<string, string> = {
@@ -20,7 +21,18 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
   const headline = data.unit === '%' ? `${fmt(data.value)}%` : fmt(data.value)
 
   return (
-    <WidgetFrame label={`${name} ${metric} ${data.year}`} title={`${name} ${metric} in ${data.year}`}>
+    <WidgetFrame
+      label={`${name} ${metric} ${data.year}`}
+      title={
+        <span className="flex items-center gap-1">
+          {name} {metric} in {data.year}
+          <InfoTip
+            subject={metric}
+            lines={[`${data.numerator} of ${data.denominator} → ${data.value} ${data.unit}`, `Definition: ${data.definition}.`, `Source: ${data.source}.`]}
+          />
+        </span>
+      }
+    >
       <div className="flex flex-wrap items-center gap-5">
         {ring ? (
           <div className="relative h-[124px] w-[124px] shrink-0">

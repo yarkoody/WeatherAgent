@@ -19,7 +19,7 @@ describe('RankingWidget', () => {
     for (const item of ranking.items) {
       expect(screen.getAllByText(shortHubName(item.name)).length).toBeGreaterThan(0)
     }
-    const svgText = container.querySelector('svg')?.textContent ?? ''
+    const svgText = container.querySelector('svg.recharts-surface')?.textContent ?? ''
     expect(svgText).toContain(String(ranking.items[0].value))
     expect(svgText).toContain('35')
     expect(svgText).toContain('60')

@@ -1,7 +1,9 @@
 import { Bar, BarChart, Cell, LabelList, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
-import { BAND_COLOR, BAND_LABEL, HAZARD_LABEL, fmt, shortHubName } from '@/lib/format'
+import { BAND_COLOR, BAND_LABEL, BAND_LABEL_COLOR, HAZARD_LABEL, fmt, shortHubName } from '@/lib/format'
 import type { Ranking } from '@/lib/types'
+import { InfoTip } from '@/components/InfoTip'
+import { indexLine } from '@/lib/explain'
 import { WidgetFrame } from './WidgetFrame'
 
 export function rankingTitle(r: Ranking): string {
@@ -12,6 +14,19 @@ export function rankingTitle(r: Ranking): string {
 
 const config = { value: { label: 'Score' } } satisfies ChartConfig
 
+/** Built from the ranking's own thresholds; per-signal detail needs one hub (ask about it). */
+function rankingLines(r: Ranking): string[] {
+  const t = r.band_thresholds
+  const bands = `Bands: medium from ${t.medium_from}, high from ${t.high_from}.`
+  if (r.kind === 'priority')
+    return ['Priority is a weighted blend of overall exposure, people served and the resilience gap, each on 0 to 100.', bands, 'Ask about one hub to see its signals and weights.']
+  return [
+    r.hazard === 'overall' ? 'Exposure adds up the expected disruption days a year from all four hazard families.' : `The ${HAZARD_LABEL[r.hazard].toLowerCase()} score counts that family's expected disruption days a year.`,
+    indexLine(t),
+    'Ask about one hub to see its signals and weights.',
+  ]
+}
+
 export function RankingWidget({ data }: { data: Ranking }) {
   const rows = data.items.map((i) => ({ ...i, label: shortHubName(i.name) }))
   const { medium_from, high_from } = data.band_thresholds
@@ -20,7 +35,12 @@ export function RankingWidget({ data }: { data: Ranking }) {
   return (
     <WidgetFrame
       label="Ranking chart"
-      title={rankingTitle(data)}
+      title={
+        <span className="flex items-center gap-1">
+          {rankingTitle(data)}
+          <InfoTip subject={`${rankingTitle(data).toLowerCase()} score`} lines={rankingLines(data)} />
+        </span>
+      }
       note={`Score 0 to 100. Medium from ${fmt(medium_from)}, high from ${fmt(high_from)}. Data as of ${data.data_as_of}.`}
     >
       <ChartContainer config={config} className="aspect-auto w-full" style={{ height }} initialDimension={{ width: 560, height }}>
@@ -31,8 +51,8 @@ export function RankingWidget({ data }: { data: Ranking }) {
             cursor={false}
             content={<ChartTooltipContent hideIndicator formatter={(v, _n, item) => `${fmt(Number(v))} (${BAND_LABEL[(item.payload as { band: 'low' }).band]})`} />}
           />
-          <ReferenceLine x={medium_from} stroke={BAND_COLOR.medium} strokeDasharray="3 3" label={{ value: fmt(medium_from), position: 'top', fill: BAND_COLOR.medium, fontSize: 11 }} />
-          <ReferenceLine x={high_from} stroke={BAND_COLOR.high} strokeDasharray="3 3" label={{ value: fmt(high_from), position: 'top', fill: BAND_COLOR.high, fontSize: 11 }} />
+          <ReferenceLine x={medium_from} stroke={BAND_COLOR.medium} strokeDasharray="3 3" label={{ value: fmt(medium_from), position: 'top', fill: BAND_LABEL_COLOR.medium, fontSize: 11 }} />
+          <ReferenceLine x={high_from} stroke={BAND_COLOR.high} strokeDasharray="3 3" label={{ value: fmt(high_from), position: 'top', fill: BAND_LABEL_COLOR.high, fontSize: 11 }} />
           <Bar dataKey="value" radius={[0, 4, 4, 0]} isAnimationActive={false} background={{ fill: 'var(--muted)', radius: 4 }}>
             {rows.map((r) => (
               <Cell key={r.hub_id} fill={BAND_COLOR[r.band]} />

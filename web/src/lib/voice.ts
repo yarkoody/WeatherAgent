@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ChatResponse } from './types'
 
 // Minimal Web Speech API typings (not in lib.dom for all TS versions).
 interface SpeechRecognitionResultLike {
@@ -27,7 +28,7 @@ function recognitionCtor(): RecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
 }
 
-/** Push-to-talk dictation. `onText` receives the running transcript (interim, then final). */
+/** Push-to-talk dictation. `onText` receives the running transcript (interim, then final), to append to the draft. */
 export function useDictation(onText: (text: string, final: boolean) => void) {
   const supported = recognitionCtor() !== null
   const [listening, setListening] = useState(false)
@@ -55,7 +56,9 @@ export function useDictation(onText: (text: string, final: boolean) => void) {
       cb.current(text.trim(), final)
     }
     r.onerror = (e) => {
-      setError(e.error === 'not-allowed' ? 'Microphone access is blocked. Allow it in the browser to dictate.' : `Voice input stopped: ${e.error}.`)
+      const blocked = e.error === 'not-allowed' || e.error === 'service-not-allowed'
+      if (e.error === 'aborted' || e.error === 'no-speech') return
+      setError(blocked ? 'Microphone access is blocked. Allow it in the browser to dictate.' : `Voice input stopped: ${e.error}.`)
     }
     r.onend = () => setListening(false)
     rec.current = r
@@ -83,10 +86,16 @@ export function toSpeech(markdown: string): string {
     .trim()
 }
 
+/** What the speaker reads: the answer text, flagged when its numbers failed verification. */
+export function answerSpeech(r: ChatResponse): string {
+  const text = toSpeech(r.answer.answer)
+  return r.grounding.status === 'failed' ? `Unverified answer. ${text}` : text
+}
+
 export function speak(text: string): void {
   if (!speechSupported()) return
   window.speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(toSpeech(text))
+  const u = new SpeechSynthesisUtterance(text)
   u.lang = 'en-US'
   window.speechSynthesis.speak(u)
 }

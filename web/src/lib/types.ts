@@ -44,8 +44,11 @@ export interface FamilyScore {
 }
 
 export interface BandThresholds {
-  medium_from: number
-  high_from: number
+  medium_from: number // index value where "medium" starts (35)
+  high_from: number // index value where "high" starts (60)
+  days_cap: number // disruption days per year that map to index 100 (25)
+  medium_from_days: number // the medium cut-off in days per year (8.75)
+  high_from_days: number // the high cut-off in days per year (15)
 }
 
 export interface HubScore {

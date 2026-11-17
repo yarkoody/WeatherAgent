@@ -11,7 +11,13 @@ const MAX = 2000
 export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (text: string) => void; onStop: () => void }) {
   const [text, setText] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
-  const dictation = useDictation((t) => setText(t))
+  // Dictation appends to whatever was already typed.
+  const base = useRef('')
+  const dictation = useDictation((t) => setText(base.current ? `${base.current} ${t}` : t))
+  const startDictation = () => {
+    base.current = text.trim()
+    dictation.start()
+  }
 
   const trimmed = text.trim()
   const canSend = !busy && trimmed.length > 0 && trimmed.length <= MAX
@@ -53,7 +59,7 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
                     variant={dictation.listening ? 'destructive' : 'ghost'}
                     aria-pressed={dictation.listening}
                     aria-label={dictation.listening ? 'Stop dictation' : 'Dictate your question'}
-                    onClick={dictation.listening ? dictation.stop : dictation.start}
+                    onClick={dictation.listening ? dictation.stop : startDictation}
                   />
                 }
               >

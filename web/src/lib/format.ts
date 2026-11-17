@@ -42,6 +42,13 @@ export const BAND_COLOR: Record<Band, string> = {
   high: '#C2413B',
 }
 
+/** Darker band shades for text on light backgrounds (WCAG AA for small labels). */
+export const BAND_LABEL_COLOR: Record<Band, string> = {
+  low: '#2f6656',
+  medium: '#7a5612',
+  high: '#9b2f2a',
+}
+
 export const METRIC_LABEL: Record<Metric, string> = {
   snow_days_pct: 'snow days',
   heavy_rain_days: 'heavy-rain days',
@@ -55,10 +62,15 @@ export function fmt(value: number, digits = 1): string {
   return Number.isInteger(value) ? value.toLocaleString('en-US') : value.toLocaleString('en-US', { maximumFractionDigits: digits })
 }
 
+/** A cited figure exactly as the tool returned it: no rounding. */
+export function exact(value: number): string {
+  return value.toLocaleString('en-US', { maximumFractionDigits: 10 })
+}
+
 export function formatValue(value: number, unit: string): string {
-  if (unit === '%') return `${fmt(value)}%`
-  if (unit === 'score 0-100') return fmt(value)
-  return `${fmt(value)} ${unit}`
+  if (unit === '%') return `${exact(value)}%`
+  if (unit === 'score 0-100') return exact(value)
+  return `${exact(value)} ${unit}`
 }
 
 export function formatDateTime(iso: string): string {

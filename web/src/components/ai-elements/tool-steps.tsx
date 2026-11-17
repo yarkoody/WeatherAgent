@@ -1,6 +1,7 @@
 // AI Elements "Tool" pattern (shadcn/ui, built on Trace): one row per tool part, mapped from its state.
 import {
   BarChart3Icon,
+  CircleSlashIcon,
   CloudSnowIcon,
   Columns2Icon,
   ListIcon,
@@ -21,6 +22,7 @@ import {
   TraceLine,
   TraceTitle,
 } from '@/components/ui/trace'
+import { useDebug } from '@/lib/debug'
 import { toolLabel } from '@/lib/toolLabels'
 import { isToolError } from '@/lib/types'
 
@@ -58,7 +60,12 @@ function Arguments({ input }: { input: Record<string, unknown> | undefined }) {
   )
 }
 
-export function ToolSteps({ tools, thinking }: { tools: ToolPartView[]; thinking: boolean }) {
+/**
+ * `streaming` is false once the turn is over (finished, stopped, or restored from history):
+ * a tool still without output is then shown as stopped, never as a spinner.
+ */
+export function ToolSteps({ tools, thinking, streaming }: { tools: ToolPartView[]; thinking: boolean; streaming: boolean }) {
+  const debug = useDebug()
   if (tools.length === 0 && !thinking) return null
   return (
     <Trace aria-label="Agent steps" aria-live="polite">
@@ -66,6 +73,17 @@ export function ToolSteps({ tools, thinking }: { tools: ToolPartView[]; thinking
         const Icon = ICONS[t.name] ?? WrenchIcon
         const done = t.state === 'output-available' || t.state === 'output-error'
         const failed = t.state === 'output-error' || (t.state === 'output-available' && isToolError(t.output))
+
+        if (!done && !streaming) {
+          return (
+            <TraceLine key={t.toolCallId} status="pending">
+              <TraceIcon>
+                <CircleSlashIcon />
+              </TraceIcon>
+              <TraceTitle>{toolLabel(t.name, t.input, false)} (stopped)</TraceTitle>
+            </TraceLine>
+          )
+        }
 
         if (!done) {
           return (
@@ -79,17 +97,20 @@ export function ToolSteps({ tools, thinking }: { tools: ToolPartView[]; thinking
         }
 
         const error = isToolError(t.output) ? t.output : null
+        const line = (
+          <TraceLine status={failed ? 'error' : undefined}>
+            <TraceIcon>{failed ? <TriangleAlertIcon /> : <Icon />}</TraceIcon>
+            <TraceTitle>
+              {toolLabel(t.name, t.input, true)}
+              {failed && ': no result'}
+            </TraceTitle>
+          </TraceLine>
+        )
+        // Analyst view: the plain-language step only. Developer view: expandable tool name and arguments.
+        if (!debug) return <div key={t.toolCallId}>{line}</div>
         return (
           <TraceCollapsible key={t.toolCallId}>
-            <TraceCollapsibleTrigger>
-              <TraceLine status={failed ? 'error' : undefined}>
-                <TraceIcon>{failed ? <TriangleAlertIcon /> : <Icon />}</TraceIcon>
-                <TraceTitle>
-                  {toolLabel(t.name, t.input, true)}
-                  {failed && ': no result'}
-                </TraceTitle>
-              </TraceLine>
-            </TraceCollapsibleTrigger>
+            <TraceCollapsibleTrigger>{line}</TraceCollapsibleTrigger>
             <TraceCollapsibleContent>
               <div className="space-y-1.5 rounded-lg bg-card px-3 py-2 ring-1 ring-border/60">
                 <p className="text-xs text-muted-foreground">

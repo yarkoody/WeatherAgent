@@ -1,14 +1,19 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { FiguresTable } from '../components/FiguresTable'
+import { DebugProvider } from '../lib/debug'
 import mock from '../mocks/chat-response.json'
 import type { ChatResponse } from '../lib/types'
 
 const { figures } = (mock as ChatResponse).answer
 
 describe('FiguresTable', () => {
-  it('renders one row per figure from the mock answer, values exactly as given', () => {
-    render(<FiguresTable figures={figures} />)
+  it('renders one row per figure from the mock answer, values exactly as given (developer view shows sources)', () => {
+    render(
+      <DebugProvider debug>
+        <FiguresTable figures={figures} verified />
+      </DebugProvider>,
+    )
     const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1)
     expect(rows).toHaveLength(figures.length)
     figures.forEach((f, i) => {
@@ -21,13 +26,13 @@ describe('FiguresTable', () => {
   })
 
   it('formats percentages and labels general figures', () => {
-    render(<FiguresTable figures={[{ hub_id: null, label: 'snow days', value: 11.8, unit: '%', source_tool: 'weather_stat' }]} />)
+    render(<FiguresTable verified figures={[{ hub_id: null, label: 'snow days', value: 11.8, unit: '%', source_tool: 'weather_stat' }]} />)
     expect(screen.getByText('11.8%')).toBeInTheDocument()
     expect(screen.getByText('General')).toBeInTheDocument()
   })
 
   it('renders nothing without figures', () => {
-    const { container } = render(<FiguresTable figures={[]} />)
+    const { container } = render(<FiguresTable figures={[]} verified />)
     expect(container).toBeEmptyDOMElement()
   })
 })

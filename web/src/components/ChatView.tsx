@@ -16,10 +16,11 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
-import { apiFetch } from '@/lib/mockFetch'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { chatFetch, describeChatError } from '@/lib/chatErrors'
 import { loadMessages, saveMessages } from '@/lib/session'
-import { speak } from '@/lib/voice'
-import { AssistantMessage, answerPart } from './AssistantMessage'
+import { answerSpeech, speak } from '@/lib/voice'
+import { AssistantMessage, NoAnswer, answerPart } from './AssistantMessage'
 import { Composer } from './Composer'
 
 export const SUGGESTIONS = [
@@ -35,15 +36,51 @@ function userText(m: UIMessage): string {
 
 const PENDING: UIMessage = { id: 'pending', role: 'assistant', parts: [] }
 
-export function ChatView({ sessionId, speakAnswers }: { sessionId: string; speakAnswers: boolean }) {
-  const transport = useMemo(() => new DefaultChatTransport({ api: '/chat', fetch: apiFetch }), [])
+/** The server keeps the history, so each request carries only the chat id and the newest user message. */
+export function lastUserMessageOnly({ id, messages }: { id: string; messages: UIMessage[] }) {
+  const last = [...messages].reverse().find((m) => m.role === 'user')
+  return { body: { id, messages: last ? [last] : [] } }
+}
+
+export function ChatView({ sessionId, speakAnswers, onReset }: { sessionId: string; speakAnswers: boolean; onReset?: () => void }) {
+  return (
+    <ErrorBoundary
+      fallback={() => (
+        <Empty className="h-full px-4">
+          <EmptyHeader>
+            <EmptyTitle>This conversation could not be shown.</EmptyTitle>
+            <EmptyDescription>Start a new conversation to continue. The saved history for this one will be cleared.</EmptyDescription>
+          </EmptyHeader>
+          {onReset && (
+            <EmptyContent>
+              <Button onClick={onReset}>Start a new conversation</Button>
+            </EmptyContent>
+          )}
+        </Empty>
+      )}
+    >
+      <ChatThread sessionId={sessionId} speakAnswers={speakAnswers} />
+    </ErrorBoundary>
+  )
+}
+
+function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswers: boolean }) {
+  const transport = useMemo(
+    () => new DefaultChatTransport({ api: '/chat', fetch: chatFetch, prepareSendMessagesRequest: lastUserMessageOnly }),
+    [],
+  )
   const initial = useMemo(() => loadMessages(sessionId), [sessionId])
   const { messages, sendMessage, status, error, stop, regenerate } = useChat({ id: sessionId, messages: initial, transport })
   const busy = status === 'submitted' || status === 'streaming'
 
   useEffect(() => {
-    if (status === 'ready') saveMessages(sessionId, messages)
+    if (status === 'ready' || status === 'error') saveMessages(sessionId, messages)
   }, [status, messages, sessionId])
+
+  // "New conversation" unmounts this thread: abort a request still in flight.
+  const stopRef = useRef(stop)
+  stopRef.current = stop
+  useEffect(() => () => void stopRef.current(), [])
 
   // Read each new answer aloud once (never the restored history).
   const spoken = useRef<string | null>(initial.at(-1)?.id ?? null)
@@ -52,7 +89,7 @@ export function ChatView({ sessionId, speakAnswers }: { sessionId: string; speak
     if (status !== 'ready' || !last || last.role !== 'assistant' || spoken.current === last.id) return
     spoken.current = last.id
     const r = answerPart(last)
-    if (speakAnswers && r) speak(r.answer.answer)
+    if (speakAnswers && r) speak(answerSpeech(r))
   }, [messages, status, speakAnswers])
 
   const send = (text: string) => sendMessage({ text })
@@ -84,7 +121,8 @@ export function ChatView({ sessionId, speakAnswers }: { sessionId: string; speak
         ) : (
           <MessageScrollerProvider autoScroll>
             <MessageScroller>
-              <MessageScrollerViewport>
+              {/* Gutter on both edges keeps the centered column symmetric when a scrollbar shows. */}
+              <MessageScrollerViewport className="[scrollbar-gutter:stable_both-edges]">
                 <MessageScrollerContent aria-busy={busy} className="mx-auto w-full max-w-3xl gap-7 px-4 py-6 sm:px-6">
                   {thread.map((m) =>
                     m.role === 'user' ? (
@@ -103,14 +141,17 @@ export function ChatView({ sessionId, speakAnswers }: { sessionId: string; speak
                       </MessageScrollerItem>
                     ),
                   )}
-                  {error && (
-                    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-band-high-soft px-4 py-3 text-sm text-[#7d2622]" role="alert">
-                      <span>The analysis service did not respond. Check that the backend is running, then try again.</span>
-                      <Button variant="outline" size="sm" onClick={() => regenerate()}>
-                        Try again
-                      </Button>
-                    </div>
+                  {/* Stopped (or reloaded) before the first chunk: the question has no reply at all. */}
+                  {!busy && !error && thread.at(-1)?.role === 'user' && (
+                    <MessageScrollerItem messageId="no-answer">
+                      <Message>
+                        <MessageContent>
+                          <NoAnswer />
+                        </MessageContent>
+                      </Message>
+                    </MessageScrollerItem>
                   )}
+                  {error && <ChatError error={error} onRetry={() => regenerate()} />}
                 </MessageScrollerContent>
               </MessageScrollerViewport>
               <MessageScrollerButton />
@@ -126,6 +167,23 @@ export function ChatView({ sessionId, speakAnswers }: { sessionId: string; speak
           </p>
         </div>
       </div>
+    </div>
+  )
+}
+
+function ChatError({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  const view = describeChatError(error)
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-band-high-soft px-5 py-3.5 text-sm text-[#7d2622]" role="alert">
+      <div className="min-w-0 flex-1">
+        <p>{view.title}</p>
+        {view.detail && <p className="mt-0.5 text-xs opacity-80">{view.detail}</p>}
+      </div>
+      {view.canRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Try again
+        </Button>
+      )}
     </div>
   )
 }

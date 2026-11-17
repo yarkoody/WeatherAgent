@@ -1,14 +1,14 @@
-data: {"type": "start", "messageId": "msg_2d7c9064b156"}
+data: {"type": "start", "messageId": "msg_a12fc3dfbddb"}
 
 data: {"type": "start-step"}
 
-data: {"toolCallId": "call_9320f12cbaa4", "toolName": "weather_stat", "type": "tool-input-start"}
+data: {"toolCallId": "call_eddaff3bb86e", "toolName": "weather_stat", "type": "tool-input-start"}
 
-data: {"toolCallId": "call_9320f12cbaa4", "inputTextDelta": "{\"hub_id\": \"denver\", \"metric\": \"snow_days_pct\", \"year\": 2025}", "type": "tool-input-delta"}
+data: {"toolCallId": "call_eddaff3bb86e", "inputTextDelta": "{\"hub_id\": \"denver\", \"metric\": \"snow_days_pct\", \"year\": 2025}", "type": "tool-input-delta"}
 
-data: {"toolCallId": "call_9320f12cbaa4", "toolName": "weather_stat", "input": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2025}, "type": "tool-input-available"}
+data: {"toolCallId": "call_eddaff3bb86e", "toolName": "weather_stat", "input": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2025}, "type": "tool-input-available"}
 
-data: {"toolCallId": "call_9320f12cbaa4", "output": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2025, "value": 10.1, "numerator": 37.0, "denominator": 365.0, "unit": "%", "definition": "share of days with snowfall >= 0.1 cm (numerator over all days in 2025)", "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive", "data_as_of": "2026-11-17"}, "type": "tool-output-available"}
+data: {"toolCallId": "call_eddaff3bb86e", "output": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2025, "value": 10.1, "numerator": 37.0, "denominator": 365.0, "unit": "%", "definition": "share of days with snowfall >= 0.1 cm (numerator over all days in 2025)", "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive", "data_as_of": "2026-11-17"}, "type": "tool-output-available"}
 
 data: {"type": "finish-step"}
 
@@ -16,9 +16,9 @@ data: {"type": "start-step"}
 
 data: {"type": "finish-step"}
 
-data: {"data": {"session_id": "mock-weather", "answer": {"answer": "In 2025, Denver had snowfall on 10.1% of days (37 of 365 days).", "hubs": ["denver"], "ranking": null, "figures": [{"hub_id": "denver", "label": "snow days 2025", "value": 10.1, "unit": "%", "source_tool": "weather_stat"}, {"hub_id": "denver", "label": "days with snow 2025", "value": 37.0, "unit": "days", "source_tool": "weather_stat"}, {"hub_id": "denver", "label": "days in 2025", "value": 365.0, "unit": "days", "source_tool": "weather_stat"}], "assumptions": ["share of days with snowfall >= 0.1 cm (numerator over all days in 2025)"], "uncertainty": "Scores use the committed snapshot (FEMA NRI and Open-Meteo 2015-2025).", "data_available": true, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "e7d89e97b69c4c7cbec6059a5f4811c0"}, "type": "data-answer"}
+data: {"data": {"session_id": "mock-weather", "answer": {"answer": "In 2025, Denver had snowfall on 10.1% of days (37 of 365 days).", "hubs": ["denver"], "ranking": null, "figures": [{"hub_id": "denver", "label": "snow days 2025", "value": 10.1, "unit": "%", "source_tool": "weather_stat"}, {"hub_id": "denver", "label": "days with snow 2025", "value": 37.0, "unit": "days", "source_tool": "weather_stat"}, {"hub_id": "denver", "label": "days in 2025", "value": 365.0, "unit": "days", "source_tool": "weather_stat"}], "assumptions": ["A snow day is a day with measurable snowfall in the reanalysis data."], "uncertainty": "Scores use the committed snapshot (FEMA NRI and Open-Meteo 2015-2025).", "data_available": true, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "f42d69e7e1324a13809c8b0c99862893"}, "type": "data-answer"}
 
-data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_2d7c9064b156", "role": "assistant", "turnId": null, "partIds": ["call_9320f12cbaa4"]}, {"id": "msg_2091e5f7e8b7", "role": "tool", "turnId": null, "partIds": ["part_6e349d25891b"]}, {"id": "msg_8a386b1efab1", "role": "assistant", "turnId": null, "partIds": ["part_8120e305ef41"]}]}}}
+data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_a12fc3dfbddb", "role": "assistant", "turnId": null, "partIds": ["call_eddaff3bb86e"]}, {"id": "msg_bb9c36bdb494", "role": "tool", "turnId": null, "partIds": ["part_2fbb621925ca"]}, {"id": "msg_ae1f30838a6b", "role": "assistant", "turnId": null, "partIds": ["part_b10b6aad26f7"]}]}}}
 
 data: [DONE]
 

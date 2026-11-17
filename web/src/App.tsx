@@ -1,7 +1,7 @@
 import { PlusIcon, Volume2Icon, VolumeOffIcon } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
+import { DebugProvider, readDebugFlag } from '@/lib/debug'
 import { ChatView } from '@/components/ChatView'
-import { ScoresView } from '@/components/ScoresView'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -9,12 +9,15 @@ import { USE_MOCKS } from '@/lib/mockFetch'
 import { loadFlag, loadSessionId, resetSession, saveFlag } from '@/lib/session'
 import { speechSupported, stopSpeaking } from '@/lib/voice'
 
+const ScoresView = lazy(() => import('@/components/ScoresView').then((m) => ({ default: m.ScoresView })))
+
 type View = 'chat' | 'scores'
 
 export default function App() {
   const [view, setView] = useState<View>('chat')
   const [sessionId, setSessionId] = useState(loadSessionId)
   const [speakOn, setSpeakOn] = useState(() => loadFlag('speak'))
+  const [debug] = useState(() => readDebugFlag())
   const canSpeak = speechSupported()
 
   function newConversation() {
@@ -30,6 +33,7 @@ export default function App() {
   }
 
   return (
+    <DebugProvider debug={debug}>
     <TooltipProvider>
       <div className="flex h-dvh flex-col">
         <header className="border-b bg-background">
@@ -42,6 +46,15 @@ export default function App() {
               <span className="hidden rounded bg-band-medium-soft px-1.5 py-0.5 text-[0.65rem] font-semibold whitespace-nowrap text-[#7a5612] sm:inline">
                 Mock data
               </span>
+            )}
+            {debug && (
+              <a
+                href="?debug=0"
+                title="Shows tool names, arguments, trace ids and grounding errors. Click to turn off."
+                className="rounded bg-isobar-soft px-1.5 py-0.5 text-[0.65rem] font-semibold whitespace-nowrap text-isobar"
+              >
+                Developer view
+              </a>
             )}
             <nav className="flex gap-1 sm:ml-2" aria-label="Views">
               {(['chat', 'scores'] as const).map((v) => (
@@ -83,11 +96,16 @@ export default function App() {
         <main className="flex min-h-0 flex-1 flex-col">
           {/* The chat stays mounted while Scores is open, so a running answer is not lost. */}
           <div className={view === 'chat' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
-            <ChatView key={sessionId} sessionId={sessionId} speakAnswers={speakOn} />
+            <ChatView key={sessionId} sessionId={sessionId} speakAnswers={speakOn} onReset={newConversation} />
           </div>
-          {view === 'scores' && <ScoresView />}
+          {view === 'scores' && (
+            <Suspense fallback={null}>
+              <ScoresView />
+            </Suspense>
+          )}
         </main>
       </div>
     </TooltipProvider>
+    </DebugProvider>
   )
 }

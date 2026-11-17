@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { InfoTip } from '@/components/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -109,10 +110,10 @@ export function ScoresView() {
                     </TableHead>
                     <TableCell className="text-muted-foreground">{r.region}</TableCell>
                     <TableCell>
-                      <ScoreCell value={r.exposure} band={r.exposure_band} />
+                      <ScoreCell value={r.exposure} band={r.exposure_band} info={<InfoTip subject={`${shortHubName(r.name)} exposure index`} lines={rowLines(r, 'exposure')} />} />
                     </TableCell>
                     <TableCell>
-                      <ScoreCell value={r.priority} band={r.priority_band} />
+                      <ScoreCell value={r.priority} band={r.priority_band} info={<InfoTip subject={`${shortHubName(r.name)} investment priority`} lines={rowLines(r, 'priority')} />} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">{FAMILY_LABEL[r.top_driver]}</TableCell>
                   </TableRow>
@@ -126,10 +127,29 @@ export function ScoresView() {
   )
 }
 
-function ScoreCell({ value, band }: { value: number; band: Band }) {
+/** A /scores row has no signals, so the text explains in words and points to the per-hub breakdown. */
+function rowLines(r: ScoreRow, kind: 'exposure' | 'priority'): string[] {
+  const hub = shortHubName(r.name)
+  return kind === 'exposure'
+    ? [
+        `${hub}: exposure index ${r.exposure} (${r.exposure_band}).`,
+        'The index turns expected weather-disruption days a year into a 0 to 100 scale; more days means a higher index.',
+        `Top driver: ${FAMILY_LABEL[r.top_driver].toLowerCase()}. Ask "Break down ${hub}'s risk" in chat for each hazard's days and the formula.`,
+      ]
+    : [
+        `${hub}: investment priority ${r.priority} (${r.priority_band}).`,
+        'Priority blends overall exposure with people served and the resilience gap.',
+        `Ask "Break down ${hub}'s risk" in chat for each signal, its weight and its contribution.`,
+      ]
+}
+
+function ScoreCell({ value, band, info }: { value: number; band: Band; info?: ReactNode }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="w-9 text-right font-semibold">{fmt(value)}</span>
+      <span className="flex w-14 items-center justify-end gap-0.5 font-semibold">
+        {fmt(value)}
+        {info}
+      </span>
       <BandMeter value={value} band={band} />
       <BandPill band={band} />
     </div>

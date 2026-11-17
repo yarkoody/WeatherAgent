@@ -28,7 +28,7 @@ export function GroundingBadge({ grounding }: { grounding: Grounding }) {
   const v = VARIANTS[grounding.status] ?? VARIANTS.failed
   return (
     <Tooltip>
-      <TooltipTrigger render={<Badge className={v.className} data-status={grounding.status} />}>
+      <TooltipTrigger render={<Badge tabIndex={0} className={v.className} data-status={grounding.status} aria-description={v.title} />}>
         <v.Icon />
         {v.label}
       </TooltipTrigger>

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { AnswerCard } from '../components/AnswerCard'
 import { GroundingBadge } from '../components/GroundingBadge'
+import { DebugProvider } from '../lib/debug'
 import mock from '../mocks/chat-response.json'
 import type { ChatResponse } from '../lib/types'
 
@@ -26,7 +27,11 @@ describe('GroundingBadge', () => {
 
   it('warns and lists the errors when grounding failed', () => {
     const failed: ChatResponse = { ...response, grounding: { status: 'failed', errors: ['43 is not in figures'] } }
-    render(<AnswerCard response={failed} />)
+    render(
+      <DebugProvider debug>
+        <AnswerCard response={failed} />
+      </DebugProvider>,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent('could not be matched')
     expect(screen.getByText('43 is not in figures')).toBeInTheDocument()
   })
