@@ -62,6 +62,15 @@ Returns `ScoreRow[]`, sorted by `priority` in descending order. The fields are `
 
 Returns `Hub[]`.
 
+## `GET /hubs/{hub_id}/score`
+
+Returns one hub's full `HubScore`: both scores with bands, every family with its signals, the top driver, the upgrade categories and the band thresholds. It is the same result as the `get_hub_risk` tool, and no LLM is called. The map uses it for the hub detail view.
+
+- **Names:** `hub_id` is resolved like the tools resolve it: a hub id, a hub city, a nickname, or any city in the hub's metro area (for example `/hubs/new york/score` returns the Newark hub).
+- **Resolution note:** when the name was resolved through a nickname or a metro area, the response has an `X-Resolution-Note` header saying how. `HubScore` has no field for it.
+- **Errors:** an unknown name, an ambiguous city (for example "portland") or a metro area with no hub returns 404 with `{ "detail": string }`, which says what to use instead.
+- **Rate limit:** it is rate-limited like `/what-if`.
+
 ## `GET /health`
 
 Returns `{ "status": "ok" }`.
@@ -79,6 +88,7 @@ The body is always `{ "detail": string }`. The status codes:
 | 422 | Validation failed |
 | 429 | Rate limit or daily cap reached |
 | 401 | Bad alert token |
+| 404 | Unknown or ambiguous hub name (`GET /hubs/{hub_id}/score`) |
 | 503 | The model or an upstream service is unavailable |
 
 ## `GET /second-opinion`

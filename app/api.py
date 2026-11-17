@@ -20,14 +20,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
 from app import agent
-from app.schemas import ChatRequest, ChatResponse, Hub, ScoreRow, SecondOpinion, WhatIfInput, WhatIfResult
+from app.schemas import ChatRequest, ChatResponse, Hub, HubScore, ScoreRow, SecondOpinion, WhatIfInput, WhatIfResult
 from app.store import Store, Tracer
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -349,6 +349,28 @@ def create_app(
             return scoring.what_if(scoring.load_hubs(), scoring.load_snapshot(), body)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/hubs/{hub_id}/score")
+    async def hub_score(hub_id: str, request: Request, response: Response) -> HubScore:
+        """One hub's full breakdown (the get_hub_risk tool's result), for the map. No LLM call.
+
+        Names resolve like the tools (id, city, nickname, any city in the hub's metro area). When a name
+        was resolved through a nickname or a metro area, the X-Resolution-Note header says how.
+        """
+        limit(request)
+        import json as json_
+
+        from app import tools
+
+        out = await tools.run_tool("get_hub_risk", json_.dumps({"hub_id": hub_id}))
+        if not isinstance(out, dict) or "error" in out:
+            detail = f"{out.get('error')}. {out.get('hint')}" if isinstance(out, dict) else "Unknown hub."
+            raise HTTPException(404, detail)
+        notes = out.pop("resolution_notes", None)
+        if notes:
+            # headers are latin-1: keep the note ASCII so an accented city name cannot break the response
+            response.headers["X-Resolution-Note"] = " ".join(notes).encode("ascii", "replace").decode()
+        return HubScore.model_validate(out)
 
     opinion_path = second_opinion_path or DATA_DIR / "jev_second_opinion.json"
 

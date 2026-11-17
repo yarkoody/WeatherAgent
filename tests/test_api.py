@@ -436,3 +436,36 @@ async def test_client_disconnect_is_logged_and_stops_the_turn(caplog):
     assert closed == ["closed"]
     lines = [r.getMessage() for r in caplog.records if "chat turn" in r.getMessage()]
     assert len(lines) == 1 and "trace_id=t-1" in lines[0] and "outcome=client_disconnected" in lines[0]
+
+
+# ---------- GET /hubs/{hub_id}/score (full breakdown for the map, no LLM) ----------
+
+
+def test_hub_score_returns_the_full_breakdown(tmp_path):
+    from app.schemas import HubScore
+
+    res = client(tmp_path).get("/hubs/houston/score")
+    assert res.status_code == 200
+    score = HubScore.model_validate(res.json())
+    assert score.hub_id == "houston" and set(score.families) == {"winter", "flood", "hurricane", "severe_storm"}
+    assert "x-resolution-note" not in res.headers
+
+
+def test_hub_score_resolves_a_metro_name_like_the_tools(tmp_path):
+    res = client(tmp_path).get("/hubs/new york/score")
+    assert res.status_code == 200 and res.json()["hub_id"] == "newark"
+    assert "New York-Newark-Jersey City" in res.headers["x-resolution-note"]
+
+
+def test_hub_score_unknown_or_ambiguous_name_is_404(tmp_path):
+    c = client(tmp_path)
+    for name in ("gotham", "portland"):
+        res = c.get(f"/hubs/{name}/score")
+        assert res.status_code == 404 and isinstance(res.json()["detail"], str) and name in res.json()["detail"]
+
+
+def test_hub_score_is_rate_limited(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_PER_MIN", "1")
+    c = client(tmp_path)
+    assert c.get("/hubs/houston/score").status_code == 200
+    assert c.get("/hubs/houston/score").status_code == 429
