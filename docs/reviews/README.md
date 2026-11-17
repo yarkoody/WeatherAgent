@@ -77,7 +77,7 @@ Each piece of work was reviewed by an independent AI reviewer that had not seen 
 
 **Done:**
 - Metric-bound grounding: each figure cites its tool field. A test covers the 25.6 case, and the real-model eval run passed 30/30.
-- Honest wording: "modeled lost days (estimate)" and "screening priority".
+- Honest wording: "modeled lost days (estimate)" and "screening priority" (later renamed "review priority").
 - Alerts once per change, with state kept between runs.
 - Unit-aware explanations, the full dev proxy, and a feature freeze afterwards.
 
@@ -85,3 +85,36 @@ Each piece of work was reviewed by an independent AI reviewer that had not seen 
 - **Missing data files in the Docker image:** "New York" resolved locally but not on Render, and the JEV column returned 404. The image now copies all data files, with a regression test.
 - **Stale lazy chunks:** after a rebuild, an open tab couldn't draw widgets. It now reloads once.
 - **A false alert from a method change:** the first real Discord alert compared old-formula numbers with new ones. Alerts now compare only within one formula version.
+
+## 8. Data and scoring review of the people lens
+**Scope:** an independent review of the metro-population data, the people term in review priority, and the people-days measure, before they were merged.
+**Found:**
+- **Population data one year old:** Census Vintage 2024 was used when Vintage 2025 was out.
+- **No record of where each number came from:** no source period or vintage was stored with the snapshot.
+- **A config change could still fire false alerts** if the scoring version string wasn't bumped.
+- **Two definitions of people-days** in the prompt, and "priority" read as an investment decision.
+
+**Done:**
+- Vintage 2025 with a 25M log-scale cap that no hub reaches.
+- `data/snapshot/provenance.json` names each source, period and fetch time.
+- The alert formula version became `SCORING_VERSION` plus a hash of the config.
+- One people-days definition, and the name "review priority, based on the typical year".
+- The remaining limits are listed in the spec: band edges, independent events, mixed geographies, and the Los Angeles winter artifact.
+
+## 9. Example chats and a manual run of the live app
+**Scope:** real conversations with the deployed app, reviewed line by line, then every prompt in [`../USER_GUIDE.md`](../USER_GUIDE.md) run by hand in a browser on the live app.
+**Found:**
+- **A partial answer was marked "No data"** when it answered the upgrade fit and only the costs were missing.
+- **The comparison table was hard to read:** a 5-hub verdict with an unlabeled list of numbers, and a duplicate bad-year line.
+- **No chart for the what-if cost ranking:** it came back as text only, labeled "Re-ranked with your weights" although the user gave costs.
+- **"See the math" sums that didn't add up** because each part was rounded on its own, for example "36.05 + 14.18 + 6.52 = 56.7".
+- **The methodology tables ran 1,600 px wide.**
+- **Newark's 20.1M people weren't named as the New York metro.**
+
+**Done:**
+- The no-data rule applies only when no part of a question can be answered. A new eval case checks that missing costs are named and none are invented.
+- The verdict names the leader and runner-up by name.
+- A per-$1M table in the chat, and a step label that says what was supplied.
+- "≈" with a note wherever rounding applies, and a test on every hub.
+- The methodology tables wrap.
+- The prompt names the metro. The final eval run passed 41/41, with grounding 48/48 on the first try.

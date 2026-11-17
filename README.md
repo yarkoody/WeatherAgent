@@ -11,16 +11,21 @@ Try:
 - "Why is the Dallas hub's weather disruption risk high?" (it corrects the premise when the data disagrees)
 - "I have $1M for resilience upgrades. Which hub should get most of it?"
 
+More prompts, and how to read every number, are in the **[user guide](docs/USER_GUIDE.md)**.
+
 What the app can do:
-- **Chat with live tool progress.** Charts are drawn only from tool outputs.
+- **Chat with live tool progress.** Charts and tables are drawn only from tool outputs.
 - **Suggested follow-ups** under each answer, plus a chat history saved in the browser.
-- **Two lenses:** typical year and bad year.
+- **Two lenses:** typical year and bad year (the worst 1 year in 20).
+- **People lens:** metro population served and people-days (people served × lost days).
+- **Hub map:** every hub colored by its biggest risk, with a breakdown and history panel beside it, and a pin on each table row.
 - **History and seasonality:** which years and months hurt each hub.
-- **What-if sliders:** priority per $1M once you add upgrade costs.
+- **What-if:** sliders and costs on the Scores tab, and a per-$1M table in the chat once you give upgrade costs.
+- **Show the math:** each hub's own calculation step by step (KaTeX), and the full methodology inside the app.
 - **Export:** CSV of the scores table and a print-to-PDF report.
 - **Interface:** voice input and read-aloud, light and dark themes.
 
-Developer mode (Settings, or `?debug=1`) shows tool names, arguments, cited fields, trace ids and validation details.
+Developer mode (Settings, or `?debug=1`) adds a validation panel to each answer: tool names and arguments, the field each figure cites, grounding status, latency, tokens, cost and the trace id.
 
 ## Run it locally (from a clean clone)
 
@@ -43,8 +48,8 @@ Other commands:
 |---|---|
 | `make test` | Python tests, offline, with a fake model. No key needed |
 | `cd web && npm test` | UI tests |
-| `make eval` | The eval set against the real model (about $0.60 per run) |
-| `make data` | Refresh the public-data snapshot (FEMA NRI, Open-Meteo) |
+| `make eval` | The eval set against the real model (about $1.60 per run) |
+| `make data` | Refresh the public-data snapshot (FEMA NRI, Open-Meteo, Census) |
 | `make alerts` | Run the score-change alert check |
 | `make jev` | Rerun the offline JEV second opinion (needs `TYPESAFE_API_KEY`) |
 | `cd web && npm run dev:mock` | UI only, replaying recorded streams. No backend or key |
@@ -58,8 +63,8 @@ docker build -t weather-risk-agent . && docker run -p 8000:8000 --env-file .env 
 ## How it works
 
 ```
-Browser (React, useChat) --SSE--> FastAPI --> Agent loop (<= 6 tool rounds) --> 7 strict tools --> deterministic scoring --> data snapshot
-                                                 |                                                                    (FEMA NRI + Open-Meteo, in git)
+Browser (React, useChat) --SSE--> FastAPI --> Agent loop (<= 6 tool rounds) --> 8 strict tools --> deterministic scoring --> data snapshot
+                                                 |                                                         (FEMA NRI + Open-Meteo + Census metro population, in git)
                                                  +--> final AgentAnswer (strict JSON schema) --> grounding check --> one verified answer
 ```
 
@@ -67,6 +72,7 @@ Browser (React, useChat) --SSE--> FastAPI --> Agent loop (<= 6 tool rounds) --> 
 - **Structured output both ways.** Tool arguments and the final `AgentAnswer` are strict JSON schemas generated from Pydantic models (`app/schemas.py`).
 - **Grounding, bound to the metric.** Each figure names the tool, the exact field and the hub it came from, for example `get_hub_risk` → `hurricane_10yr_probability_pct` → Miami. Code checks that this field holds that value. Every number in the prose must be one of those figures, and rankings must keep the code's order. Otherwise the model gets one retry with the errors, and after that the answer is shown as "unverified". An external review found that the first version only tied a number to its hub, so "Miami's hurricane probability is 25.6%" passed even though 25.6 was its priority. That's fixed, with a test.
 - **Generative UI.** Charts render from the tools' deterministic outputs, never from model text. Answer text is never streamed token by token, so an unverified number can't flash on screen.
+- **Partial answers stay honest.** When part of a question can be answered (which upgrades fit a hub's risks) and part can't (what they cost), the agent answers the first part and names the missing data. A question it can't answer at all (an unknown hub, fire risk) is marked "no data", with no numbers.
 
 The details are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), the API is in [`docs/api-contract.md`](docs/api-contract.md), and the full design spec is in [`docs/specs/`](docs/specs/2026-11-17-weather-risk-agent-design.md).
 
@@ -85,17 +91,21 @@ The KPI answers the question a logistics planner asks: **how many operating days
 
 **Hazard bands** are in days: medium from 2 a year, high from 5, a working week. Hurricane is banded by its **10-year probability** (high from 50%).
 
-**Investment priority** = exposure × (0.6 + 0.25 × people served + 0.15 × resilience gap). It is multiplicative, so a hub with no weather risk gets no priority however large it is.
+**Review priority** (which hubs to examine first) = exposure × (0.6 + 0.25 × people share + 0.15 × resilience-gap share). People served is the metro-area (CBSA) population from Census Vintage 2025, on a log scale from 0.5M to 25M, so each doubling counts the same and a huge metro can't win on size alone. The formula is multiplicative, so a hub with no weather risk gets no priority however many people it serves. It is a screening measure, not an investment decision: it has no upgrade costs, effectiveness or existing protection.
 
-| Hub | Typical year (days) | Bad year (days) | Hurricane within 10 years | Priority |
-|---|---|---|---|---|
-| Miami | 7.8 | **42.8** (1st) | 95% | 25.6 |
-| Minneapolis | **27.6** (1st) | 38.7 | 0% | 66.7 |
-| Houston | 10.5 | 38.2 | 84% | 40.3 |
-| Newark (New York metro) | 15.0 | 35.4 | 66% | 45.2 |
-| Chicago | 18.1 | 29.1 | 9% | 64.5 |
+**People-days** = people served × lost days: if the hub is disrupted, how many people it serves times the days it loses. It is a proxy, not a count of people affected.
 
-**Robustness.** [`evals/results/sensitivity.md`](evals/results/sensitivity.md) halves and doubles each assumption. The typical-year ranking keeps a rank correlation of at least 0.96, and the top hub never changes. The bad-year order is also tested against the hurricane mix and the 35-day assumption.
+| Hub | Typical year (days) | Bad year (days) | Hurricane within 10 years | People served (metro) | Review priority |
+|---|---|---|---|---|---|
+| Minneapolis | **27.6** (1st) | 38.7 | 0% | 3.79M | **73.2** (1st) |
+| Chicago | 18.1 | 29.1 | 9% | 9.43M | 60.0 |
+| Newark (New York metro) | 15.0 | 35.4 | 66% | **20.1M** (1st) | 56.7 |
+| Houston | 10.5 | 38.2 | 84% | 7.90M | 37.8 |
+| Miami | 7.8 | **42.8** (1st) | 95% | 6.39M | 26.5 |
+
+The full method, with every formula and a worked example for Miami and Minneapolis, is in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md), and the app shows the same document under **Methodology**. Each hub's breakdown has **See the math** with that hub's own numbers.
+
+**Robustness.** [`evals/results/sensitivity.md`](evals/results/sensitivity.md) changes one assumption at a time (36 variants: each days-per-event weight halved and doubled, the FEMA/observed blend from 30/70 to 100/0, the reference area, the hurricane closure mix, and the people term). The typical-year and priority rankings keep a rank correlation of at least 0.89 (0.95 for everything except an extreme 30/70 blend), and Minneapolis stays first in every one of those variants. Only the bad-year leader depends on an assumption, the hurricane closure mix: with 20-day instead of 35-day long closures Minneapolis passes Miami, and with a 70/30 short/long mix Houston does. Answers say the bad-year order depends on that mix.
 
 **City names** resolve to hubs through OMB's official metro-area delineations (Census, July 2023). New York resolves to the Newark NJ hub because they share a metro area. Boston lies in a metro without a hub and says so, and an ambiguous Portland gets a question back.
 
@@ -124,18 +134,22 @@ The cases cover:
 - Missing data: an unknown city, an unsupported metric, an unsupported year
 - Out of scope, prompt injection, and an ambiguous question
 - Investment recommendations, with and without what-if costs
+- The people lens: most people served, people-days in a typical and a bad year
+- Questions about the system itself, answered without tools and without invented accuracy rates
+- A partly answerable question (upgrade fit known, costs not) that must stay answered, name the missing costs and invent none
 
 One LLM-judge rubric checks that each explanation names the hub's actual top driver.
 
-**Last full run (formula v2, metric-bound grounding): 30/30 cases passed.**
+**Last full run (final build, 2026-11-17): 41/41 cases passed.**
 
 | Metric | Result |
 |---|---|
-| Tool selection | 100% |
-| Grounding | Passed on the first try in 33/36 turns; the other 3 passed after the one retry; none failed |
+| Tool selection | 40/40 (100%) |
+| Grounding | Passed on the first try in 48/48 turns; none needed the retry; none failed |
+| LLM judge: names the actual top driver | 4/4 |
 | Same ranking across 3 runs | Yes |
-| Latency per turn | 10.3 s mean, 17.4 s p95 |
-| Cost of the run | About $1.01 |
+| Latency per turn | 9.5 s mean, 17.3 s p95 |
+| Cost of the run | About $1.60 |
 
 Per-case results and the failure analysis of every run, including what earlier failures taught and changed, are in [`evals/results/latest.md`](evals/results/latest.md).
 
@@ -147,6 +161,7 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
 
 - **Missing data:**
   - An unknown city, unsupported metric or out-of-range year gets "I don't have that data" (`data_available: false`), never a guess.
+  - A partly answerable question keeps the answerable part and names what is missing (an eval case covers it).
   - Out-of-scope questions get `in_scope: false` and a short redirect.
 - **False premises:** "Why is X high?" gets the code's band and the real drivers.
 - **Prompt injection:**
@@ -159,7 +174,7 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
   - An OpenAI budget limit.
 - **Alerts:**
   - A daily GitHub Actions job, plus a webhook endpoint, posts score changes to Discord. Verified with a real message.
-  - The job alerts once per new change, keeping its state between runs.
+  - It alerts on a 5-point score change, 3 bad-year days, 10 points of hurricane probability, or a level change that is at least 2 points past the cut-off. It alerts once per new change, keeping its state between runs.
   - It compares only within one scoring formula version, so a method change resets the baseline instead of sending false alerts. The first real alert found exactly that problem.
 - **Observability:** every turn writes a JSONL trace with tool calls, latency, tokens, cost and the grounding result.
 - **No write actions:** the agent has none, so there is no approval step or human handoff. It hands the decision back to the analyst with explicit assumptions.
@@ -177,15 +192,15 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
 - **FEMA's hurricane frequency probably includes tropical storms.** Miami at 0.3 a year is about double the historical hurricane rate. Memphis and Atlanta's "medium" hurricane band probably reflects storm remnants.
 - **The hub's exact location relative to the flood zone is unknown,** so coastal flood uses the county's flood-zone share.
 - **FEMA NRI is county-level and modeled,** and Open-Meteo is reanalysis grid data, not station observations.
-- **County population is a proxy** for the demand a hub serves.
-- **Render's free plan:** the disk resets on deploy, so conversations are lost on restart.
+- **Metro population is a proxy** for the people a hub serves. A hub serves part of its metro and places beyond it, and New York's 20.1M counts fully for Newark.
+- **Render's free plan:** the disk resets on deploy. Chats are kept in the browser and sent back with each request, so the server rebuilds context after a restart, but server-side traces and history are lost.
 - **Latency:** 10-20 s per answer.
 - **Voice:** uses the browser Web Speech API, so it works in Chrome and Edge only.
 
 ## What I'd ask the customer's ops team for on day one
 
 - Downtime logs per hub, to fit the days per event instead of assuming them.
-- Throughput and revenue per hub, to replace population as the consequence measure.
+- Throughput and revenue per hub, to replace metro population as the consequence measure.
 - Upgrade cost estimates, to rank by priority per dollar (the what-if tool already supports this).
 - Existing protections and redundancy between hubs.
 - Complaint and SLA-breach data by hub.
