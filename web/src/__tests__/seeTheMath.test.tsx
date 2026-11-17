@@ -52,7 +52,7 @@ describe('See the math', () => {
       // The blend is a real equation: weight × FEMA days + weight × observed days.
       expect(text).toMatch(/blend = 0\.6 × (\([\d.]+( \+ [\d.]+)+\)|[\d.]+) FEMA \+ 0\.4 × [\d.]+ observed \(2015–2025\) = [\d.]+ days\/yr/)
       expect(text).toContain(`bad year = `)
-      expect(text).toMatch(new RegExp(`= ${hub.bad_year_days} days`))
+      expect(text).toMatch(new RegExp(`[=≈] ${hub.bad_year_days} days`))
       expect(text).not.toMatch(/× 1 days/)
     })
   }
@@ -81,6 +81,24 @@ describe('See the math', () => {
     expect(math).not.toHaveAttribute('open')
     fireEvent.click(within(math).getByText('See the math'))
     expect(within(math).getByRole('button', { name: 'Methodology' })).toBeInTheDocument()
+  })
+
+  it('a sum line uses = only when the shown parts add up to the shown total, ≈ otherwise', () => {
+    for (const hub of [...realHubs, ...mockHubs]) {
+      for (const line of mathSections(hub).flatMap((s) => s.lines.map((l) => l.text))) {
+        const m = /^(?:bad year|typical year) = (.+) ([=≈]) ([\d.]+) days/.exec(line)
+        if (!m) continue
+        const parts = [...m[1].matchAll(/[\d.]+/g)].map((x) => Number(x[0]))
+        const exact = Math.abs(parts.reduce((a, b) => a + b, 0) - Number(m[3])) < 1e-9
+        expect(m[2], `${hub.hub_id}: ${line}`).toBe(exact ? '=' : '≈')
+      }
+    }
+  })
+
+  it('the KaTeX blend labels both parts (FEMA and observed)', () => {
+    const tex = realHubs.flatMap((h) => mathSections(h).flatMap((s) => s.lines)).filter((l) => l.text.startsWith('blend ='))
+    expect(tex.length).toBeGreaterThan(0)
+    for (const l of tex) expect(l.tex).toMatch(/_\{\\text\{FEMA\}\}.*_\{\\text\{observed/)
   })
 
   it('people share shows the log formula from the signal note', () => {

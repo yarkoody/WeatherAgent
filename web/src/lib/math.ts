@@ -24,7 +24,13 @@ const tt = (s: string) => `\\text{${s.replace(/([\\{}$&#_%^~])/g, (c) => (c === 
 
 const baseName = (s: Signal) => s.name.replace(/\s*\(.*$/, '').trim()
 const daysPerEvent = (s: Signal) => /([\d.]+)\s*days\/event/.exec(s.name)?.[1]
+/** "=" when the shown parts add up to the shown total, "≈" when rounding each part makes them differ. */
+function sumSign(parts: (number | null | undefined)[], total: number | null | undefined): { text: string; tex: string } {
+  const sum = parts.reduce<number>((a, x) => a + (isNum(x) ? x : 0), 0)
+  return isNum(total) && Math.abs(sum - total) < 1e-9 ? { text: '=', tex: '=' } : { text: '≈', tex: '\\approx' }
+}
 /** "1 day", "0.5 days". */
+const perYear = (v: number) => (v === 1 ? 'day/yr' : 'days/yr')
 const days = (v: string | number) => `${v} ${Number(v) === 1 ? 'day' : 'days'}`
 const isFema = (s: Signal) => s.source?.startsWith('FEMA')
 
@@ -59,20 +65,20 @@ function familySection(s: HubScore, f: (typeof FAMILIES)[number]): MathSection |
   const obs = observed[0]
   const femaDays = fema.map((x) => x.normalized)
   const femaSum = femaDays.length > 1 ? `(${femaDays.map(n).join(' + ')})` : n(femaDays[0])
-  const femaSumTex = femaDays.length > 1 ? `\\left(${femaDays.map(tn).join(' + ')}\\right)` : tn(femaDays[0])
+  const femaSumTex = `${femaDays.length > 1 ? `\\left(${femaDays.map(tn).join(' + ')}\\right)` : tn(femaDays[0])}_{${tt('FEMA')}}`
   if (obs && isNum(femaW) && isNum(obs.weight)) {
     const years = /(\d{4})-\d{2}-\d{2} to (\d{4})/.exec(obs.note ?? '')
     const span = years ? `, ${years[1]}–${years[2]}` : ''
     // The blend itself, with the FEMA days above and the observed days at the hub: weight × FEMA + weight × observed.
     lines.push({
-      text: `blend = ${n(femaW)} × ${femaSum} FEMA + ${n(obs.weight)} × ${n(obs.raw)} observed (${years ? `${years[1]}–${years[2]}` : 'hub point'}) = ${n(fam.days_per_year)} days/yr`,
-      tex: `${tt('blend')} = ${tn(femaW)} \\times ${femaSumTex} + ${tn(obs.weight)} \\times ${tn(obs.raw)}_{${tt(`observed${span}`)}} = ${tn(fam.days_per_year)}\\ ${tt('days/yr')}`,
+      text: `blend = ${n(femaW)} × ${femaSum} FEMA + ${n(obs.weight)} × ${n(obs.raw)} observed (${years ? `${years[1]}–${years[2]}` : 'hub point'}) = ${n(fam.days_per_year)} ${perYear(fam.days_per_year)}`,
+      tex: `${tt('blend')} = ${tn(femaW)} \\times ${femaSumTex} + ${tn(obs.weight)} \\times ${tn(obs.raw)}_{${tt(`observed${span}`)}} = ${tn(fam.days_per_year)}\\ ${tt(perYear(fam.days_per_year))}`,
     })
   } else {
     const why = f === 'hurricane' ? ' (weather observations do not record hurricanes)' : ''
     lines.push({
-      text: `FEMA only${why} → ${n(fam.days_per_year)} days/yr`,
-      tex: `${tt(`FEMA only${why}`)} \\rightarrow ${tn(fam.days_per_year)}\\ ${tt('days/yr')}`,
+      text: `FEMA only${why} → ${n(fam.days_per_year)} ${perYear(fam.days_per_year)}`,
+      tex: `${tt(`FEMA only${why}`)} \\rightarrow ${tn(fam.days_per_year)}\\ ${tt(perYear(fam.days_per_year))}`,
     })
   }
   return { title: FAMILY_LABEL[f], lines }
@@ -94,12 +100,13 @@ export function mathSections(s: HubScore): MathSection[] {
   const sections: MathSection[] = FAMILIES.map((f) => familySection(s, f)).filter((x): x is MathSection => x !== null)
 
   const fams = FAMILIES.filter((f) => s.families?.[f])
+  const typicalSign = sumSign(fams.map((f) => s.families[f].days_per_year), s.exposure_days_per_year)
   sections.push({
     title: 'Typical year and exposure score',
     lines: [
       {
-        text: `typical year = ${fams.map((f) => n(s.families[f].days_per_year)).join(' + ')} = ${n(s.exposure_days_per_year)} days/yr`,
-        tex: `${tt('typical year')} = ${fams.map((f) => tn(s.families[f].days_per_year)).join(' + ')} = ${tn(s.exposure_days_per_year)}\\ ${tt('days/yr')}`,
+        text: `typical year = ${fams.map((f) => n(s.families[f].days_per_year)).join(' + ')} ${typicalSign.text} ${n(s.exposure_days_per_year)} days/yr`,
+        tex: `${tt('typical year')} = ${fams.map((f) => tn(s.families[f].days_per_year)).join(' + ')} ${typicalSign.tex} ${tn(s.exposure_days_per_year)}\\ ${tt('days/yr')}`,
       },
       {
         text: `exposure score = ${n(s.exposure_days_per_year)} ÷ ${n(t.days_cap)} × 100 = ${n(s.exposure)} (capped at 100)`,
@@ -110,16 +117,18 @@ export function mathSections(s: HubScore): MathSection[] {
 
   if (isNum(s.bad_year_days)) {
     const shareFams = FAMILIES.filter((f) => isNum(s.families?.[f]?.bad_year_days))
+    const badSign = sumSign(shareFams.map((f) => s.families[f].bad_year_days), s.bad_year_days)
     sections.push({
       title: 'Bad year',
       lines: [
         { text: 'average of the worst 1 year in 20, computed exactly from the same event rates' },
         shareFams.length
           ? {
-              text: `bad year = ${shareFams.map((f) => `${n(s.families[f].bad_year_days)} ${FAMILY_LABEL[f].toLowerCase()}`).join(' + ')} = ${n(s.bad_year_days)} days`,
-              tex: `${tt('bad year')} = ${shareFams.map((f) => `${tn(s.families[f].bad_year_days)}_{${tt(FAMILY_LABEL[f].toLowerCase())}}`).join(' + ')} = ${tn(s.bad_year_days)}\\ ${tt('days')}`,
+              text: `bad year = ${shareFams.map((f) => `${n(s.families[f].bad_year_days)} ${FAMILY_LABEL[f].toLowerCase()}`).join(' + ')} ${badSign.text} ${n(s.bad_year_days)} days`,
+              tex: `${tt('bad year')} = ${shareFams.map((f) => `${tn(s.families[f].bad_year_days)}_{${tt(FAMILY_LABEL[f].toLowerCase())}}`).join(' + ')} ${badSign.tex} ${tn(s.bad_year_days)}\\ ${tt('days')}`,
             }
           : { text: `bad year = ${n(s.bad_year_days)} days`, tex: `${tt('bad year')} = ${tn(s.bad_year_days)}\\ ${tt('days')}` },
+        ...(badSign.text === '≈' || typicalSign.text === '≈' ? [{ text: '≈ : each part is rounded on its own, so their sum can differ slightly from the total' }] : []),
       ],
     })
   }

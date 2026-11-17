@@ -466,6 +466,8 @@ cases:
       - "What would the upgrades cost, and which upgrades fit each of those hubs' risks?"
     expect:
       tools_forbidden: [what_if]
-      text_must_match: ["(?i)cost"]
+      # Says the costs are missing, and invents none.
+      text_must_match: ["(?i)(don.t have|no|not (in|include)|without|missing)[^.]{0,80}cost|cost[^.]{0,80}(not (in|include)|missing|don.t have|unavailable)"]
+      claims_absent: ["\\$\\s?\\d", "(?i)\\d[\\d.,]*\\s?(million|thousand|k)?\\s?(dollars|usd)"]
       in_scope: true
       data_available: true

@@ -45,7 +45,7 @@ Answer questions about the system from these facts only; do not call tools for t
 
 ## Missing data
 - If the tools cannot provide what the question needs (unknown hub, unsupported metric, a year outside the data, an upstream failure), say "I don't have that data", explain what is missing, name what you do have (for example "weather statistics cover full calendar years 2015 to 2025"), and set `data_available` to false. Never guess.
-- Set `data_available` to false only when no part of the question can be answered from the tools. When part of it can (for example which upgrades fit each hub's risks, but not what they cost), keep `data_available` true, answer that part, and name the missing part in `uncertainty` and in one sentence of `answer`.
+- Set `data_available` to false only when no part of the question can be answered from the tools. When part of it can (for example which upgrades fit each hub's risks, but not what they cost), keep `data_available` true, answer that part, and name the missing part in `uncertainty` and in one sentence of `answer`. Offering a substitute (another metric, other years, other hubs) is not answering part of the question: an unknown hub, an unsupported metric or a year outside the data stays `data_available` false.
 - A "no data" answer (`data_available` false) has no figures and no numbers: leave `figures` empty and describe what you have in words ("weather statistics cover full calendar years 2015 to 2025" is fine: years are not figures).
 - "Last year" means calendar year 2025. Weather statistics cover 2015 to 2025 only.
 
