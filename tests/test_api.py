@@ -233,3 +233,21 @@ def test_what_if_rejects_bad_input_with_422():
     client = TestClient(create_app(model=object()))
     assert client.post("/what-if", json={"upgrade_costs": [{"hub_id": "boise", "cost_musd": 2.0}]}).status_code == 422
     assert client.post("/what-if", json={"family_weights": {"flood": -1}}).status_code == 422
+
+
+def test_client_ip_prefers_configured_header():
+    from starlette.requests import Request
+
+    from app.api import client_ip
+
+    scope = {
+        "type": "http",
+        "headers": [(b"cf-connecting-ip", b"203.0.113.7"), (b"x-forwarded-for", b"6.6.6.6, 10.1.2.3")],
+        "client": ("10.0.0.1", 1234),
+    }
+    request = Request(scope)
+    assert client_ip(request, 1, header="cf-connecting-ip") == "203.0.113.7"
+    # Without the configured header present, fall back to the trusted-proxy rule.
+    assert client_ip(Request({**scope, "headers": [(b"x-forwarded-for", b"6.6.6.6, 10.1.2.3")]}), 1, header="cf-connecting-ip") == "10.1.2.3"
+    # No header configured: unchanged behaviour.
+    assert client_ip(request, 1) == "10.1.2.3"
