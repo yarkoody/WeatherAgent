@@ -1,0 +1,80 @@
+# API contract
+
+The backend is FastAPI. Every model named here is defined in `app/schemas.py`, which is the source of truth for field names and types.
+
+The mock files in `web/src/mocks/` are illustrative values for UI development. They are not real scores.
+
+## `POST /chat` (streaming, for `useChat`)
+
+The request is the standard `useChat` (AI SDK UI v5) body: `{ id, messages: UIMessage[], trigger?, messageId? }`.
+
+- **Session:** `id` is the chat id, and the server uses it as `session_id`.
+- **New message:** only the last user message's text is new. The server keeps the conversation history itself.
+- **Length check:** that text must be 1 to 2000 characters, otherwise the server returns 422.
+
+The response is an AI SDK UI message stream (SSE), using the headers from `ai.ui.ai_sdk.UI_MESSAGE_STREAM_HEADERS`. In order:
+
+1. **Tool parts (progress), zero or more:** one per tool call. The tool names are `list_hubs`, `rank_hubs`, `get_hub_risk`, `compare_hubs`, `weather_stat`, `get_active_alerts` and `what_if`. The UI shows them as progress chips while the agent works.
+2. **No text parts.** The answer text is never streamed token by token, because numbers are verified before anything is shown.
+3. **Exactly one `data-answer` part:** its `data` is a `ChatResponse`, the same shape as `/chat/json` below. The UI renders the answer card from this part.
+4. **Finish:** the finish event, then `[DONE]`.
+
+## `POST /chat/json` (non-streaming)
+
+The request is a `ChatRequest`: `{ "session_id": string | null, "message": string (1-2000 chars) }`. The response is a `ChatResponse`:
+
+```json
+{
+  "session_id": "string",
+  "trace_id": "string",
+  "grounding": { "status": "pass | retried | failed", "errors": ["string"] },
+  "answer": {
+    "answer": "markdown string",
+    "hubs": ["hub_id"],
+    "ranking": ["hub_id"] ,
+    "figures": [{ "hub_id": "denver", "label": "string", "value": 11.8, "unit": "%", "source_tool": "weather_stat" }],
+    "assumptions": ["string"],
+    "uncertainty": "string",
+    "data_available": true,
+    "in_scope": true
+  }
+}
+```
+
+`ranking` is `null` unless a ranking was asked for.
+
+The UI handles these states:
+
+| Condition | UI state |
+|---|---|
+| `in_scope: false` | Out of scope |
+| `data_available: false` | No data |
+| `grounding.status` is `"retried"` | Verified after retry |
+| `grounding.status` is `"failed"` | Unverified, shown with a warning |
+
+## `GET /scores`
+
+Returns `ScoreRow[]`, sorted by `priority` in descending order. The fields are `hub_id`, `name`, `region`, `exposure`, `exposure_band`, `priority`, `priority_band` and `top_driver`.
+
+## `GET /hubs`
+
+Returns `Hub[]`.
+
+## `GET /health`
+
+Returns `{ "status": "ok" }`.
+
+## `POST /alerts/check`
+
+Requires the header `X-Alert-Token: <ALERT_TOKEN>`. Returns `{ "changes": [...], "nws": [...] }`.
+
+## Errors
+
+The body is always `{ "detail": string }`. The status codes:
+
+| Status | Meaning |
+|---|---|
+| 422 | Validation failed |
+| 429 | Rate limit or daily cap reached |
+| 401 | Bad alert token |
+| 503 | The model or an upstream service is unavailable |

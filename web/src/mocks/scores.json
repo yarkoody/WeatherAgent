@@ -1,0 +1,6 @@
+[
+  { "hub_id": "houston", "name": "Houston TX", "region": "South", "exposure": 71.3, "exposure_band": "high", "priority": 70.1, "priority_band": "high", "top_driver": "flood" },
+  { "hub_id": "chicago", "name": "Chicago IL", "region": "Midwest", "exposure": 63.0, "exposure_band": "high", "priority": 62.4, "priority_band": "high", "top_driver": "winter" },
+  { "hub_id": "dallas", "name": "Dallas TX", "region": "South", "exposure": 55.6, "exposure_band": "medium", "priority": 59.8, "priority_band": "medium", "top_driver": "severe_storm" },
+  { "hub_id": "phoenix", "name": "Phoenix AZ", "region": "West", "exposure": 30.2, "exposure_band": "low", "priority": 44.9, "priority_band": "medium", "top_driver": "flood" }
+]
