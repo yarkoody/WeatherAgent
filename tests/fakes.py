@@ -77,9 +77,16 @@ async def run_tool(name: str, arguments_json: str) -> dict:
 # ---------- script helpers ----------
 
 
+def _figure(hub: str | None, label: str, value: float, field: str | None = None, tool: str = "get_hub_risk", family: str | None = None) -> Figure:
+    """A scripted figure; the source field defaults to the label ("exposure", "priority")."""
+    return Figure(
+        hub_id=hub, label=label, value=value, unit="score 0-100", source_tool=tool, source_field=field or label, family=family
+    )
+
+
 def answer_json(
     text: str = "Houston exposure is 66.",
-    figures: list[tuple[str | None, str, float]] | None = None,
+    figures: list[tuple] | None = None,
     *,
     hubs: list[str] | None = None,
     ranking: list[str] | None = None,
@@ -91,7 +98,7 @@ def answer_json(
         answer=text,
         hubs=hubs if hubs is not None else ["houston"],
         ranking=ranking,
-        figures=[Figure(hub_id=h, label=label, value=v, unit="score 0-100", source_tool="get_hub_risk") for h, label, v in figs],
+        figures=[_figure(*f) for f in figs],
         assumptions=[],
         uncertainty="Scores use the committed snapshot.",
         data_available=data_available,

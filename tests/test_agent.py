@@ -4,6 +4,7 @@ import ai
 import pytest
 
 from app import grounding
+from app.grounding import ToolOutput
 from app.agent import PARSE_ERROR, retry_message, run_turn, stream_turn
 from app.schemas import AgentAnswer
 from app.store import Store, Tracer
@@ -80,7 +81,7 @@ async def test_step_limit_with_no_valid_answer_returns_fallback(store, tracer):
 async def test_grounding_failure_retries_once_then_passes(store, tracer):
     tc = call("get_hub_risk", hub_id="houston")
     bad = answer_json("Houston exposure is 43%.", [("houston", "exposure", 43.0)])
-    errors = grounding.check(AgentAnswer.model_validate_json(bad), [hub_risk("houston")], None)
+    errors = grounding.check(AgentAnswer.model_validate_json(bad), [ToolOutput("get_hub_risk", hub_risk("houston"))], None)
     model = ai.testing.FakeModel(
         [
             ai.user_message(Q),
@@ -105,7 +106,7 @@ async def test_grounding_failure_retries_once_then_passes(store, tracer):
 async def test_grounding_failure_twice_marks_failed_and_drops_bad_figures(store, tracer):
     tc = call("get_hub_risk", hub_id="houston")
     bad = answer_json("Exposure 66 and 43.", [("houston", "exposure", 66.0), ("houston", "made up", 43.0)])
-    errors = grounding.check(AgentAnswer.model_validate_json(bad), [hub_risk("houston")], None)
+    errors = grounding.check(AgentAnswer.model_validate_json(bad), [ToolOutput("get_hub_risk", hub_risk("houston"))], None)
     model = ai.testing.FakeModel(
         [
             ai.user_message(Q),
@@ -227,7 +228,7 @@ async def test_reasoning_is_not_streamed(store, tracer):
 async def test_failed_path_drops_ranking(store, tracer):
     tc = call("get_hub_risk", hub_id="houston")
     bad = answer_json("Exposure 43.", [("houston", "made up", 43.0)], ranking=["houston"])
-    errors = grounding.check(AgentAnswer.model_validate_json(bad), [hub_risk("houston")], None)
+    errors = grounding.check(AgentAnswer.model_validate_json(bad), [ToolOutput("get_hub_risk", hub_risk("houston"))], None)
     model = ai.testing.FakeModel(
         [ai.user_message(Q), ai.assistant_message(tc), ai.assistant_message(bad), ai.user_message(retry_message(errors)), ai.assistant_message(bad)]
     )
@@ -289,7 +290,7 @@ async def test_sdk_error_results_are_not_citable(store, tracer):
     reply = answer_json("Thirteen.", [(None, "from an error", 13.0)], hubs=[])
     model = ai.testing.FakeModel(
         [ai.user_message(Q), ai.assistant_message(bad_args), ai.assistant_message(reply), ai.user_message(retry_message(
-            ["Figure 'from an error' has value 13, which no tool returned. Use only numbers exactly as tools returned them."]
+            grounding.check(AgentAnswer.model_validate_json(reply), [], None)  # the SDK error result is not in the pool
         )), ai.assistant_message(reply)]
     )
     res = await turn(model, store, tracer)
@@ -397,3 +398,17 @@ async def test_restored_numbers_are_not_citable(store, tracer):
     )
     res = await turn(model, store, tracer, message="Repeat that number.", session_id="r2", client_history=OLD)
     assert res.grounding.status == "failed" and res.answer.figures == []
+
+
+async def test_figure_must_cite_the_tool_that_returned_it(store, tracer):
+    # 66.0 is Houston's exposure from get_hub_risk; citing it as rank_hubs.value is not grounded
+    tc = call("get_hub_risk", hub_id="houston")
+    wrong = answer_json("Houston exposure is 66.", [("houston", "exposure", 66.0, "value", "rank_hubs")])
+    errors = grounding.check(AgentAnswer.model_validate_json(wrong), [ToolOutput("get_hub_risk", hub_risk("houston"))], None)
+    assert errors and "rank_hubs" in errors[0]
+    model = ai.testing.FakeModel(
+        [ai.user_message(Q), ai.assistant_message(tc), ai.assistant_message(wrong), ai.user_message(retry_message(errors)),
+         ai.assistant_message(answer_json())]
+    )
+    res = await turn(model, store, tracer)
+    assert res.grounding.status == "retried" and res.answer.figures[0].source_tool == "get_hub_risk"

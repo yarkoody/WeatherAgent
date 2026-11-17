@@ -266,7 +266,9 @@ class WeatherAgent(ai.Agent):
                         runner.add_result(ai.tool_result(tool_call_id=part.tool_call_id, tool_name=part.tool_name, result=error))
                 elif isinstance(event, ai.events.ToolCallResult):
                     # SDK error results (e.g. unparseable arguments) are exception text, not data to cite.
-                    self.turn_tool_results.extend(p.result for p in event.results if not p.is_error)
+                    self.turn_tool_results.extend(
+                        grounding.ToolOutput(p.tool_name, p.result) for p in event.results if not p.is_error
+                    )
                 elif isinstance(event, ai.events.StreamEnd):
                     finish_reason = event.finish_reason
         usage = stream.message.usage
@@ -379,7 +381,8 @@ async def _turn_events(
             restored = restore_history(client_history)
             history = restored
             tracer.event(trace_id, "history_restored", messages=len(restored))
-        prior = [p.result for m in history if m.role == "tool" for p in m.tool_results if not p.is_error]
+        # Named, so grounding can bind each figure to the tool and field it cites.
+        prior = [grounding.ToolOutput(p.tool_name, p.result) for m in history if m.role == "tool" for p in m.tool_results if not p.is_error]
         agent = WeatherAgent(
             tools=build_tools(_registry(registry), tracer, trace_id),
             tracer=tracer,
