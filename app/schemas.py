@@ -277,4 +277,5 @@ class SecondOpinion(Strict):
     agree_count: int
     total: int
     agreement_pct: float  # 0-100
+    rank_correlation: dict[Family, float] | None = None  # Spearman, JEV score vs our family days, per family
     note: str  # "Independent rating ... does not affect scores ..."
