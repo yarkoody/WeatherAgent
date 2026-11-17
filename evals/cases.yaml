@@ -457,3 +457,15 @@ cases:
       text_must_match: ["(?i)proxy|estimate"]
       in_scope: true
       data_available: true
+
+  # ---------- partly answerable: costs missing, upgrade fit available ----------
+  - id: partial_upgrade_costs
+    about: Upgrade costs are missing but the upgrade fit per hub is not; a partial answer stays data_available true
+    turns:
+      - "Which hubs should I prioritize for investment?"
+      - "What would the upgrades cost, and which upgrades fit each of those hubs' risks?"
+    expect:
+      tools_forbidden: [what_if]
+      text_must_match: ["(?i)cost"]
+      in_scope: true
+      data_available: true

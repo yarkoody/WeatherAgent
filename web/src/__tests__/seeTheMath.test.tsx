@@ -49,7 +49,11 @@ describe('See the math', () => {
       expect(text).toContain(`exposure score = ${hub.exposure_days_per_year} ÷ ${hub.band_thresholds.days_cap} × 100 = ${hub.exposure} (capped at 100)`)
       expect(text).toContain('average of the worst 1 year in 20, computed exactly from the same event rates')
       expect(text).toContain(`= ${hub.priority}`)
-      expect(text).toMatch(/blended 60% FEMA \/ 40% observed \([\d.]+ days\/yr, 2015–2025\) → [\d.]+ days\/yr/)
+      // The blend is a real equation: weight × FEMA days + weight × observed days.
+      expect(text).toMatch(/blend = 0\.6 × (\([\d.]+( \+ [\d.]+)+\)|[\d.]+) FEMA \+ 0\.4 × [\d.]+ observed \(2015–2025\) = [\d.]+ days\/yr/)
+      expect(text).toContain(`bad year = `)
+      expect(text).toMatch(new RegExp(`= ${hub.bad_year_days} days`))
+      expect(text).not.toMatch(/× 1 days/)
     })
   }
 
@@ -77,6 +81,16 @@ describe('See the math', () => {
     expect(math).not.toHaveAttribute('open')
     fireEvent.click(within(math).getByText('See the math'))
     expect(within(math).getByRole('button', { name: 'Methodology' })).toBeInTheDocument()
+  })
+
+  it('people share shows the log formula from the signal note', () => {
+    for (const hub of [...realHubs, ...mockHubs]) {
+      const p = hub.priority_signals?.find((x) => x.unit === 'people')
+      if (!p?.note?.includes('log10')) continue
+      const text = mathSections(hub).flatMap((s) => s.lines.map((l) => l.text)).join('\n')
+      expect(text).toContain(`people share = log10(`)
+      expect(text).toContain(`= ${p.normalized}%`)
+    }
   })
 })
 

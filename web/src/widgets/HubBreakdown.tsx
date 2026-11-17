@@ -1,3 +1,4 @@
+import { ChevronDownIcon, SigmaIcon } from 'lucide-react'
 import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { ReadingGuide } from '@/components/ReadingGuide'
@@ -304,9 +305,20 @@ function SeeTheMath({ data }: { data: HubScore }) {
     void Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([k]) => setKatex(k.default as KatexApi))
   }
   return (
-    <details data-testid="see-the-math" className="group/math mt-4 rounded-2xl bg-foreground/[0.03] px-3 py-2" onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && load()}>
-      <summary className="cursor-pointer text-sm font-medium">See the math</summary>
-      <div className="mt-2 space-y-3">
+    <details
+      data-testid="see-the-math"
+      className="group/math mt-4 rounded-2xl bg-foreground/[0.03] ring-1 ring-border/60"
+      onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && load()}
+    >
+      {/* Same header as "How the scores work": a full-width row, the title on the left, a chevron that turns when open. */}
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-3 py-2 text-sm font-medium focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <span className="inline-flex items-center gap-1.5">
+          <SigmaIcon className="size-3.5 text-muted-foreground" aria-hidden="true" />
+          See the math
+        </span>
+        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-open/math:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="space-y-3 border-t border-border/50 px-3 pt-2.5 pb-3">
         {sections.map((sec) => (
           <section key={sec.title} aria-label={sec.title}>
             <h4 className="text-xs font-semibold text-foreground">{sec.title}</h4>
@@ -316,17 +328,24 @@ function SeeTheMath({ data }: { data: HubScore }) {
                   {katex && l.tex ? (
                     // KaTeX output carries MathML for screen readers; the plain line stays as the accessible fallback.
                     <span data-math className="text-foreground/90" dangerouslySetInnerHTML={{ __html: katex.renderToString(l.tex, { throwOnError: false }) }} />
-                  ) : (
+                  ) : l.tex ? (
+                    // A formula before KaTeX has loaded: the plain form, in a fixed-width font.
                     <span className="font-mono text-[0.7rem]">{l.text}</span>
+                  ) : (
+                    // A sentence, not a formula: the normal font.
+                    <span>{l.text}</span>
                   )}
                 </li>
               ))}
             </ul>
           </section>
         ))}
-        <button type="button" onClick={() => openMethodology()} className="text-xs font-medium text-isobar underline-offset-2 hover:underline">
-          Methodology
-        </button>
+        <p className="text-xs text-muted-foreground">
+          Every number above is this hub&apos;s own value from the scoring data.{' '}
+          <button type="button" onClick={() => openMethodology()} className="font-medium text-isobar underline-offset-2 hover:underline">
+            Methodology
+          </button>
+        </p>
       </div>
     </details>
   )

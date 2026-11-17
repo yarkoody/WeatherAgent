@@ -1,6 +1,6 @@
 // Hub comparison (compare_hubs): one row per hub, one sortable column per measure (click a header to sort, like the
-// Scores table). A verdict line says which measure decides what: the exposure score decides which hub is more
-// exposed, review priority decides which hubs to examine first. The highest (riskiest) value in each column is highlighted.
+// Scores table). Two verdict lines name the most exposed hub (exposure score) and the hub to examine first (review
+// priority). The highest (riskiest) value in each column is highlighted.
 // Narrow screens scroll sideways with the hub column pinned; hub names wrap instead of being cut off.
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
@@ -72,8 +72,6 @@ const FIXED: Column[] = [
     kind: 'number',
     value: (s) => s.priority,
     level: (s) => s.priority_band,
-    // The bad year beside it, so a hub with a low typical priority (Miami, Houston) never reads as safe.
-    sub: (s) => (isNum(s.bad_year_days) ? `bad year ${fmt(s.bad_year_days)} days` : null),
     decides: 'Decides which hubs to examine first',
   },
   { key: 'risk', label: 'Biggest risk', kind: 'risk', value: (s) => (s.top_driver ? FAMILY_LABEL[s.top_driver] : null) },
@@ -95,23 +93,25 @@ export function exposureAbovePriority(s: Pick<HubScore, 'exposure_band' | 'prior
   return Boolean(s.exposure_band && s.priority_band && LEVEL_RANK[s.exposure_band] > LEVEL_RANK[s.priority_band])
 }
 
-/** "More exposed: Dallas (exposure score 54.7 vs 42)." from the deciding columns; a tie says so. */
+/**
+ * The verdict lines from the deciding columns. Two hubs: "More exposed: Dallas (exposure score 54.7 vs 42)."
+ * Three or more: "Most exposed: Minneapolis (exposure score 100), then Chicago (72.5)." A tie at the top says so.
+ */
 export function verdict(hubs: HubScore[]): string[] {
   if (hubs.length < 2) return []
-  const line = (what: string, measure: string, get: (s: HubScore) => number) => {
+  const line = (pair: string, many: string, measure: string, get: (s: HubScore) => number) => {
     const sorted = [...hubs].filter((s) => isNum(get(s))).sort((a, b) => get(b) - get(a))
     if (sorted.length < 2) return null
     const [top, next] = sorted
+    const what = sorted.length === 2 ? pair : many
     if (get(top) === get(next)) return `${what}: a tie on ${measure} (${fmt(get(top))}).`
-    const rest = sorted
-      .slice(1)
-      .map((s) => fmt(get(s)))
-      .join(', ')
-    return `${what}: ${hubName(top.hub_id)} (${measure} ${fmt(get(top))} vs ${rest}).`
+    if (sorted.length === 2) return `${what}: ${hubName(top.hub_id)} (${measure} ${fmt(get(top))} vs ${fmt(get(next))}).`
+    return `${what}: ${hubName(top.hub_id)} (${measure} ${fmt(get(top))}), then ${hubName(next.hub_id)} (${fmt(get(next))}).`
   }
-  return [line('More exposed', 'exposure score', (s) => s.exposure), line('Higher review priority', 'priority', (s) => s.priority)].filter(
-    (l): l is string => l !== null,
-  )
+  return [
+    line('More exposed', 'Most exposed', 'exposure score', (s) => s.exposure),
+    line('Higher review priority', 'Highest review priority', 'priority', (s) => s.priority),
+  ].filter((l): l is string => l !== null)
 }
 
 type Sort = { key: string; dir: 'asc' | 'desc' }
@@ -193,7 +193,7 @@ export function ComparisonCards({ data: raw }: { data: HubComparison }) {
       </div>
       <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground" data-testid="compare-caption">
         <span className="rounded-md bg-isobar-soft px-1.5 py-0.5 font-medium text-foreground">Highlighted</span> = the highest, riskiest value in each
-        column. Click a column header to sort. Exposure score decides which hub is more exposed; review priority decides which hubs to examine first.
+        column. Click a column header to sort.
       </p>
       {withPeople && (
         <p className="mt-1.5 text-xs text-muted-foreground" data-testid="compare-people">

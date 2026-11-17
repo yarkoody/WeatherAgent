@@ -322,6 +322,13 @@ describe('comparison table: hubs as rows, sortable measures, a verdict', () => {
     expect(screen.getByRole('table').textContent).not.toMatch(/decides/)
     expect(screen.getByTestId('compare-caption')).toHaveTextContent('Highlighted = the highest, riskiest value in each column.')
     expect(verdict([{ ...houston, exposure: 50 }, { ...dallas, exposure: 50 }])[0]).toBe('More exposed: a tie on exposure score (50).')
+    // Three or more hubs: the leader and the runner-up by name, not an unlabeled list of numbers.
+    const third = { ...houston, hub_id: 'chicago', exposure: 10, priority: 5 }
+    expect(verdict([houston, dallas, third])).toEqual([
+      `Most exposed: Dallas (exposure score ${fmt(dallas.exposure)}), then Houston (${fmt(houston.exposure)}).`,
+      `Highest review priority: Dallas (priority ${fmt(dallas.priority)}), then Houston (${fmt(houston.priority)}).`,
+    ])
+    expect(screen.getByTestId('compare-caption').textContent).not.toMatch(/decides/)
   })
 
   it('click a header to sort (highest first, click again for lowest first)', () => {

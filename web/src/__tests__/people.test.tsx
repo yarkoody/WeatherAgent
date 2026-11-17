@@ -164,7 +164,7 @@ describe('wording from the independent review', () => {
     expect(await screen.findByRole('dialog')).toHaveTextContent('computed before rounding')
   })
 
-  it('review priority is labelled typical year and shows the bad year beside it (breakdown and comparison)', () => {
+  it('review priority is labelled typical year; the breakdown shows the bad year beside it, the comparison has its own column', () => {
     const miami = hubScores.miami
     render(<HubBreakdown data={miami} />)
     expect(screen.getByText('Review priority (typical year)')).toBeInTheDocument()
@@ -172,7 +172,9 @@ describe('wording from the independent review', () => {
     render(<ComparisonCards data={cmp} />)
     for (const h of cmp.hubs) {
       const row = screen.getByRole('rowheader', { name: hubName(h.hub_id) }).closest('tr')!
-      expect(row.querySelector('td[data-column="priority"] [data-sub]')).toHaveTextContent(`bad year ${fmt(h.bad_year_days)} days`)
+      // The Bad year column already carries it: no duplicate line under review priority.
+      expect(row.querySelector('td[data-column="priority"] [data-sub]')).toBeNull()
+      expect(row.querySelector('td[data-column="bad"]')).toHaveTextContent(fmt(h.bad_year_days))
     }
   })
 })

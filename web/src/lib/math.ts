@@ -19,13 +19,13 @@ export interface MathSection {
 const n = (v: number | null | undefined) => (isNum(v) ? (Math.abs(v) >= 10_000 ? v.toLocaleString('en-US') : String(v)) : 'n/a')
 /** The same value in TeX ({,} keeps the comma from adding space). */
 const tn = (v: number | null | undefined) => n(v).replace(/,/g, '{,}')
-/** A weight as a percent: 0.6 → "60%". */
-const pctOf = (w: number) => `${Math.round(w * 100)}%`
 /** Text inside \text{…}, with TeX specials escaped. */
 const tt = (s: string) => `\\text{${s.replace(/([\\{}$&#_%^~])/g, (c) => (c === '\\' ? '\\textbackslash{}' : c === '^' ? '\\^{}' : c === '~' ? '\\~{}' : `\\${c}`))}}`
 
 const baseName = (s: Signal) => s.name.replace(/\s*\(.*$/, '').trim()
 const daysPerEvent = (s: Signal) => /([\d.]+)\s*days\/event/.exec(s.name)?.[1]
+/** "1 day", "0.5 days". */
+const days = (v: string | number) => `${v} ${Number(v) === 1 ? 'day' : 'days'}`
 const isFema = (s: Signal) => s.source?.startsWith('FEMA')
 
 /** Local-area or coastal-zone scaling, from the signal note. */
@@ -46,28 +46,47 @@ function familySection(s: HubScore, f: (typeof FAMILIES)[number]): MathSection |
   for (const sig of fema) {
     const dpe = daysPerEvent(sig) ?? '?'
     if (!isNum(sig.raw)) {
-      lines.push({ text: `${baseName(sig)}: no FEMA data for this county = 0 days`, tex: `${tt(`${baseName(sig)}: no FEMA data`)} = 0\\ ${tt('days')}` })
+      lines.push({ text: `${baseName(sig)}: not in FEMA data for this county = 0 days`, tex: `${tt(`${baseName(sig)}: not in FEMA data for this county`)} = 0\\ ${tt('days')}` })
       continue
     }
     const scale = scaling(sig)
     lines.push({
-      text: `${baseName(sig)}: ${n(sig.raw)} events/yr × ${dpe} days${scale ? ` ${scale.text}` : ''} = ${n(sig.normalized)} days`,
-      tex: `${tt(`${baseName(sig)}:`)}\\ ${tn(sig.raw)}\\ \\tfrac{${tt('events')}}{${tt('yr')}} \\times ${dpe}\\ ${tt('days')}${scale ? ` ${scale.tex}` : ''} = ${tn(sig.normalized)}\\ ${tt('days')}`,
+      text: `${baseName(sig)}: ${n(sig.raw)} events/yr × ${days(dpe)}${scale ? ` ${scale.text}` : ''} = ${n(sig.normalized)} days`,
+      tex: `${tt(`${baseName(sig)}:`)}\\ ${tn(sig.raw)}\\ ${tt('events/yr')} \\times ${dpe}\\ ${tt(Number(dpe) === 1 ? 'day' : 'days')}${scale ? ` ${scale.tex}` : ''} = ${tn(sig.normalized)}\\ ${tt('days')}`,
     })
   }
   const femaW = fema[0]?.weight
   const obs = observed[0]
+  const femaDays = fema.map((x) => x.normalized)
+  const femaSum = femaDays.length > 1 ? `(${femaDays.map(n).join(' + ')})` : n(femaDays[0])
+  const femaSumTex = femaDays.length > 1 ? `\\left(${femaDays.map(tn).join(' + ')}\\right)` : tn(femaDays[0])
   if (obs && isNum(femaW) && isNum(obs.weight)) {
     const years = /(\d{4})-\d{2}-\d{2} to (\d{4})/.exec(obs.note ?? '')
     const span = years ? `, ${years[1]}–${years[2]}` : ''
+    // The blend itself, with the FEMA days above and the observed days at the hub: weight × FEMA + weight × observed.
     lines.push({
-      text: `blended ${pctOf(femaW)} FEMA / ${pctOf(obs.weight)} observed (${n(obs.raw)} days/yr${span}) → ${n(fam.days_per_year)} days/yr`,
-      tex: `${tt('blended')}\\ ${Math.round(femaW * 100)}\\%\\ ${tt('FEMA')} + ${Math.round(obs.weight * 100)}\\%\\ ${tt(`observed (${n(obs.raw)} days/yr${span})`)} \\rightarrow ${tn(fam.days_per_year)}\\ ${tt('days/yr')}`,
+      text: `blend = ${n(femaW)} × ${femaSum} FEMA + ${n(obs.weight)} × ${n(obs.raw)} observed (${years ? `${years[1]}–${years[2]}` : 'hub point'}) = ${n(fam.days_per_year)} days/yr`,
+      tex: `${tt('blend')} = ${tn(femaW)} \\times ${femaSumTex} + ${tn(obs.weight)} \\times ${tn(obs.raw)}_{${tt(`observed${span}`)}} = ${tn(fam.days_per_year)}\\ ${tt('days/yr')}`,
     })
   } else {
-    lines.push({ text: `FEMA only (no observed blend) → ${n(fam.days_per_year)} days/yr`, tex: `${tt('FEMA only')} \\rightarrow ${tn(fam.days_per_year)}\\ ${tt('days/yr')}` })
+    const why = f === 'hurricane' ? ' (weather observations do not record hurricanes)' : ''
+    lines.push({
+      text: `FEMA only${why} → ${n(fam.days_per_year)} days/yr`,
+      tex: `${tt(`FEMA only${why}`)} \\rightarrow ${tn(fam.days_per_year)}\\ ${tt('days/yr')}`,
+    })
   }
   return { title: FAMILY_LABEL[f], lines }
+}
+
+/** People share on its log scale: log10(pop / floor) / log10(cap / floor), with floor and cap from the signal note. */
+function peopleLine(p: Signal): MathLine {
+  const m = /log10\(pop \/ ([\d.]+)M\) \/ log10\(([\d.]+)M \/ [\d.]+M\)/.exec(p.note ?? '')
+  if (!m) return { text: `people share: ${n(p.raw)} people on a log scale up to ${n(p.cap)} → ${n(p.normalized)}%` }
+  const [, floor, cap] = m
+  return {
+    text: `people share = log10(${n(p.raw)} ÷ ${floor}M) ÷ log10(${cap}M ÷ ${floor}M) = ${n(p.normalized)}%`,
+    tex: `s_{p} = \\frac{\\log_{10}(${tn(p.raw)} \\,/\\, ${floor}${tt('M')})}{\\log_{10}(${cap}${tt('M')} \\,/\\, ${floor}${tt('M')})} = ${tn(p.normalized)}\\%`,
+  }
 }
 
 export function mathSections(s: HubScore): MathSection[] {
@@ -95,15 +114,12 @@ export function mathSections(s: HubScore): MathSection[] {
       title: 'Bad year',
       lines: [
         { text: 'average of the worst 1 year in 20, computed exactly from the same event rates' },
-        ...(shareFams.length
-          ? [
-              {
-                text: `by hazard: ${shareFams.map((f) => `${FAMILY_LABEL[f].toLowerCase()} ${n(s.families[f].bad_year_days)}`).join(' + ')}`,
-                tex: shareFams.map((f) => `${tn(s.families[f].bad_year_days)}_{${tt(FAMILY_LABEL[f].toLowerCase())}}`).join(' + '),
-              },
-            ]
-          : []),
-        { text: `bad year = ${n(s.bad_year_days)} days`, tex: `${tt('bad year')} = ${tn(s.bad_year_days)}\\ ${tt('days')}` },
+        shareFams.length
+          ? {
+              text: `bad year = ${shareFams.map((f) => `${n(s.families[f].bad_year_days)} ${FAMILY_LABEL[f].toLowerCase()}`).join(' + ')} = ${n(s.bad_year_days)} days`,
+              tex: `${tt('bad year')} = ${shareFams.map((f) => `${tn(s.families[f].bad_year_days)}_{${tt(FAMILY_LABEL[f].toLowerCase())}}`).join(' + ')} = ${tn(s.bad_year_days)}\\ ${tt('days')}`,
+            }
+          : { text: `bad year = ${n(s.bad_year_days)} days`, tex: `${tt('bad year')} = ${tn(s.bad_year_days)}\\ ${tt('days')}` },
       ],
     })
   }
@@ -129,10 +145,7 @@ export function mathSections(s: HubScore): MathSection[] {
     sections.push({
       title: 'Review priority',
       lines: [
-        {
-          text: `people share: ${n(people.raw)} people on a log scale up to ${n(people.cap)} → ${n(people.normalized)}%`,
-          tex: `s_{p} = ${tt('log scale')}\\left(${tn(people.raw)} \\,/\\, ${tn(people.cap)}\\right) = ${tn(people.normalized)}\\%`,
-        },
+        peopleLine(people),
         {
           text: `recovery gap share: 100 − ${n(gap.raw)} resilience score → ${n(gap.normalized)}%`,
           tex: `s_{r} = 100 - ${tn(gap.raw)} = ${tn(gap.normalized)}\\%`,
