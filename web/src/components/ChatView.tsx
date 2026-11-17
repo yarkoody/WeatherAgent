@@ -142,10 +142,10 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
                       <MessageScrollerItem key={m.id} messageId={m.id}>
                         {restored.has(m.id) ? (
                           <NoMotion>
-                            <AssistantMessage message={m} streaming={false} />
+                            <AssistantMessage message={m} streaming={false} latest={!busy && m.id === lastId} onFollowUp={send} />
                           </NoMotion>
                         ) : (
-                          <AssistantMessage message={m} streaming={busy && m.id === lastId} />
+                          <AssistantMessage message={m} streaming={busy && m.id === lastId} latest={!busy && m.id === lastId} onFollowUp={send} />
                         )}
                       </MessageScrollerItem>
                     ),

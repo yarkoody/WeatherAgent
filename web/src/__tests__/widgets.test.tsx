@@ -21,11 +21,22 @@ describe('RankingWidget', () => {
     }
     const svgText = container.querySelector('svg.recharts-surface')?.textContent ?? ''
     expect(svgText).toContain(String(ranking.items[0].value))
-    expect(svgText).toContain('35')
-    expect(svgText).toContain('60')
+    // a hazard ranking is banded by that hazard's lost days, so the 0-100 index lines (35/60) are not drawn
+    expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(0)
     // bars are colored by band
     const fills = [...container.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))
     expect(fills[0]).toBe('#C2413B') // first item is in the high band
+  })
+})
+
+describe('RankingWidget, overall exposure', () => {
+  it('marks the 35 and 60 index band lines', () => {
+    const overall: Ranking = { ...ranking, hazard: 'overall' }
+    const { container } = render(<RankingWidget data={overall} />)
+    const svgText = container.querySelector('svg.recharts-surface')?.textContent ?? ''
+    expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(2)
+    expect(svgText).toContain('35')
+    expect(svgText).toContain('60')
   })
 })
 

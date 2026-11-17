@@ -41,6 +41,8 @@ export interface FamilyScore {
   score: number
   days_per_year: number
   band: Band // by days (medium from 2, high from 5); hurricane by 10-year probability
+  /** This family's share of the hub's bad year (the four sum to HubScore.bad_year_days). Missing in older data. */
+  bad_year_days?: number
   signals: Signal[]
 }
 
@@ -60,7 +62,7 @@ export interface HubScore {
   hub_id: string
   exposure: number
   exposure_days_per_year: number // typical year
-  bad_year_days: number // 1-in-20-year disruption days: mean + 1.645 sd
+  bad_year_days: number // average lost days in the worst 1 in 20 years (TVaR95)
   hurricane_10yr_probability_pct: number // chance of at least one hurricane-class event in 10 years, 0-100
   exposure_band: Band
   families: Record<Family, FamilyScore>
@@ -85,7 +87,7 @@ export interface RankedHub {
   hub_id: string
   name: string
   value: number
-  band: Band
+  band: Band | null // null for kind "bad_year": no band on the tail lens
 }
 
 export interface Ranking {
@@ -172,6 +174,8 @@ export interface ChatResponse {
   answer: AgentAnswer
   grounding: Grounding
   trace_id: string
+  /** Suggested next questions (0-3), built by code from the turn. Missing in answers saved before this field. */
+  follow_ups?: string[]
 }
 
 export const TOOL_NAMES = [

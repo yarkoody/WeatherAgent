@@ -24,9 +24,7 @@ describe('explanations built from tool data', () => {
     const lines = badYearLines(hub)
     expect(lines.join(' ')).toContain(`${hub.exposure_days_per_year} days`)
     expect(lines.join(' ')).toContain(`${hub.bad_year_days} days`)
-    expect(LENS_EXPLAINER).toBe(
-      'Typical year is the expected number of disruption days. Bad year is a 1-in-20-year estimate (expected days + 1.645 standard deviations), because averages hide rare, severe events such as hurricanes.',
-    )
+    expect(LENS_EXPLAINER).toContain('worst 1 year in 20')
   })
 
   it('hurricane lines cite the probability, the NRI frequency and the band cut-offs', () => {
@@ -67,9 +65,9 @@ describe('hub breakdown', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'About typical and bad years' }))
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('about 1 year in 20')
+    expect(dialog).toHaveTextContent('worst 1 year in 20')
     fireEvent.click(within(dialog).getByRole('button', { name: 'More detail' }))
-    expect(dialog).toHaveTextContent('1.645 standard deviations')
+    expect(dialog).toHaveTextContent('average across the worst 1 year in 20')
   })
 })
 

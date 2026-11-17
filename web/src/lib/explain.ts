@@ -1,7 +1,7 @@
 // "How is this calculated?" text. Every number comes from the tool output (signals, scores, thresholds);
 // the only fixed text is the wording around them.
 import { FAMILIES, FAMILY_LABEL, compact, fmt, pct } from './format'
-import type { BandThresholds, FamilyScore, HubScore, Signal } from './types'
+import type { BandThresholds, Family, FamilyScore, HubScore, Signal } from './types'
 
 const n = (v: number) => String(v)
 
@@ -42,13 +42,20 @@ export function priorityLines(s: HubScore): string[] {
 
 /** Fixed wording (approved): what the two lenses mean. */
 export const LENS_EXPLAINER =
-  'Typical year is the expected number of disruption days. Bad year is a 1-in-20-year estimate (expected days + 1.645 standard deviations), because averages hide rare, severe events such as hurricanes.'
+  'Typical year is the expected number of lost days. Bad year is the average across the worst 1 year in 20, because averages hide rare, severe events such as hurricanes.'
+
+/** Each family's share of the bad year, when the data has it. */
+function badYearShares(s: HubScore): { family: Family; days: number }[] | null {
+  const shares = FAMILIES.map((f) => ({ family: f, days: s.families[f]?.bad_year_days }))
+  return shares.every((x) => typeof x.days === 'number') ? (shares as { family: Family; days: number }[]) : null
+}
 
 export function badYearLines(s: HubScore): string[] {
+  const shares = badYearShares(s)
   return [
-    `Typical year: ${n(s.exposure_days_per_year)} days of disruption expected.`,
-    `Bad year (1 in 20): ${n(s.bad_year_days)} days.`,
-    `The gap between them is how much a rare, severe year adds on top of the average.`,
+    `Typical year: ${n(s.exposure_days_per_year)} days lost on average.`,
+    `Bad year: ${n(s.bad_year_days)} days on average across the worst 1 year in 20 (TVaR at 95%).`,
+    ...(shares ? [`By hazard: ${shares.map((x) => `${FAMILY_LABEL[x.family].toLowerCase()} ${n(x.days)}`).join(', ')} (they add up to the bad year).`] : []),
   ]
 }
 
@@ -126,11 +133,27 @@ export function exposureSteps(s: HubScore): string[] {
   return [`Lost days a year by hazard: ${listJoin(parts)}.`, `Together: about ${r1(s.exposure_days_per_year)} lost days in a typical year.`, ...indexSteps(s.band_thresholds)]
 }
 
+const DRIVER: Record<Family, { name: string; plural: boolean }> = {
+  winter: { name: 'Winter weather', plural: false },
+  flood: { name: 'Flooding', plural: false },
+  hurricane: { name: 'Hurricanes', plural: true },
+  severe_storm: { name: 'Severe storms', plural: true },
+}
+
 export function badYearSteps(s: HubScore): string[] {
-  return [
-    `In a bad year (about 1 year in 20) the hub could lose about ${s.bad_year_days} days, because rare events like hurricanes are much worse than average.`,
-    `In a typical year it loses about ${s.exposure_days_per_year} days.`,
-  ]
+  const steps = [`In the worst 1 year in 20, this hub loses on average about ${r1(s.bad_year_days)} days.`]
+  const shares = badYearShares(s)
+  if (shares && s.bad_year_days > 0) {
+    const top = [...shares].sort((a, b) => b.days - a.days)[0]
+    const d = DRIVER[top.family]
+    steps.push(
+      top.days > s.bad_year_days / 2
+        ? `${d.name} ${d.plural ? 'drive' : 'drives'} most of that (${r1(top.days)} days).`
+        : `${d.name} is the largest part (${r1(top.days)} days).`,
+    )
+  }
+  steps.push(`In a typical year it loses about ${r1(s.exposure_days_per_year)} days.`)
+  return steps
 }
 
 export function hurricaneSteps(s: HubScore): string[] {

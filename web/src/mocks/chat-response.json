@@ -54,5 +54,10 @@
     "status": "pass",
     "errors": []
   },
-  "trace_id": "mock-trace-1"
+  "trace_id": "mock-trace-1",
+  "follow_ups": [
+    "Why is Minneapolis ranked first?",
+    "Compare Minneapolis and Chicago",
+    "Show the bad-year ranking"
+  ]
 }

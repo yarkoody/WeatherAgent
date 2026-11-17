@@ -14,7 +14,7 @@ export function pickScenario(text: string): MockScenario {
   if (!IN_SCOPE.test(t)) return 'outofscope'
   if (/how exposed is houston|unverified/.test(t)) return 'failed' // demo of a failed grounding check
   if (/new york|nyc/.test(t)) return 'resolution' // a city resolved to a hub through its metro area
-  if (/bad year|worst year|1 in 20/.test(t)) return 'badyear'
+  if (/bad[ -]year|worst year|1 in 20/.test(t)) return 'badyear'
   if (/alert|warning|right now|today/.test(t)) return 'alerts'
   if (/compare|\bvs\.?\b|versus/.test(t)) return 'compare'
   if (/20(2[6-9]|[3-9]\d)/.test(t)) return 'nodata'
@@ -45,6 +45,14 @@ function delayFor(event: string): number {
   if (event.includes('"tool-output-available"')) return 650
   if (event.includes('"data-answer"')) return 900
   return 40
+}
+
+let replays = 0
+
+/** Each replay gets its own assistant message id; reusing the recorded one would merge repeated answers into one message. */
+export function withFreshMessageId(raw: string): string {
+  replays += 1
+  return raw.replace(/"messageId": "[^"]+"/, `"messageId": "mock-msg-${replays}-${Date.now().toString(36)}"`)
 }
 
 export function replayStream(raw: string, signal?: AbortSignal | null, speed = 1): ReadableStream<Uint8Array> {
@@ -78,7 +86,7 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const body = init?.body ? JSON.parse(String(init.body)) : {}
     const scenario = pickScenario(lastUserText(body))
     const { MOCK_STREAMS } = await loadMocks()
-    return new Response(replayStream(MOCK_STREAMS[scenario], init?.signal), {
+    return new Response(replayStream(withFreshMessageId(MOCK_STREAMS[scenario]), init?.signal), {
       headers: { 'Content-Type': 'text/event-stream', 'x-vercel-ai-ui-message-stream': 'v1' },
     })
   }

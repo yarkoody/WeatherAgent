@@ -31,12 +31,13 @@ npm run build      # outputs web/dist, which FastAPI serves at /
 - Errors: 422, 429 (no retry offered) and 503 from `/chat` get their own message. A turn that ends without a `data-answer` (Stop, cut-off stream, reload mid-turn) shows its unfinished steps as stopped and a "No answer received" notice.
 - Each widget and the whole thread sit inside error boundaries; restored history is validated loosely.
 - Each request sends only the chat id and the newest user message (the server keeps the history).
+- "Ask next": the latest finished answer ends with its `follow_ups` (0-3, built by the backend) as one-click Suggestion chips; a click sends the question. Hidden while a turn streams.
 - The chat id is the backend `session_id`. It and the messages are kept in `localStorage`. "New conversation" starts a new id.
 - Voice: the mic uses the Web Speech API (disabled, with a tooltip, where unsupported); the speaker toggle reads each new answer aloud.
 
 ## Formula v2: typical and bad years
 
-Wherever a hub's exposure appears (hub breakdown, comparison cards, Scores table) it shows two lenses: typical-year disruption days and bad-year days (1 in 20), with one (i) explaining both. The hub breakdown draws the bad year as a hatched extension of the stacked typical-year bar, and gives each hazard its own band chip (by days; hurricane by its 10-year chance). The Scores table has typical-year, bad-year and hurricane 10-year columns and sorts by Typical year, Bad year or Priority. A `bad_year` ranking is labelled "Bad-year disruption days (1 in 20)" and drawn in days without the 0-100 band lines. Conversations saved before v2 still render: the widgets drop the fields they do not have. When a tool resolved a city to a hub through a nickname or its metro area ("New York" -> Newark), its `resolution_notes` text is shown once, above the answer.
+Wherever a hub's exposure appears (hub breakdown, comparison cards, Scores table) it shows two lenses: typical-year lost days and the bad year (the average across the worst 1 year in 20, TVaR95), with one (i) explaining both. The hub breakdown draws typical and bad year as two bars split by hazard, so it shows what drives the bad year (older data without the per-hazard split falls back to a hatched extension), and gives each hazard its own band chip (by days; hurricane by its 10-year chance). The Scores table has typical-year, bad-year and hurricane 10-year columns and sorts by Typical year, Bad year or Priority. A `bad_year` ranking is labelled "Bad-year disruption days (1 in 20)" and drawn in days in one neutral color: it has no bands (`band` is null). Conversations saved before v2 still render: the widgets drop the fields they do not have. When a tool resolved a city to a hub through a nickname or its metro area ("New York" -> Newark), its `resolution_notes` text is shown once, above the answer.
 
 ## Analyst and developer views
 

@@ -48,9 +48,7 @@ describe('plain-language tips', () => {
 
   it('explain the score and the bad year in one plain sentence each', () => {
     expect(indexSteps(hub.band_thresholds)[0]).toBe('Score = lost days ÷ 25 × 100. 25 days a year counts as the maximum.')
-    expect(badYearSteps(hub)[0]).toBe(
-      `In a bad year (about 1 year in 20) the hub could lose about ${hub.bad_year_days} days, because rare events like hurricanes are much worse than average.`,
-    )
+    expect(badYearSteps(hub)[0]).toBe(`In the worst 1 year in 20, this hub loses on average about ${hub.bad_year_days} days.`)
   })
 
   it('priority steps show people served in compact form', () => {

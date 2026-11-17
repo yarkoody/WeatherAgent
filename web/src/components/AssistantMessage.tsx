@@ -5,6 +5,7 @@ import { Suspense, useState, type ReactNode } from 'react'
 import { useDebug } from '@/lib/debug'
 import { useReducedMotion } from '@/lib/motion'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Suggestions } from '@/components/ai-elements/suggestions'
 import { ToolSteps, type ToolPartView } from '@/components/ai-elements/tool-steps'
 import { ErrorBoundary, WidgetFallback } from '@/components/ErrorBoundary'
 import { Message, MessageContent } from '@/components/ui/message'
@@ -44,7 +45,18 @@ export function answerPart(message: UIMessage): ChatResponse | null {
 }
 
 /** The agent's turn: tool steps, the verified answer card, then one widget per tool output. */
-export function AssistantMessage({ message, streaming }: { message: UIMessage; streaming: boolean }) {
+export function AssistantMessage({
+  message,
+  streaming,
+  latest = false,
+  onFollowUp,
+}: {
+  message: UIMessage
+  streaming: boolean
+  /** Only the latest finished answer offers follow-up questions. */
+  latest?: boolean
+  onFollowUp?: (question: string) => void
+}) {
   const debug = useDebug()
   const reduced = useReducedMotion()
   const tools = toolParts(message)
@@ -95,6 +107,12 @@ export function AssistantMessage({ message, streaming }: { message: UIMessage; s
         {small.length > 0 && (
           <div className="grid gap-3 md:grid-cols-2">
             {small.map((t) => renderWidget(t, small.length === 1 ? 'md:col-span-2' : undefined))}
+          </div>
+        )}
+        {latest && !streaming && onFollowUp && (response?.follow_ups?.length ?? 0) > 0 && (
+          <div className={`pt-1 ${reduced ? '' : 'animate-in fade-in slide-in-from-bottom-1 duration-300 ease-out motion-reduce:animate-none'}`}>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Ask next</p>
+            <Suggestions suggestions={response!.follow_ups!} onPick={onFollowUp} align="start" label="Ask next" />
           </div>
         )}
       </MessageContent>

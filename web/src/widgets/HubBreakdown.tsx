@@ -67,8 +67,15 @@ export function HubBreakdown({ data }: { data: HubScore }) {
   const { days_cap: cap, medium_from_days: mediumDays, high_from_days: highDays } = t
   const hasBadYear = typeof data.bad_year_days === 'number'
   const hasHurricanePct = typeof data.hurricane_10yr_probability_pct === 'number'
-  const tail = hasBadYear ? Math.max(0, data.bad_year_days - data.exposure_days_per_year) : 0
-  const row = { ...Object.fromEntries(FAMILIES.map((f) => [f, data.families[f]?.days_per_year ?? 0])), tail }
+  // With each hazard's share of the bad year (TVaR), draw two stacked rows: typical year and bad year.
+  // Older data has only the hub total: draw the typical year with a hatched bad-year extension.
+  const shares = hasBadYear && FAMILIES.every((f) => typeof data.families[f]?.bad_year_days === 'number')
+  const tail = hasBadYear && !shares ? Math.max(0, data.bad_year_days - data.exposure_days_per_year) : 0
+  const typicalRow = { lens: 'Typical', ...Object.fromEntries(FAMILIES.map((f) => [f, data.families[f]?.days_per_year ?? 0])), tail }
+  const rows = shares
+    ? [typicalRow, { lens: 'Bad year', ...Object.fromEntries(FAMILIES.map((f) => [f, data.families[f]!.bad_year_days!])), tail: 0 }]
+    : [typicalRow]
+  const height = shares ? 92 : 58
   const max = Math.max(cap, hasBadYear ? data.bad_year_days : 0, data.exposure_days_per_year)
   const name = hubName(data.hub_id)
 
@@ -98,8 +105,8 @@ export function HubBreakdown({ data }: { data: HubScore }) {
         </dl>
       </div>
 
-      <ChartContainer config={config} className="mt-4 aspect-auto h-[58px] w-full" initialDimension={{ width: 560, height: 58 }}>
-        <BarChart data={[row]} layout="vertical" margin={{ top: 16, right: 12, bottom: 0, left: 0 }} accessibilityLayer>
+      <ChartContainer config={config} className="mt-4 aspect-auto w-full" style={{ height }} initialDimension={{ width: 560, height }}>
+        <BarChart data={rows} layout="vertical" margin={{ top: 16, right: 12, bottom: 0, left: 0 }} barCategoryGap={6} accessibilityLayer>
           <defs>
             <pattern id="bad-year-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill="#eef2f4" />
@@ -107,7 +114,7 @@ export function HubBreakdown({ data }: { data: HubScore }) {
             </pattern>
           </defs>
           <XAxis type="number" domain={[0, Math.ceil(max)]} hide />
-          <YAxis type="category" hide />
+          <YAxis type="category" dataKey="lens" hide={!shares} width={64} tickLine={false} axisLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
           <ChartTooltip
             cursor={false}
             content={
@@ -135,7 +142,7 @@ export function HubBreakdown({ data }: { data: HubScore }) {
         </BarChart>
       </ChartContainer>
       <p className="text-[0.7rem] text-muted-foreground">
-        Lost days by hazard.{hasBadYear && ' Hatched: extra days in a bad year.'} Dashed lines: medium band from {fmt(mediumDays, 2)} days, high from{' '}
+        Lost days by hazard{shares ? ', in a typical year and in the worst 1 year in 20' : ''}.{hasBadYear && !shares && ' Hatched: extra days in a bad year.'} Dashed lines: medium band from {fmt(mediumDays, 2)} days, high from{' '}
         {fmt(highDays, 2)} days a year.
       </p>
 
@@ -159,6 +166,7 @@ export function HubBreakdown({ data }: { data: HubScore }) {
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   {isHurricane ? `${pct(data.hurricane_10yr_probability_pct)} chance in 10 years` : `${fmt(fam.days_per_year)} lost days/yr`}
+                  {typeof fam.bad_year_days === 'number' && `, ${fmt(fam.bad_year_days)} in a bad year`}
                   {fam.band && (
                     <>
                       {', '}
