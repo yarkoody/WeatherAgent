@@ -117,6 +117,9 @@ class ScoringConfig(BaseModel):
 
 
 DEFAULT_CONFIG = ScoringConfig()
+# Bump when the scoring method changes (not only its config). Score alerts hash this with the config, and on a
+# change they reset their comparison state instead of reporting the method change as score changes.
+SCORING_VERSION = "v2-tvar"
 
 
 @dataclass(frozen=True)
