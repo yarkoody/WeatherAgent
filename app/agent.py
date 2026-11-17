@@ -44,7 +44,16 @@ from app.store import Store, Tracer
 SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "system.md").read_text(encoding="utf-8")
 MAX_STEPS = 6
 MAX_OUTPUT_TOKENS = 2000
-PARAMS = ai.InferenceRequestParams(output=ai.OutputParams(max_tokens=MAX_OUTPUT_TOKENS))
+# Low effort is enough: the code does the scoring, the model picks tools and writes the JSON answer.
+# OPENAI_REASONING_EFFORT overrides it; "default" sends no reasoning setting (for non-reasoning models).
+DEFAULT_REASONING_EFFORT = "low"
+
+
+def build_params() -> ai.InferenceRequestParams:
+    effort = os.environ.get("OPENAI_REASONING_EFFORT", "").strip() or DEFAULT_REASONING_EFFORT
+    reasoning = ai.DEFAULT if effort == "default" else ai.ReasoningParams(effort=effort)
+    return ai.InferenceRequestParams(output=ai.OutputParams(max_tokens=MAX_OUTPUT_TOKENS), reasoning=reasoning)
+
 
 PARSE_ERROR = "The reply was not valid JSON for the AgentAnswer schema."
 GROUNDING_RETRY_TEMPLATE = (
@@ -65,9 +74,10 @@ FALLBACK_ANSWER = AgentAnswer(
     in_scope=True,
 )
 
-# USD per 1M tokens (input, output) for the trace cost estimate. Fill in for the chosen model;
-# an unknown model gets cost_usd = null.
-PRICES_PER_MTOK: dict[str, tuple[float, float]] = {}
+# USD per 1M tokens (input, output) for the trace cost estimate; an unknown model gets cost_usd = null.
+# gpt-6.1-sol: $2 / $10 standard rate, from third-party pages citing OpenAI's pricing (2026-11-17);
+# verify at developers.openai.com/api/docs/pricing. Cached input is cheaper, so this is an upper bound.
+PRICES_PER_MTOK: dict[str, tuple[float, float]] = {"gpt-6.1-sol": (2.0, 10.0)}
 
 _TEXT_EVENTS = (ai.events.TextStart, ai.events.TextDelta, ai.events.TextEnd)
 
@@ -180,7 +190,7 @@ class WeatherAgent(ai.Agent):
         """One model call; runs requested tools; appends (assistant message, tool message | None) to out."""
         start = time.perf_counter()
         async with (
-            ai.stream(model, messages, tools=tools, output_type=AgentAnswer, params=PARAMS) as stream,
+            ai.stream(model, messages, tools=tools, output_type=AgentAnswer, params=build_params()) as stream,
             ai.ToolRunner() as runner,
             ai.util.merge(stream, runner.events()) as events,
         ):
@@ -234,6 +244,7 @@ class WeatherAgent(ai.Agent):
 
         answer = _parse(message)
         errors = self._check(answer)
+        first_errors = list(errors)
         status = "pass"
         if errors:
             # Rebuild the rejected reply as plain text so the retry never carries dangling tool calls.
@@ -262,7 +273,7 @@ class WeatherAgent(ai.Agent):
         self.grounding = Grounding(status=status, errors=errors)
         # History keeps the verified answer, not the raw reply or the retry instruction.
         self.turn_messages.append(ai.assistant_message(answer.model_dump_json()))
-        self.tracer.event(self.trace_id, "grounding", status=status, errors=errors, tool_rounds=rounds)
+        self.tracer.event(self.trace_id, "grounding", status=status, errors=errors, first_errors=first_errors, tool_rounds=rounds)
         self.tracer.event(self.trace_id, "final_answer", answer=answer.model_dump(mode="json"))
 
 

@@ -151,13 +151,15 @@ Until Track A lands, test with two fake tools in `tests/fakes.py`. Import `app.t
 ### Task C1: Chat UI with voice
 - [ ] Use the frontend-design skill. Vite + React + TypeScript + Tailwind + `@ai-sdk/react` `useChat` against `/chat`. Code against `docs/api-contract.md`; with `VITE_USE_MOCKS=1`, a mock transport replays a scripted UI message stream (tool parts, then a `data-answer` part built from `web/src/mocks/chat-response.json`).
 - [ ] Views: chat (live tool-progress chips from tool parts, e.g. "Checking Dallas risk"; the answer card from the `data-answer` part: answer markdown, figures table from `answer.figures`, collapsible assumptions and uncertainty, grounding badge for pass/retried/failed, out-of-scope and no-data states), scores table from `/scores`, "New conversation" button (clears `session_id` kept in `localStorage`).
+- [ ] Tier 1 widgets ("generative UI": each renders from a tool part's output, which is deterministic tool data, never from model text), one chart library (Recharts): ranking bars for `rank_hubs` (`Ranking`, colored by band, 35/60 thresholds marked); hub breakdown for `get_hub_risk` (`HubScore`: stacked family contributions, top driver highlighted, upgrade categories as chips); comparison cards for `compare_hubs` (`HubComparison`); weather-stat ring for `weather_stat` (`WeatherStat`: numerator of denominator days); live alert banner for `get_active_alerts` (`ActiveAlerts`, only when alerts exist).
+- [ ] Tier 2 widgets, after the Render deploy works: US hub map on the scores page (light US SVG, hubs colored by band, coordinates from `/hubs`); what-if sliders on the scores page (family weights, calls `POST /what-if` with `WhatIfInput`, renders the returned `WhatIfResult` ranking, labeled "analyst-supplied weights"). The orchestrator adds `POST /what-if` (no LLM) during integration.
 - [ ] Voice: Web Speech API mic button for input (hidden with a tooltip when unsupported) and a speaker toggle that reads `answer.answer` aloud.
 - [ ] Vite dev proxy `/chat`, `/scores`, `/hubs`, `/health` to `http://localhost:8000`. `npm run build` outputs `web/dist`.
 - [ ] Tests: `vitest` for the grounding badge and figures table rendering from the mock; `npm run build` succeeds.
 
 ## Order and stop-loss (Track 0)
 
-Order after A and B land: Task 2 integration, Task 3 evals, Track C UI integration, Task 4 deploy, a first full version of Task 5 docs and session export, then bonuses: alerts (B5), voice, what-if, JEV (Task 3b), then polish. If time runs short, cut in this order: JEV, what-if, voice, scheduled alerts, UI polish. Docs, deploy and the session export are never cut.
+Order after A and B land: Task 2 integration, Task 3 evals, Track C UI integration, Task 4 deploy, a first full version of Task 5 docs and session export, then bonuses: alerts (B5), what-if tool + `POST /what-if` + sliders, US map, voice, JEV (Task 3b), then polish. If time runs short, cut in this order: JEV, voice, US map, what-if sliders (and the what-if tool), scheduled alerts, UI polish. Docs, deploy and the session export are never cut.
 
 ## Track 0 again, after A and B (orchestrator)
 

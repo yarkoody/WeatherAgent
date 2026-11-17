@@ -90,6 +90,8 @@ async def test_grounding_failure_retries_once_then_passes(store, tracer):
     res = await turn(model, store, tracer)
     assert res.grounding.status == "retried"
     assert res.answer.figures[0].value == 66.0
+    event = next(t for t in traces(tracer) if t["kind"] == "grounding")
+    assert event["first_errors"] == errors and event["errors"] == []
     assert not model.unused
     # the retry instruction is not stored in history
     stored = store.get_messages(res.session_id)
@@ -201,3 +203,22 @@ async def test_stream_turn_model_error_emits_error_part(store, tracer):
     types = [json.loads(c[6:])["type"] for c in chunks if c.startswith("data: {")]
     assert "error" in types and "data-answer" not in types
     assert chunks[-1] == "data: [DONE]\n\n"
+
+
+def test_reasoning_effort_defaults_to_low_and_env_overrides(monkeypatch):
+    from app.agent import build_params
+
+    monkeypatch.delenv("OPENAI_REASONING_EFFORT", raising=False)
+    assert build_params().reasoning.effort == "low"
+    assert build_params().output.max_tokens == 2000
+    monkeypatch.setenv("OPENAI_REASONING_EFFORT", "medium")
+    assert build_params().reasoning.effort == "medium"
+    monkeypatch.setenv("OPENAI_REASONING_EFFORT", "default")  # non-reasoning models: send no reasoning setting
+    assert build_params().reasoning is ai.DEFAULT
+
+
+def test_cost_estimate_uses_price_table():
+    from app.agent import _cost
+
+    assert _cost("gpt-6.1-sol", 1_000_000, 100_000) == 3.0
+    assert _cost("unknown-model", 1000, 1000) is None
