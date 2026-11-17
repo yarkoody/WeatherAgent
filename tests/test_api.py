@@ -70,6 +70,8 @@ def test_chat_json_returns_chat_response(tmp_path):
     assert res.status_code == 200
     body = ChatResponse.model_validate(res.json())
     assert body.grounding.status == "pass" and body.answer.figures[0].value == 66.0
+    assert 1 <= len(body.follow_ups) <= 3
+    assert not any(ch.isdigit() for s in body.follow_ups for ch in s)
 
 
 def test_chat_stream_has_tool_parts_and_one_data_answer_and_no_text_deltas(tmp_path):

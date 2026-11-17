@@ -249,6 +249,7 @@ class ChatResponse(Strict):
     answer: AgentAnswer
     grounding: Grounding
     trace_id: str
+    follow_ups: list[str] = []  # suggested next questions, built by code from the turn (app/followups.py)
 
 
 # ---------- JEV second opinion (offline cross-check; never affects scores) ----------

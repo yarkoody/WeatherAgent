@@ -38,6 +38,7 @@ from ai.ui.ai_sdk.ui_events import (
 from openai.lib._pydantic import to_strict_json_schema
 
 from app import grounding
+from app.followups import suggest_follow_ups
 from app.schemas import AgentAnswer, ChatResponse, Grounding, ToolError
 from app.store import Store, Tracer
 
@@ -360,7 +361,19 @@ async def _turn_events(
         tracer.event(trace_id, "error", error=f"{type(exc).__name__}: {exc}"[:500])
         raise
     store.append_messages(session_id, [m.model_dump(mode="json") for m in [user, *agent.turn_messages]])
-    holder["response"] = ChatResponse(session_id=session_id, answer=agent.answer, grounding=agent.grounding, trace_id=trace_id)
+    calls = [c for m in agent.turn_messages if m.role == "assistant" for c in m.tool_calls]
+    holder["response"] = ChatResponse(
+        session_id=session_id,
+        answer=agent.answer,
+        grounding=agent.grounding,
+        trace_id=trace_id,
+        follow_ups=suggest_follow_ups(
+            agent.answer,
+            [c.tool_name for c in calls],
+            user_message=message,
+            used_bad_year=any(c.tool_name == "rank_hubs" and "bad_year" in (c.tool_args or "") for c in calls),
+        ),
+    )
     tracer.event(
         trace_id,
         "turn_end",
