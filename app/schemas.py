@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 Region = Literal["Midwest", "South", "West", "Northeast"]
 Family = Literal["winter", "flood", "hurricane", "severe_storm"]
 Hazard = Literal["overall", "winter", "flood", "hurricane", "severe_storm"]
-ScoreKind = Literal["exposure", "priority"]
+ScoreKind = Literal["exposure", "priority", "bad_year"]  # bad_year = 1-in-20-year disruption days (tail lens)
 Band = Literal["low", "medium", "high"]
 Metric = Literal[
     "snow_days_pct",
@@ -59,6 +59,7 @@ class FamilyScore(Strict):
     family: Family
     score: float
     days_per_year: float  # expected disruption days per year from this family
+    band: Band  # family band by days (medium from 2, high from 5); hurricane by 10-year probability
     signals: list[Signal]
 
 
@@ -70,12 +71,18 @@ class BandThresholds(Strict):
     days_cap: float  # disruption days per year that map to index 100 (25)
     medium_from_days: float  # the medium cut-off in days per year (8.75)
     high_from_days: float  # the high cut-off in days per year (15)
+    family_medium_from_days: float  # a hazard family is "medium" from this many days per year (2)
+    family_high_from_days: float  # a hazard family is "high" from this many days per year (5)
+    hurricane_medium_from_pct: float  # hurricane family band by 10-year event probability (20)
+    hurricane_high_from_pct: float  # (50)
 
 
 class HubScore(Strict):
     hub_id: str
     exposure: float  # index 0-100 = min(exposure_days_per_year / cap, 1) * 100
-    exposure_days_per_year: float  # total expected disruption days per year
+    exposure_days_per_year: float  # total expected disruption days per year (typical year)
+    bad_year_days: float  # 1-in-20-year disruption days: mean + 1.645 x sd (tail lens)
+    hurricane_10yr_probability_pct: float  # chance of at least one hurricane-class event in 10 years, 0-100
     exposure_band: Band
     families: dict[Family, FamilyScore]
     family_weights: dict[Family, float]  # each family's share of total disruption days, in percent (0-100)
@@ -184,6 +191,9 @@ class ScoreRow(Strict):
     region: Region
     exposure: float
     exposure_band: Band
+    exposure_days_per_year: float
+    bad_year_days: float
+    hurricane_10yr_probability_pct: float
     priority: float
     priority_band: Band
     top_driver: Family
