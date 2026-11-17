@@ -60,6 +60,7 @@ class FamilyScore(Strict):
     score: float
     days_per_year: float  # expected disruption days per year from this family
     band: Band  # family band by days (medium from 2, high from 5); hurricane by 10-year probability
+    bad_year_days: float  # this family's share of the hub's bad_year_days (exact Euler allocation of TVaR95: E[family days | worst 5% of years]); the four sum to HubScore.bad_year_days
     signals: list[Signal]
 
 
@@ -81,7 +82,7 @@ class HubScore(Strict):
     hub_id: str
     exposure: float  # index 0-100 = min(exposure_days_per_year / cap, 1) * 100
     exposure_days_per_year: float  # total expected disruption days per year (typical year)
-    bad_year_days: float  # 1-in-20-year disruption days: mean + 1.645 x sd (tail lens)
+    bad_year_days: float  # average lost days in the worst 1 in 20 years (TVaR95, exact compound-Poisson recursion)
     hurricane_10yr_probability_pct: float  # chance of at least one hurricane-class event in 10 years, 0-100
     exposure_band: Band
     families: dict[Family, FamilyScore]
@@ -106,7 +107,7 @@ class RankedHub(Strict):
     hub_id: str
     name: str
     value: float
-    band: Band
+    band: Band | None  # None for kind="bad_year" (no meaningful band on the tail lens)
 
 
 class Ranking(Strict):
