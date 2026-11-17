@@ -65,8 +65,11 @@ class FamilyScore(Strict):
 class BandThresholds(Strict):
     """Returned with every score so the agent can cite the band cut-offs as numbers."""
 
-    medium_from: float
-    high_from: float
+    medium_from: float  # index value where "medium" starts (35)
+    high_from: float  # index value where "high" starts (60)
+    days_cap: float  # disruption days per year that map to index 100 (25)
+    medium_from_days: float  # the medium cut-off in days per year (8.75)
+    high_from_days: float  # the high cut-off in days per year (15)
 
 
 class HubScore(Strict):
@@ -75,7 +78,7 @@ class HubScore(Strict):
     exposure_days_per_year: float  # total expected disruption days per year
     exposure_band: Band
     families: dict[Family, FamilyScore]
-    family_weights: dict[Family, float]
+    family_weights: dict[Family, float]  # each family's share of total disruption days, in percent (0-100)
     priority: float
     priority_band: Band
     priority_signals: list[Signal]
