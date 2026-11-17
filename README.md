@@ -11,7 +11,7 @@ Try:
 - "Why is the Dallas hub's weather disruption risk high?" (it corrects the premise when the data disagrees)
 - "I have $1M for resilience upgrades. Which hub should get most of it?"
 
-More prompts, and how to read every number, are in the **[user guide](docs/USER_GUIDE.md)**.
+More prompts, and how to read every number, are in the **[user guide](docs/USER_GUIDE.md)**. How each line of the brief is met, with the evidence, is in **[assignment coverage](docs/ASSIGNMENT_COVERAGE.md)**.
 
 What the app can do:
 - **Chat with live tool progress.** Charts and tables are drawn only from tool outputs.
@@ -176,7 +176,7 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
   - A daily cap of 300 chat requests and `max_output_tokens`.
   - An OpenAI budget limit.
 - **Alerts:**
-  - A daily GitHub Actions job, plus a webhook endpoint, posts score changes to Discord. Verified with a real message.
+  - A daily GitHub Actions job (06:00 UTC), plus a webhook endpoint, posts score changes to Discord. A real alert message reached Discord from a manual run of the check.
   - It alerts on a 5-point score change, 3 bad-year days, 10 points of hurricane probability, or a level change that is at least 2 points past the cut-off. It alerts once per new change, keeping its state between runs.
   - It compares only within one scoring formula version, so a method change resets the baseline instead of sending false alerts. The first real alert found exactly that problem.
 - **Subscriber alerts (Discord):**
@@ -250,4 +250,4 @@ Each track was reviewed by an independent reviewer before it was committed. The 
 - a rolling-window bug in the alerts
 - a UI that showed failed figures as verified
 
-Once the repo was public, the remaining work landed through pull requests, each reviewed automatically by Claude's GitHub action. The product decisions were made by me: the KPI, days per event, scope, and the formula changes after an independent review. The full AI session transcripts are in [`docs/session/`](docs/session/).
+Once the repo was public, the remaining work landed through pull requests, each reviewed automatically by Claude's GitHub action. The product decisions were made by me: the KPI, days per event, scope, and the formula changes after an independent review. The full AI session transcripts, the orchestrating session and every side session, are in [`docs/session/`](docs/session/).
