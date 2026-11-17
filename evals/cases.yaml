@@ -31,8 +31,10 @@
 #     mentions_top_of  list of ranking specs: the answer names the rank-1 hub of at least one
 #     text_must_match  regexes that must match answer + assumptions
 #     claims_absent    regexes no affirmative sentence may match (sentences with a negation are skipped)
+#     no_closing_question  true: the answer must not end the turn with a question
 #     in_scope, data_available   expected booleans (omit = not checked)
-# Every run also checks: grounding not "failed", tool rounds <= 6, and no number spelled out in words
+# Every run also checks: an answer with data_available false has no figures;
+# grounding not "failed", tool rounds <= 6, and no number spelled out in words
 # (eleven and up), which would slip past the grounding check, and no markdown table in the answer
 # (the UI draws the figures table and charts from tool outputs).
 
@@ -373,3 +375,47 @@ cases:
       tools_forbidden: ["*"]
       in_scope: true
       text_must_match: ["(?i)openai", "(?i)render"]
+
+  - id: meta_sources_short
+    about: Short system question from the live-app review; no tools
+    turns: ["What are the data sources?"]
+    expect:
+      tools_forbidden: ["*"]
+      in_scope: true
+      text_must_match: ["(?i)national risk index", "(?i)open-meteo|era5", "(?i)national weather service|nws"]
+
+  - id: meta_model_and_checks
+    about: System question on the model and the checking; no tools, names the model and the field check
+    turns: ["Which model do you use, and how are the numbers checked?"]
+    expect:
+      tools_forbidden: ["*"]
+      in_scope: true
+      text_must_match: ["(?i)openai", "(?i)field|check"]
+
+  # ---------- live-app review: no needless questions, full regional lists, clean refusals ----------
+  - id: unsupported_population_weighted
+    about: Unsupported weighting; one-sentence limit plus the closest view (screening priority), no question back
+    turns: ["midwest winter disruption weighted by population in the region?"]
+    expect:
+      tools_required: [rank_hubs]
+      text_must_match: ["(?i)priority"]
+      no_closing_question: true
+      in_scope: true
+
+  - id: midwest_winter_all_hubs
+    about: Regional "which hubs" question lists every hub in the region, in the oracle order
+    turns: ["Which Midwest hubs are most exposed to winter weather?"]
+    expect:
+      tools_required: [rank_hubs]
+      tool_args: [{tool: rank_hubs, equals: {region: Midwest, hazard: winter}, min: {top_n: 6}}]
+      ranking_from: {kind: exposure, hazard: winter, region: Midwest}
+      ranking_exact: true
+      in_scope: true
+      data_available: true
+
+  - id: unsupported_fire_risk
+    about: A hazard the data does not cover; clear refusal, no figures, no invented ranking
+    turns: ["Which of my hubs has the highest fire risk?"]
+    expect:
+      tools_forbidden: [rank_hubs, compare_hubs, what_if, weather_stat]
+      data_available: false

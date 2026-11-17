@@ -314,6 +314,15 @@ def check_run(run: Run, case: dict, oracle: Oracle) -> None:
         bad = [s for s in sentences if re.search(pattern, s, re.IGNORECASE) and not NEGATION.search(s)]
         add(("no_false_claim", not bad, "" if not bad else f"claims: {bad[0][:120]}"))
 
+    if expect.get("no_closing_question"):
+        ends_with_q = text.rstrip().rstrip("*_ ").endswith("?")
+        add(("no_closing_question", not ends_with_q, "" if not ends_with_q else "answer ends the turn with a question"))
+
+    # Rule: a no-data answer cites no figures (and so no numbers).
+    if answer.data_available is False:
+        add(("no_data_no_figures", not answer.figures,
+             "" if not answer.figures else f"data_available false but {len(answer.figures)} figures"))
+
     for key in ("in_scope", "data_available"):
         if key in expect:
             got = getattr(answer, key)

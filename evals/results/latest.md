@@ -1,22 +1,22 @@
 # Eval results
 
-Run 2026-11-17 13:47 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot data as of 2026-11-17. Command: `uv run python -m evals.run`. Expected values come from `app/scoring.py` at run time (oracle). Traces of this run: a temp directory, not the repo.
+Run 2026-11-17 15:26 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot data as of 2026-11-17. Command: `uv run python -m evals.run`. Expected values come from `app/scoring.py` at run time (oracle). Traces of this run: a temp directory, not the repo.
 
 ## Summary
 
 | Metric | Value |
 |---|---|
-| Cases passed (all checks, all repeats) | 30/30 (100%) |
-| Tool-selection accuracy (runs with tool expectations) | 29/29 (100%) |
-| Grounding passed first try (all turns) | 33/36 (92%) |
-| Grounding passed after one retry | 3/36 (8%) |
-| Grounding failed or turn errored | 0/36 (0%) |
+| Cases passed (all checks, all repeats) | 33/37 (89%) |
+| Tool-selection accuracy (runs with tool expectations) | 32/32 (100%) |
+| Grounding passed first try (all turns) | 39/43 (91%) |
+| Grounding passed after one retry | 0/43 (0%) |
+| Grounding failed or turn errored | 4/43 (9%) |
 | Judge: names the actual top driver | 4/4 (100%) |
 | Determinism | determinism_priority: 3 runs, identical ranking: yes |
-| Latency per turn, mean / p95 | 10.3 s / 17.4 s (36 turns) |
-| Tokens, agent (input / output) | 417,205 / 17,488 |
-| Tokens, judge (input / output) | 1,401 / 132 |
-| Cost estimate for this run | $1.01 (agent $1.01, judge $0.00; list prices in `app/agent.py`, cached input not discounted) |
+| Latency per turn, mean / p95 | 23.7 s / 36.7 s (39 turns) |
+| Tokens, agent (input / output) | 457,718 / 16,092 |
+| Tokens, judge (input / output) | 1,433 / 139 |
+| Cost estimate for this run | $1.08 (agent $1.08, judge $0.00; list prices in `app/agent.py`, cached input not discounted) |
 
 ## Offline grounding probes
 
@@ -34,15 +34,9 @@ Run 2026-11-17 13:47 UTC. Model `gpt-6.1-sol`, reasoning effort `low`, snapshot 
 
 ## Grounding breakdown
 
-Turns: 36. First try: 33. Passed after one retry: 3. Failed after the retry: 0. Turn errors: 0.
+Turns: 43. First try: 39. Passed after one retry: 0. Failed after the retry: 0. Turn errors: 4.
 
-For each retried or failed turn, every grounding error: what the model cited (tool.field [family] @hub = value) and which field of that turn's tool results actually holds the number (tools re-run offline).
-
-| Case, turn | Status | Attempt | Error kind | Model cited | Field that holds the number |
-|---|---|---|---|---|---|
-| followup_first_one t2 | retried | first | figure | 'Winter share of typical-year disruption exposure': get_hub_risk.winter @minneapolis = 83.5 | get_hub_risk.family_weights [winter] |
-| miami_typical_vs_bad t1 | retried | first | text number | mentions 20, which is not in figures. Add it to figures or remove it. | - |
-| history_minneapolis t1 | retried | first | figure | 'Worst observed year winter days': get_hub_history.winter [winter] @minneapolis = 53 | get_hub_history.days [winter] |
+No grounding errors in this run.
 
 ## Per case
 
@@ -50,38 +44,59 @@ Latency is per run, all turns summed; repeated cases show one value per run.
 
 | Case | Result | Tools called (last turn) | Grounding | Judge | Latency (s) | Failed checks |
 |---|---|---|---|---|---|---|
-| brief_midwest_winter | PASS | rank_hubs | pass | - | 8.5 |  |
-| brief_miami_houston | PASS | compare_hubs | pass | - | 10.4 |  |
-| brief_denver_snow | PASS | weather_stat | pass | - | 7.4 |  |
-| brief_dallas_why_high | PASS | get_hub_risk | pass | pass | 9.0 |  |
-| para_midwest_rank | PASS | rank_hubs | pass | - | 9.5 |  |
-| para_priority_top5 | PASS | rank_hubs,compare_hubs | pass | - | 13.6 |  |
-| para_houston_miami | PASS | compare_hubs | pass | - | 9.2 |  |
-| para_chicago_snow | PASS | weather_stat | pass | - | 7.4 |  |
-| para_kc_drivers | PASS | get_hub_risk | pass | pass | 9.0 |  |
-| followup_first_one | PASS | get_hub_risk | retried | pass | 23.5 |  |
-| followup_and_chicago | PASS | weather_stat | pass | - | 14.2 |  |
-| determinism_priority | PASS | rank_hubs / rank_hubs / rank_hubs | pass/pass/pass | -/-/- | 16.5/15.3/15.2 |  |
-| premise_atlanta | PASS | get_hub_risk | pass | - | 11.0 |  |
-| missing_boise | PASS | get_hub_risk,list_hubs | pass | - | 9.9 |  |
-| missing_lightning | PASS | - | pass | - | 5.7 |  |
-| missing_year_1950 | PASS | weather_stat | pass | - | 5.6 |  |
-| out_of_scope_stock | PASS | - | pass | - | 3.6 |  |
-| injection_miami_safest | PASS | rank_hubs | pass | - | 9.0 |  |
-| ambiguous_riskiest | PASS | rank_hubs,get_hub_risk | pass | - | 10.4 |  |
-| what_if_costs | PASS | what_if | pass | - | 9.4 |  |
-| live_alerts_houston | PASS | get_active_alerts | pass | - | 6.6 |  |
-| invest_recommendation | PASS | rank_hubs,compare_hubs | pass | - | 14.0 |  |
-| invest_followup_costs | PASS | what_if | pass | - | 30.0 |  |
-| population_compact | PASS | get_hub_risk | pass | - | 7.0 |  |
-| bad_year_ranking | PASS | rank_hubs,compare_hubs | pass | - | 12.8 |  |
-| miami_typical_vs_bad | PASS | get_hub_risk | retried | pass | 17.4 |  |
-| metro_new_york | PASS | get_hub_risk | pass | - | 9.4 |  |
-| metro_boston_followup | PASS | get_hub_risk | pass | - | 15.4 |  |
-| ambiguous_portland | PASS | get_hub_risk | pass | - | 5.7 |  |
-| history_minneapolis | PASS | get_hub_history,get_hub_risk | retried | - | 19.0 |  |
+| brief_midwest_winter | PASS | rank_hubs | pass | - | 29.3 |  |
+| brief_miami_houston | PASS | compare_hubs | pass | - | 27.3 |  |
+| brief_denver_snow | PASS | weather_stat | pass | - | 24.4 |  |
+| brief_dallas_why_high | PASS | get_hub_risk | pass | pass | 22.9 |  |
+| para_midwest_rank | PASS | rank_hubs | pass | - | 24.4 |  |
+| para_priority_top5 | PASS | rank_hubs,compare_hubs | pass | - | 31.6 |  |
+| para_houston_miami | PASS | compare_hubs | pass | - | 22.6 |  |
+| para_chicago_snow | PASS | weather_stat | pass | - | 20.3 |  |
+| para_kc_drivers | PASS | get_hub_risk | pass | pass | 23.5 |  |
+| followup_first_one | PASS | get_hub_risk | pass | pass | 53.5 |  |
+| followup_and_chicago | PASS | weather_stat | pass | - | 40.2 |  |
+| determinism_priority | PASS | rank_hubs / rank_hubs / rank_hubs | pass/pass/pass | -/-/- | 24.7/30.4/28.1 |  |
+| premise_atlanta | PASS | get_hub_risk | pass | - | 21.8 |  |
+| missing_boise | PASS | get_hub_risk | pass | - | 21.0 |  |
+| missing_lightning | PASS | - | pass | - | 13.0 |  |
+| missing_year_1950 | PASS | weather_stat | pass | - | 20.0 |  |
+| out_of_scope_stock | PASS | - | pass | - | 10.6 |  |
+| injection_miami_safest | PASS | get_hub_risk | pass | - | 24.0 |  |
+| ambiguous_riskiest | PASS | rank_hubs,get_hub_risk | pass | - | 31.5 |  |
+| what_if_costs | PASS | what_if | pass | - | 23.8 |  |
+| live_alerts_houston | PASS | get_active_alerts | pass | - | 19.1 |  |
+| invest_recommendation | PASS | rank_hubs,compare_hubs | pass | - | 36.7 |  |
+| invest_followup_costs | PASS | what_if | pass | - | 66.2 |  |
+| population_compact | PASS | get_hub_risk | pass | - | 21.8 |  |
+| bad_year_ranking | PASS | rank_hubs | pass | - | 24.5 |  |
+| miami_typical_vs_bad | PASS | get_hub_risk | pass | pass | 29.6 |  |
+| metro_new_york | PASS | get_hub_risk | pass | - | 26.7 |  |
+| metro_boston_followup | PASS | get_hub_risk | pass | - | 43.1 |  |
+| ambiguous_portland | PASS | get_hub_risk | pass | - | 20.9 |  |
+| history_minneapolis | PASS | get_hub_history | pass | - | 25.2 |  |
+| meta_data_sources | PASS | - | pass | - | 13.3 |  |
+| meta_model_deployment | FAIL | - | error | - | 11.6 | completed: OperationalError: unable to open database file |
+| meta_sources_short | PASS | - | pass | - | 13.2 |  |
+| meta_model_and_checks | PASS | - | pass | - | 14.1 |  |
+| unsupported_population_weighted | FAIL | - | error | - | 0.0 | completed: OperationalError: unable to open database file |
+| midwest_winter_all_hubs | FAIL | - | error | - | 0.0 | completed: OperationalError: unable to open database file |
+| unsupported_fire_risk | FAIL | - | error | - | 0.0 | completed: OperationalError: unable to open database file |
 
 ## Failure analysis
+
+### Live-app review rules (2026-11-17, branch fix/stream-keepalive, the run in the tables above)
+
+New prompt rules: system questions answered without tools from "About this system"; no needless clarifying questions (state the interpretation, give the closest supported view); regional "which hubs" lists every hub with "top N of M"; no-data answers cite no figures. There are 37 cases. New: `meta_sources_short`, `meta_model_and_checks`, `unsupported_population_weighted` (must not end with a question), `midwest_winter_all_hubs` (all 6 Midwest hubs, exact oracle order) and `unsupported_fire_risk`. The runner also checks globally that an answer with `data_available` false has no figures.
+
+- **Full run: 33/37.** All 33 cases that completed passed, with no regressions in the older cases. Tool selection 32/32, grounding 39 of 39 completed turns on the first try (no retries), judge 4/4, determinism identical x3, about $1.08.
+- **The 4 failures were turn errors, not answers.** `sqlite3.OperationalError: unable to open database file` hit the eval run's temporary store (`meta_model_deployment`, `unsupported_population_weighted`, `midwest_winter_all_hubs`, `unsupported_fire_risk`), three of them at 0.0 s and back to back. The disk was 99% full (3.8 GiB free), and SQLite raises this error when it cannot create its journal. This is the environment, not the agent.
+- **Targeted re-run of those 4** (the one allowed): 3/4 pass, 4/4 grounding first try, $0.09.
+  - `midwest_winter_all_hubs` lists all 6 Midwest hubs in the oracle order.
+  - `unsupported_population_weighted` answers in one turn without a question: it says population weighting is not supported, gives the closest winter-specific view, and notes that investment priority includes people served but is not winter-specific.
+  - `meta_model_deployment` names the model, the AI SDK and Render, with no tools.
+- **Finding, fixed afterwards: `unsupported_fire_risk`.** The answer refuses ("fire risk is not covered"), cites no figures and sets `data_available` false, which is what the case asks for. But it also calls `rank_hubs` and offers overall exposure ("Minneapolis ranks highest") as the closest view, while saying it is not a proxy for fire. The new rule (b) causes this: it asks for a closest supported view even when none is meaningful. Proposed one-line fix, not applied because no verification run is left: in rule (b), "give the closest supported view when one measures the same thing (e.g. screening priority for people served); for a hazard the data does not cover (fire, earthquake, drought), name the four covered families and stop, with no substitute ranking."
+- **Fix applied** (rule (b) in `app/prompts/system.md`, one sentence appended): "Offer a closest view only when it measures the same thing; for a hazard the data does not cover (fire, earthquake, drought, heat), say so, name the four covered families (winter, flood, hurricane, severe storm) and stop, with no tool call and no substitute ranking." Re-run of `unsupported_fire_risk` plus the regression case `midwest_winter_all_hubs`: 2/2 pass, grounding first try, $0.04. The fire answer now calls no tool, cites no figures and names the four covered families; the Midwest ranking still lists all 6 hubs in the oracle order. The other cases have not been re-run on this prompt.
+- **Latency: 23.7 s mean and 36.7 s p95 per turn, against 10.3 s / 17.4 s in the previous run.** The mean model call took 12.0 s instead of 4.6 s, with a similar number of calls (78 vs 80). Input per call grew 14% (5,215 to 5,932 tokens, from the longer prompt) and output stayed flat. That increase does not explain a 2.6x slowdown, so most of it is on the API side; it is worth re-measuring before quoting latency.
 
 ### Metric-bound grounding (2026-11-17, the run in the tables above)
 
