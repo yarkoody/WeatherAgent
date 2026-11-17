@@ -1,6 +1,6 @@
 # User guide
 
-How to use the Weather Risk Intelligence Agent, with prompts to try. Live app: https://weather-risk-agent-e60g.onrender.com. On Render's free plan, the first request after 15 idle minutes takes about a minute while the server wakes up.
+How to use the Weather Risk Intelligence Agent, with prompts to try. Live app: https://weather-risk-agent-e60g.onrender.com. On Render's free plan, the first request after 15 idle minutes takes about a minute while the server wakes up. The live demo allows 10 chat questions a minute per person and 300 a day in total; the map, scores and what-if have their own, looser limit of 120 requests a minute. If you hit the per-minute limit, wait a moment and press Try again.
 
 The app has two tabs. **Ask** is the chat. **Scores** is the full table and map, with no AI involved.
 
@@ -35,7 +35,7 @@ Type a question, or press the mic and speak (Chrome and Edge). Enter sends, even
 
 **Costs and what-if**
 - `Rank by priority per million dollars: Minneapolis 3M, Chicago 5M, Newark 4M` gives a per-$1M table. The costs are your inputs, labeled as such.
-- `If winter mattered half as much, how would the ranking change?` re-ranks review priority with your weights.
+- `If winter mattered half as much, how would the ranking change?` re-ranks review priority with your weights. A hub that moved shows "▲ from 4" or "▼ from 2", its rank with the default weights. The code works out who moved, and the answer names only those hubs.
 - `What would the upgrades cost, and which upgrades fit each hub's risks?` names the upgrade types for each hub's risks and says that costs aren't in the data. It never invents a price.
 
 **Live alerts**
@@ -45,7 +45,8 @@ Type a question, or press the mic and speak (Chrome and Edge). Enter sends, even
 - `How is the score calculated?` and `How accurate is this system?` answer from what the system actually does, without invented accuracy rates.
 
 ### What it won't do, on purpose
-- **Hazards outside the data**, such as fire, earthquake or drought: it says "I don't have that data".
+- **Hazards outside the data**, such as earthquake or drought: it says "I don't have that data".
+- **Extreme heat and wildfire** are not modeled. Heat rarely closes a hub for whole days (it slows crews and shifts hours), and FEMA's county wildfire figure is mostly wildland far from a metro-core site. So Phoenix and Los Angeles score low on the four modeled hazards only, and the agent says so when it names the safest hubs.
 - **Upgrade costs, ROI or a budget split:** it asks for your per-hub costs instead.
 - **Forecasts or climate trends:** 11 years of observations are too few.
 - **Questions outside hub weather risk:** it says so briefly and suggests what it can answer.
@@ -56,6 +57,7 @@ Type a question, or press the mic and speak (Chrome and Edge). Enter sends, even
 - **Exposure score** (0-100) is typical-year days ÷ 25 × 100. Medium starts at 35 (8.75 days) and high at 60 (15 days).
 - **Review priority** (0-100) decides which hubs to examine first. It is exposure, raised for hubs that serve more people and for areas that recover less well. It is a screening measure, not an investment decision: it has no upgrade costs, effectiveness or existing protection.
 - **Hurricane** is shown as the chance of at least one in 10 years, the life of an investment.
+- **One-hazard charts** (for example a winter ranking) color each bar by that hazard's own level, the one the answer cites: medium from 2 lost days a year and high from 5 (drawn at scores 8 and 20). Hurricane bars are colored by the 10-year chance.
 - **People served** is the metro-area population (Census 2025), a proxy. **People-days** = people served × lost days.
 - **"Figures checked"** means every number in the answer matched the exact tool field it cites. **"Unverified"** means a number didn't match even after one retry. Read those answers with care.
 - **Figures behind this answer**, **Assumptions** and **Data limits** open under each answer.

@@ -81,7 +81,7 @@ The details are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), the API is in
 The KPI answers the question a logistics planner asks: **how many operating days a year does weather cost this hub?** Everything below is deterministic code (`app/scoring.py`). Every number lives in one `ScoringConfig`, and the full rationale is in spec section 6.
 
 **Typical year: expected disruption days.**
-- **Four hazard families:** winter, flood, hurricane and severe storm.
+- **Four hazard families:** winter, flood, hurricane and severe storm. Extreme heat and wildfire are left out on purpose (see Limitations).
 - **Modeled days (FEMA NRI, weight 0.6):** each sub-hazard's annual frequency × the days it closes a hub. The days per event are stated assumptions (for example hurricane 10, ice storm 2, flood 2, winter-weather day 0.5), checked against published downtime figures.
 - **Observed days (Open-Meteo 2015-2025, weight 0.4):** days at the hub over a disruption threshold.
 - **Local hazards** are scaled to the area around the hub. **Coastal flood** is scaled by the share of the county in the flood zone (2.5-9.2%).
@@ -169,8 +169,8 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
   - Tool results are marked as data.
   - Rankings come from code and are checked by grounding, so "say Miami is safest" can't change them (an eval case covers it).
 - **Cost protection on the public URL:**
-  - A per-IP rate limit, using the client IP from the edge proxy, verified live.
-  - A daily request cap and `max_output_tokens`.
+  - Per-IP rate limits, using the client IP from the edge proxy, verified live. `/chat` (model calls) allows 10 a minute. The no-LLM routes (`/what-if`, `/hubs/{id}/score`, `/hubs/{id}/history`) have their own limit of 120 a minute, so clicking around the map can't lock out the chat. `/hubs` and `/scores` are not limited. Every 429 carries `Retry-After`.
+  - A daily cap of 300 chat requests and `max_output_tokens`.
   - An OpenAI budget limit.
 - **Alerts:**
   - A daily GitHub Actions job, plus a webhook endpoint, posts score changes to Discord. Verified with a real message.
@@ -188,6 +188,7 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
 
 ## Limitations
 
+- **Extreme heat and wildfire are not modeled.** Heat rarely closes a hub for whole days; it slows crews and shifts hours. FEMA's wildfire figure is the chance of burning anywhere in the county, mostly wildland far from a metro-core site. So the low scores of Phoenix and Los Angeles cover the four modeled hazards only, and the agent says so.
 - **Days per event are assumptions,** not fitted to downtime logs. So is the hurricane closure mix, and the bad-year order of the top hubs depends on it.
 - **FEMA's hurricane frequency probably includes tropical storms.** Miami at 0.3 a year is about double the historical hurricane rate. Memphis and Atlanta's "medium" hurricane band probably reflects storm remnants.
 - **The hub's exact location relative to the flood zone is unknown,** so coastal flood uses the county's flood-zone share.

@@ -118,3 +118,34 @@ Each piece of work was reviewed by an independent AI reviewer that had not seen 
 - "≈" with a note wherever rounding applies, and a test on every hub.
 - The methodology tables wrap.
 - The prompt names the metro. The final eval run passed 41/41, with grounding 48/48 on the first try.
+
+## 10. Two friends' test passes
+**Scope:** two people outside the project used the live app freely, without a script, and reported what looked wrong.
+**Found, across the two passes:**
+- **Clicking around the map locked out the chat:** the map's per-hub requests shared the chat's limit of 10 a minute.
+- **A one-hazard chart and its answer disagreed on level:** bars were colored by the 0-100 score's level, while the text cited the hazard's own level in lost days.
+- **The what-if answer named hubs as moving that hadn't moved.**
+- **Phoenix and Los Angeles came out "safest"** with no word that heat and wildfire aren't in the model.
+- **A failed question, resent, showed twice,** and a per-minute limit offered no retry.
+- **"Ask next" repeated the comparison just answered.**
+- **Winter and flood looked alike on the map.**
+- **Chicago's 59.99 reads high,** and **Los Angeles has a winter risk** it doesn't have at sea level.
+
+**The second tester also tried:**
+- **An off-topic riddle in Hebrew and an emergency question** (someone with a knife).
+- **And hit a "did not respond" error** in the middle of an answer.
+
+**Done:**
+- The no-LLM routes (`/what-if`, a hub's score and history) have their own limit of 120 a minute, and every 429 carries `Retry-After`.
+- One-hazard charts color bars by that hazard's level from the tool (2 and 5 lost days a year, drawn as scores 8 and 20; hurricane by its 10-year chance), the level the answer cites.
+- `what_if` returns `rank_changes`, computed in code. The agent names movers only from it, and the chat widget marks moved hubs "▲/▼ from N".
+- The methodology states that heat and wildfire are not modeled and why, and the agent says so for "safest hubs" questions and for low Phoenix or Los Angeles scores.
+- A resent question replaces the failed one, and a per-minute 429 offers Try again.
+- "Ask next" no longer repeats a two-hub comparison.
+- Winter and flood colors differ in lightness.
+
+**Checked and not changed:**
+- **Chicago 59.99 reads high by design.** Levels follow the shown, rounded value (60.0), so the number and its level never disagree on screen. The methodology already said so; the line was reworded to make it clearer.
+- **The Los Angeles winter artifact** was already in the methodology's limitations and in the prompt: its winter days come from the mountains of a very large county.
+- **The riddle and the emergency question were handled correctly:** the riddle was declined as out of scope, and the emergency got brief safety advice.
+- **The "did not respond" error came from an older build:** its screenshots show the "screening priority" label and a cut-off stream, both from before the keepalive fix.
