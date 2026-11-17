@@ -1,14 +1,14 @@
-data: {"type": "start", "messageId": "msg_d3c6650b8e95"}
+data: {"type": "start", "messageId": "msg_568fe9cd3d3f"}
 
 data: {"type": "start-step"}
 
-data: {"toolCallId": "call_1897d98dc63c", "toolName": "weather_stat", "type": "tool-input-start"}
+data: {"toolCallId": "call_c6b827953010", "toolName": "weather_stat", "type": "tool-input-start"}
 
-data: {"toolCallId": "call_1897d98dc63c", "inputTextDelta": "{\"hub_id\": \"denver\", \"metric\": \"snow_days_pct\", \"year\": 2026}", "type": "tool-input-delta"}
+data: {"toolCallId": "call_c6b827953010", "inputTextDelta": "{\"hub_id\": \"denver\", \"metric\": \"snow_days_pct\", \"year\": 2026}", "type": "tool-input-delta"}
 
-data: {"toolCallId": "call_1897d98dc63c", "toolName": "weather_stat", "input": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2026}, "type": "tool-input-available"}
+data: {"toolCallId": "call_c6b827953010", "toolName": "weather_stat", "input": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2026}, "type": "tool-input-available"}
 
-data: {"toolCallId": "call_1897d98dc63c", "output": {"error": "the snapshot covers full years 2015-2025 only; 2026 is not available", "retryable": false, "hint": "This data is not in the snapshot: tell the analyst it is not available (data_available: false) and offer what is available."}, "type": "tool-output-available"}
+data: {"toolCallId": "call_c6b827953010", "output": {"error": "the snapshot covers full years 2015-2025 only; 2026 is not available", "retryable": false, "hint": "This data is not in the snapshot: tell the analyst it is not available (data_available: false) and offer what is available."}, "type": "tool-output-available"}
 
 data: {"type": "finish-step"}
 
@@ -16,9 +16,9 @@ data: {"type": "start-step"}
 
 data: {"type": "finish-step"}
 
-data: {"data": {"session_id": "mock-nodata", "answer": {"answer": "I don't have weather data for Denver in 2026. The snapshot covers complete years 2015 to 2025 only.", "hubs": ["denver"], "ranking": null, "figures": [], "assumptions": [], "uncertainty": "2026 is not a complete year in the snapshot.", "data_available": false, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "7bb8739d27cf47fb90fe6ad53fd706da", "follow_ups": ["Which hubs are most exposed to weather disruption?", "Which Midwest hubs are most exposed to winter disruption?", "Compare Miami and Houston in terms of hurricane and flood exposure."]}, "type": "data-answer"}
+data: {"data": {"session_id": "mock-nodata", "answer": {"answer": "I don't have weather data for Denver in 2026. The snapshot covers complete years 2015 to 2025 only.", "hubs": ["denver"], "ranking": null, "figures": [], "assumptions": [], "uncertainty": "2026 is not a complete year in the snapshot.", "data_available": false, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "28b4bdc974d344749d5f4bf468c52586", "follow_ups": ["Which hubs are most exposed to weather disruption?", "Which Midwest hubs are most exposed to winter disruption?", "Compare Miami and Houston in terms of hurricane and flood exposure."]}, "type": "data-answer"}
 
-data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_d3c6650b8e95", "role": "assistant", "turnId": null, "partIds": ["call_1897d98dc63c"]}, {"id": "msg_f39c9980dfc1", "role": "tool", "turnId": null, "partIds": ["part_2f6bf3b07159"]}, {"id": "msg_ce5c95600685", "role": "assistant", "turnId": null, "partIds": ["part_a5d54410186a"]}]}}}
+data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_568fe9cd3d3f", "role": "assistant", "turnId": null, "partIds": ["call_c6b827953010"]}, {"id": "msg_a3217d8b6835", "role": "tool", "turnId": null, "partIds": ["part_864656ddc444"]}, {"id": "msg_3f4fc0412e91", "role": "assistant", "turnId": null, "partIds": ["part_ba522f622096"]}]}}}
 
 data: [DONE]
 

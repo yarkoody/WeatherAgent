@@ -7,13 +7,15 @@ import type { Band, Ranking } from '@/lib/types'
 /** Bars without a band (bad-year ranking): neutral ink, so color never implies a band. */
 const NEUTRAL = 'var(--color-ink-soft)' // theme token: readable in light and dark
 import { InfoTip } from '@/components/InfoTip'
-import { LOST_DAYS, indexSteps } from '@/lib/explain'
+import { LOST_DAYS, PEOPLE_DAYS_LINE, PEOPLE_SERVED_DEF, REVIEW_PRIORITY_MEANING, indexSteps } from '@/lib/explain'
 import { useReducedMotion } from '@/lib/motion'
 import { WidgetFrame } from './WidgetFrame'
 
 export function rankingTitle(r: Ranking): string {
+  if (r.kind === 'people_impact')
+    return `People affected by disruption${r.region ? ` in the ${r.region}` : ''} (million people-days a year)`
   if (r.kind === 'bad_year') return r.region ? `Bad-year lost operating days in the ${r.region}` : 'Bad-year lost operating days'
-  const kind = r.kind === 'priority' ? 'screening priority' : 'exposure'
+  const kind = r.kind === 'priority' ? 'review priority' : 'exposure'
   const what = r.hazard === 'overall' ? kind[0].toUpperCase() + kind.slice(1) : `${HAZARD_LABEL[r.hazard]} ${kind}`
   return r.region ? `${what} in the ${r.region}` : `${what} across all hubs`
 }
@@ -30,9 +32,15 @@ function rankingLines(r: Ranking): string[] {
       `Lost operating days: ${LOST_DAYS}`,
       'Ask about one hub to compare its typical and bad year.',
     ]
+  if (r.kind === 'people_impact')
+    return [
+      PEOPLE_DAYS_LINE,
+      `People served: ${PEOPLE_SERVED_DEF}`,
+      'Bars are typical-year people-days, in millions.',
+    ]
   if (r.kind === 'priority')
     return [
-      'Screening priority suggests where to look first at upgrades; it is not a cost-benefit estimate.',
+      `Review priority: ${REVIEW_PRIORITY_MEANING}`,
       'It mixes the exposure score with people served and the resilience gap.',
       `Medium from ${fmt(t.medium_from)}, high from ${fmt(t.high_from)} (out of 100).`,
     ]
@@ -75,7 +83,9 @@ export function coverage(shown: number, total: number, region: string | null): s
 export function RankingWidget({ data }: { data: Ranking }) {
   const reduced = useReducedMotion()
   const t = data.band_thresholds
-  const days = data.kind === 'bad_year' // values are days, not the 0-100 index
+  // Values not on the 0-100 index: bad-year days, or million people-days. Neutral bars, no 35/60 lines.
+  const days = data.kind === 'bad_year' || data.kind === 'people_impact'
+  const peopleKind = data.kind === 'people_impact'
   // Hazard rankings: bar length and color are the hazard's 0-100 score and its band (the same 35/60 cut-offs as every
   // score); the hazard's own band by lost days a year is the small word after the value ("High by days").
   const hazardBands = !days && data.hazard !== 'overall'
@@ -105,7 +115,9 @@ export function RankingWidget({ data }: { data: Ranking }) {
       note={
         <>
           {total !== null && <span className="font-medium text-foreground">{`${coverage(rows.length, total, data.region)} `}</span>}
-          {days
+          {peopleKind
+            ? `${PEOPLE_DAYS_LINE} ${asOf}`
+            : days
             ? `Bad year: the average of the worst 1 year in 20. ${asOf}`
             : hazardBands
               ? `Bar length and color: the ${HAZARD_LABEL[data.hazard].toLowerCase()} score, 0 to 100 (medium from ${fmt(medium_from)}, high from ${fmt(high_from)}). The word after each value is the hazard's own level by lost operating days a year (medium from ${fmt(t.family_medium_from_days)} days, high from ${fmt(t.family_high_from_days)}). ${asOf}`
@@ -123,6 +135,7 @@ export function RankingWidget({ data }: { data: Ranking }) {
               <ChartTooltipContent
                 hideIndicator
                 formatter={(v, _n, item) => {
+                  if (peopleKind) return `${fmt(Number(v))} million people-days a year`
                   if (days) return `${fmt(Number(v))} days`
                   const p = item.payload as { dayBand: Band | null }
                   const score = `${fmt(Number(v))} (${BAND_LABEL[scoreBand(Number(v), t)]} score)`

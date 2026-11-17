@@ -65,6 +65,11 @@ export const NA = 'n/a'
 /** True for a usable number; tool outputs from older backends or saved chats can lack optional fields. */
 export const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
+/** People impact is known only when the backend sent it (ScoreRow defaults to 0 / "" when it has none). */
+export function hasPeople(s: { people_served?: number | null; people_days_m?: number | null }): boolean {
+  return isNum(s.people_served) && s.people_served > 0 && isNum(s.people_days_m)
+}
+
 /** Large numbers for display: 472K, 2.6M, 1.2B. */
 export function compact(value: number | null | undefined): string {
   return isNum(value) ? COMPACT.format(value) : NA

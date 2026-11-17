@@ -95,6 +95,12 @@ export const mockFetch: typeof fetch = async (input, init) => {
     await sleep(150)
     return Response.json((await loadMocks()).hubs)
   }
+  const hubHistory = /^\/hubs\/([a-z_]+)\/history$/.exec(path)
+  if (hubHistory) {
+    await sleep(200)
+    const history = (await loadMocks()).hubHistories[hubHistory[1]]
+    return history ? Response.json(history) : Response.json({ detail: `Unknown hub ${hubHistory[1]}` }, { status: 404 })
+  }
   const hubScore = /^\/hubs\/([a-z_]+)\/score$/.exec(path)
   if (hubScore) {
     await sleep(150)

@@ -245,7 +245,7 @@ describe('cards: one "How to read this" per widget, no (i) per field, units and 
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent(`lost days a year ÷ ${t.days_cap} × 100`)
     expect(dialog).toHaveTextContent(`Medium from ${t.medium_from_days} days a year, high from ${t.high_from_days} days a year`)
-    expect(dialog).toHaveTextContent('A screening aid, not a measured return')
+    expect(dialog).toHaveTextContent("It doesn't include upgrade costs or existing protection, so it's a starting point for a decision, not the decision itself.")
     expect(dialog).toHaveTextContent(`Medium from ${t.family_medium_from_days} days, high from ${t.family_high_from_days} days`)
     expect(dialog).toHaveTextContent(`Medium from ${t.hurricane_medium_from_pct}%, high from ${t.hurricane_high_from_pct}%`)
   })

@@ -139,7 +139,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
                 Where will weather hit your network hardest?
               </EmptyTitle>
               <EmptyDescription>
-                Ask about modeled disruption exposure and screening priority for 15 US logistics hubs. Figures in an answer are checked against the scoring data they cite, and charts are
+                Ask about modeled disruption exposure and review priority for 15 US logistics hubs. Figures in an answer are checked against the scoring data they cite, and charts are
                 drawn from it directly.
               </EmptyDescription>
             </EmptyHeader>

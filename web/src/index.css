@@ -406,3 +406,26 @@
     color: #555;
   }
 }
+
+/* Map: one pulse on a hub dot when the table asks the map to show it (skipped under reduced motion in code). */
+@keyframes hub-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+.hub-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hub-pulse 900ms ease-out 1 forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-pulse {
+    animation: none;
+    display: none;
+  }
+}

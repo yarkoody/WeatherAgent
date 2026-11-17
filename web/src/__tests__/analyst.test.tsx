@@ -105,7 +105,7 @@ describe('history widgets', () => {
     expect(tip).toHaveTextContent(history.note.slice(0, 40))
   })
 
-  it('the breakdown has a History tab: renders history the agent fetched, otherwise offers to ask', () => {
+  it('the breakdown has a History tab: uses history the agent fetched, otherwise GET /hubs/{id}/history', async () => {
     const ask = vi.fn()
     const { unmount } = render(
       <AskProvider ask={ask} histories={{ [hub.hub_id]: history }}>
@@ -116,14 +116,29 @@ describe('history widgets', () => {
     expect(screen.getByText(`Worst year: ${history.worst_year}`, { exact: false })).toBeInTheDocument()
     unmount()
 
-    render(
-      <AskProvider ask={ask} histories={{}}>
-        <HubBreakdown data={hub} />
-      </AskProvider>,
+    vi.stubEnv('VITE_USE_MOCKS', '')
+    const calls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const path = new URL(url, 'http://test').pathname
+        calls.push(path)
+        if (path === `/hubs/${hub.hub_id}/history`) return Response.json(history)
+        return Response.json({ detail: 'Unknown hub' }, { status: 404 })
+      }),
     )
+    const { unmount: unmount2 } = render(<HubBreakdown data={hub} />)
     fireEvent.click(screen.getByRole('tab', { name: 'History' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Show observed history' }))
-    expect(ask).toHaveBeenCalledWith('Show the observed weather history for Minneapolis.')
+    expect(screen.getByRole('status', { name: /Loading the observed history/ })).toBeInTheDocument()
+    expect(await screen.findByText(`Worst year: ${history.worst_year}`, { exact: false })).toBeInTheDocument()
+    expect(calls).toContain(`/hubs/${hub.hub_id}/history`)
+    expect(screen.queryByText(/Ask in chat/)).not.toBeInTheDocument()
+    expect(ask).not.toHaveBeenCalled()
+    unmount2()
+
+    render(<HubBreakdown data={{ ...hub, hub_id: 'nowhere' }} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'History' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('could not be loaded (Unknown hub)')
   })
 
   it('renders from a get_hub_history tool part in a message', async () => {
@@ -159,7 +174,7 @@ describe('export', () => {
     expect(click).toHaveBeenCalled()
     const text = await blob!.text()
     const lines = text.trim().split('\r\n')
-    expect(lines[0]).toBe('Rank,Hub,Region,Typical year (days/yr),Bad year (days/yr),"Hurricane chance (10 yr, %)",Screening priority (0-100),Priority level,Exposure level,Biggest risk')
+    expect(lines[0]).toBe('Rank,Hub,Region,Typical year (days/yr),Bad year (days/yr),"Hurricane chance (10 yr, %)","Review priority (0-100, typical year)",Priority level,Exposure level,"People served (metro, estimate)",People-days typical year (M/yr),People-days bad year (M/yr),Biggest risk')
     const south = scores.filter((r) => r.region === 'South').map((r) => r.name.replace(/ Hub$/, '')).sort((a, b) => a.localeCompare(b))
     expect(lines.slice(1).map((l) => l.split(',')[1])).toEqual(south)
     click.mockRestore()

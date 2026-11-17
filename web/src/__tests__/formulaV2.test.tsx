@@ -149,7 +149,7 @@ describe('scores table', () => {
     await waitFor(() => expect(firstHub()).toHaveTextContent(top('exposure_days_per_year').name.replace(/ Hub$/, '')))
 
     const miami = screen.getByRole('row', { name: /Miami/ })
-    expect(within(miami).getAllByRole('cell')[3]).toHaveTextContent(new RegExp(`^${fmt(scores.find((r) => r.hub_id === 'miami')!.hurricane_10yr_probability_pct)}$`)) // bare number; the unit is in the header
+    expect(within(miami).getAllByRole('cell')[4]).toHaveTextContent(new RegExp(`^${fmt(scores.find((r) => r.hub_id === 'miami')!.hurricane_10yr_probability_pct)}$`)) // bare number; the unit is in the header
   })
 
   it('shows no JEV second opinion anywhere', async () => {

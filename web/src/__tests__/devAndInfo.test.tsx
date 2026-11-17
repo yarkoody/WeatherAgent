@@ -54,7 +54,7 @@ describe('analyst view (default)', () => {
 
   it('tool steps are plain language, without tool names or expandable arguments', () => {
     asUser(<ToolSteps tools={[tool]} thinking={false} streaming={false} />)
-    expect(screen.getByText('Ranked hubs by screening priority')).toBeInTheDocument()
+    expect(screen.getByText('Ranked hubs by review priority')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByText('rank_hubs')).not.toBeInTheDocument()
   })
@@ -71,7 +71,7 @@ describe('developer view', () => {
 
   it('tool steps expand to the tool name and arguments', () => {
     asDev(<ToolSteps tools={[tool]} thinking={false} streaming={false} />)
-    fireEvent.click(screen.getByRole('button', { name: /Ranked hubs by screening priority/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Ranked hubs by review priority/ }))
     expect(screen.getByText('rank_hubs')).toBeInTheDocument()
     expect(screen.getByText('top_n')).toBeInTheDocument()
   })

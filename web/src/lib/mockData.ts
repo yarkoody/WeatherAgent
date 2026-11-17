@@ -15,13 +15,16 @@ import whatIfJson from '../mocks/what-if.json'
 import history from '../mocks/chat-stream-history.sse?raw'
 import hubsJson from '../mocks/hubs.json'
 import hubScoresJson from '../mocks/hub-scores.json'
-import type { Hub, HubScore, ScoreRow, WhatIfResult } from './types'
+import hubHistoriesJson from '../mocks/hub-histories.json'
+import type { Hub, HubHistory, HubScore, ScoreRow, WhatIfResult } from './types'
 
 export const MOCK_STREAMS: Record<MockScenario, string> = { ranking, compare, weather, alerts, nodata, outofscope, failed, resolution, badyear, history }
 export const scores = scoresJson as ScoreRow[]
 /** GET /hubs and GET /hubs/{id}/score, from scoring.load_hubs() and get_hub_risk on the committed snapshot. */
 export const hubs = hubsJson as Hub[]
 export const hubScores = hubScoresJson as unknown as Record<string, HubScore>
+/** GET /hubs/{id}/history, recorded from get_hub_history on the committed snapshot. */
+export const hubHistories = hubHistoriesJson as unknown as Record<string, HubHistory>
 
 
 /** Recorded from scoring.what_if: the default inputs, and hurricane x3 / flood x1.5 with three upgrade costs. */

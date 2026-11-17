@@ -1,14 +1,14 @@
 // Hub comparison (compare_hubs): one row per hub, one sortable column per measure (click a header to sort, like the
 // Scores table). A verdict line says which measure decides what: the exposure score decides which hub is more
-// exposed, screening priority decides where to look first. The highest (riskiest) value in each column is highlighted.
+// exposed, review priority decides which hubs to examine first. The highest (riskiest) value in each column is highlighted.
 // Narrow screens scroll sideways with the hub column pinned; hub names wrap instead of being cut off.
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { HazardIcon } from '@/components/HazardIcon'
 import { ReadingGuide } from '@/components/ReadingGuide'
-import { FAMILY_LABEL, HAZARD_LABEL, fmt, formatDate, hubName, isNum } from '@/lib/format'
+import { FAMILY_LABEL, HAZARD_LABEL, compact, fmt, formatDate, hasPeople, hubName, isNum } from '@/lib/format'
 import type { Band, Hazard, HubComparison, HubScore } from '@/lib/types'
-import { hubDetail, readingGuide } from '@/lib/explain'
+import { PEOPLE_DAYS_LINE, hubDetail, readingGuide } from '@/lib/explain'
 import { BandPill, WidgetFrame } from './WidgetFrame'
 import { normalizeComparison } from '@/lib/normalize'
 
@@ -26,7 +26,31 @@ interface Column {
   decides?: string
   /** The level shown as a chip beside the number (exposure and priority). */
   level?: (s: HubScore) => Band | null | undefined
+  /** Display format for the number (default: one decimal). */
+  format?: (v: number | null | undefined) => string
+  /** A small second line under the number (e.g. the bad-year people-days). */
+  sub?: (s: HubScore) => string | null
 }
+
+/** People impact columns, shown when the scores carry them (people served is a metro estimate, a proxy). */
+const PEOPLE: Column[] = [
+  {
+    key: 'people',
+    label: 'People served',
+    unit: 'metro, est.',
+    kind: 'number',
+    value: (s) => (hasPeople(s) ? s.people_served : null),
+    format: (v) => compact(v),
+  },
+  {
+    key: 'people_days',
+    label: 'People-days',
+    unit: 'M/yr, typical · bad',
+    kind: 'number',
+    value: (s) => (hasPeople(s) ? s.people_days_m : null),
+    sub: (s) => (hasPeople(s) && isNum(s.people_days_bad_year_m) ? `bad year ${fmt(s.people_days_bad_year_m)}` : null),
+  },
+]
 
 const FIXED: Column[] = [
   { key: 'typical', label: 'Typical year', unit: 'days/yr', kind: 'number', value: (s) => s.exposure_days_per_year },
@@ -43,12 +67,14 @@ const FIXED: Column[] = [
   },
   {
     key: 'priority',
-    label: 'Screening priority',
-    unit: '0-100, level',
+    label: 'Review priority',
+    unit: 'typical yr, 0-100, level',
     kind: 'number',
     value: (s) => s.priority,
     level: (s) => s.priority_band,
-    decides: 'Decides where to look first',
+    // The bad year beside it, so a hub with a low typical priority (Miami, Houston) never reads as safe.
+    sub: (s) => (isNum(s.bad_year_days) ? `bad year ${fmt(s.bad_year_days)} days` : null),
+    decides: 'Decides which hubs to examine first',
   },
   { key: 'risk', label: 'Biggest risk', kind: 'risk', value: (s) => (s.top_driver ? FAMILY_LABEL[s.top_driver] : null) },
 ]
@@ -83,7 +109,7 @@ export function verdict(hubs: HubScore[]): string[] {
       .join(', ')
     return `${what}: ${hubName(top.hub_id)} (${measure} ${fmt(get(top))} vs ${rest}).`
   }
-  return [line('More exposed', 'exposure score', (s) => s.exposure), line('Higher screening priority', 'priority', (s) => s.priority)].filter(
+  return [line('More exposed', 'exposure score', (s) => s.exposure), line('Higher review priority', 'priority', (s) => s.priority)].filter(
     (l): l is string => l !== null,
   )
 }
@@ -95,7 +121,8 @@ const pinned = 'sticky left-0 z-[1] bg-card'
 
 export function ComparisonCards({ data: raw }: { data: HubComparison }) {
   const data = normalizeComparison(raw)
-  const columns = [...FIXED, ...hazardColumns(data.hazards)]
+  const withPeople = data.hubs.some(hasPeople)
+  const columns = [...FIXED, ...(withPeople ? PEOPLE : []), ...hazardColumns(data.hazards)]
   // Default: most exposed first, the verdict's own order.
   const [sort, setSort] = useState<Sort>({ key: 'exposure', dir: 'desc' })
   const col = columns.find((c) => c.key === sort.key) ?? FIXED[2]
@@ -166,8 +193,13 @@ export function ComparisonCards({ data: raw }: { data: HubComparison }) {
       </div>
       <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground" data-testid="compare-caption">
         <span className="rounded-md bg-isobar-soft px-1.5 py-0.5 font-medium text-foreground">Highlighted</span> = the highest, riskiest value in each
-        column. Click a column header to sort. Exposure score decides which hub is more exposed; screening priority decides where to look first.
+        column. Click a column header to sort. Exposure score decides which hub is more exposed; review priority decides which hubs to examine first.
       </p>
+      {withPeople && (
+        <p className="mt-1.5 text-xs text-muted-foreground" data-testid="compare-people">
+          {PEOPLE_DAYS_LINE} People served is the metro-area population, an estimate, not the hub&apos;s customers.
+        </p>
+      )}
       {footer && (
         <p className="mt-1.5 text-xs text-muted-foreground" data-testid="compare-footer">
           Why can a hub be High exposure but Medium priority? Priority also weighs people served and how well the area recovers.
@@ -225,11 +257,11 @@ function renderCell(c: Column, s: HubScore, hubs: HubScore[]): ReactNode {
   const number = (
     // Same padding with or without the pill, so every number's right edge lines up.
     <span data-max={top || undefined} className={`rounded-md px-1.5 py-0.5 ${top ? 'bg-isobar-soft font-medium text-foreground' : ''}`}>
-      {fmt(v)}
+      {(c.format ?? fmt)(v)}
     </span>
   )
   const level = c.level?.(s)
-  return level ? (
+  const main = level ? (
     <span className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
       <span data-level={level}>
         <BandPill band={level} />
@@ -238,5 +270,16 @@ function renderCell(c: Column, s: HubScore, hubs: HubScore[]): ReactNode {
     </span>
   ) : (
     number
+  )
+  const sub = c.sub?.(s)
+  return sub ? (
+    <span className="inline-flex flex-col items-end leading-tight">
+      {main}
+      <span data-sub className="px-1.5 text-[0.7rem] whitespace-nowrap text-muted-foreground">
+        {sub}
+      </span>
+    </span>
+  ) : (
+    main
   )
 }

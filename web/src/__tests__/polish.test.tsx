@@ -86,7 +86,7 @@ describe('Scores table', () => {
     const sortable = screen.getAllByRole('columnheader').filter((th) => th.querySelector('[data-sort-arrow]'))
     expect(sortable.length).toBeGreaterThan(5)
     const after = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
-    let rightAligned = 0
+    let centered = 0
     for (const th of sortable) {
       const label = within(th).getByRole('button', { name: /^Sort by / })
       const info = within(th).getAllByRole('button').find((b) => b !== label)! // the (i)
@@ -96,9 +96,9 @@ describe('Scores table', () => {
       const group = th.querySelector('[data-header-group]')!
       expect(group.className).not.toMatch(/flex-row-reverse/)
       expect(label.className).not.toMatch(/flex-row-reverse/)
-      if (th.className.includes('text-right')) rightAligned++
+      if (th.className.includes('text-center')) centered++
     }
-    expect(rightAligned).toBeGreaterThan(0) // numeric columns are covered too
+    expect(centered).toBeGreaterThan(0) // numeric columns are covered too
   })
 
   it('units are written once in the headers; cells hold bare right-aligned numbers', async () => {
@@ -107,14 +107,14 @@ describe('Scores table', () => {
       ['Typical year', '(days/yr)'],
       ['Bad year', '(days/yr)'],
       ['Hurricane chance', '(10 yr, %)'],
-      ['Screening priority', '(0-100)'],
+      ['Review priority', '(0-100, typical yr)'],
     ]) {
       const th = screen.getByRole('button', { name: `Sort by ${name}` }).closest('th')!
       expect(th).toHaveTextContent(`${name}(${unit.slice(1)}`)
     }
     const row = screen.getAllByRole('row')[1]
-    for (const td of within(row).getAllByRole('cell').slice(1, 5)) {
-      expect(td.className).toContain('text-right')
+    for (const td of within(row).getAllByRole('cell').slice(2, 6)) { // after the map pin and the rank
+      expect(td.className).toContain('text-center') // centered under its header
       expect(td.className).toContain('tabular-nums')
       expect(td.textContent).not.toMatch(/\d\s*(d|%|days)\b/)
     }

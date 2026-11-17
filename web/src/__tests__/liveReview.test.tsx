@@ -298,7 +298,8 @@ describe('chat layout', () => {
 
 describe('comparison table: hubs as rows, sortable measures, a verdict', () => {
   const cmp = toolOutput('chat-stream-compare.sse', 'compare_hubs') as HubComparison // Houston and Dallas
-  const HEADERS = ['Typical year', 'Bad year', 'Exposure score', 'Screening priority', 'Biggest risk']
+  // The mocks carry people impact, so the two people columns follow the fixed ones.
+  const HEADERS = ['Typical year', 'Bad year', 'Exposure score', 'Review priority', 'Biggest risk', 'People served', 'People-days']
   const firstColumn = () => screen.getAllByRole('rowheader').map((th) => th.textContent)
 
   it('one row per hub, one sortable column per measure, the same number of cells in every row', () => {
@@ -316,9 +317,9 @@ describe('comparison table: hubs as rows, sortable measures, a verdict', () => {
     expect(screen.getByTestId('compare-verdict')).toHaveTextContent(
       `More exposed: Dallas (exposure score ${fmt(dallas.exposure)} vs ${fmt(houston.exposure)}).`,
     )
-    expect(screen.getByTestId('compare-verdict')).toHaveTextContent(`Higher screening priority: Dallas (priority ${fmt(dallas.priority)} vs ${fmt(houston.priority)}).`)
+    expect(screen.getByTestId('compare-verdict')).toHaveTextContent(`Higher review priority: Dallas (priority ${fmt(dallas.priority)} vs ${fmt(houston.priority)}).`)
     const deciding = [...document.querySelectorAll('th[data-decides]')].map((th) => th.textContent)
-    expect(deciding).toEqual([expect.stringContaining('Exposure score'), expect.stringContaining('Screening priority')])
+    expect(deciding).toEqual([expect.stringContaining('Exposure score'), expect.stringContaining('Review priority')])
     expect(screen.getByTestId('compare-caption')).toHaveTextContent('Highlighted = the highest, riskiest value in each column.')
     expect(verdict([{ ...houston, exposure: 50 }, { ...dallas, exposure: 50 }])[0]).toBe('More exposed: a tie on exposure score (50).')
   })
@@ -341,7 +342,8 @@ describe('comparison table: hubs as rows, sortable measures, a verdict', () => {
     for (const td of document.querySelectorAll('td[data-kind="number"]')) {
       expect(td.className).toContain('text-right')
       expect(td.className).toContain('tabular-nums')
-      expect(td.textContent).toMatch(/^((Low|Medium|High))?(\d+(\.\d)?|n\/a)$/)
+      // A bare number (people served in compact form), with its level chip or a bad-year second line where shown.
+      expect(td.textContent).toMatch(/^((Low|Medium|High))?(\d+(\.\d+)?[KM]?|n\/a)(bad year \d+(\.\d)?( days)?)?$/)
     }
     // Each score shows its level beside it, in the same cell.
     for (const h of cmp.hubs) {
@@ -370,8 +372,8 @@ describe('comparison table: hubs as rows, sortable measures, a verdict', () => {
   it('asked hazards get their own columns after the fixed ones', () => {
     render(<ComparisonCards data={{ ...cmp, hazards: ['flood', 'hurricane'] }} />)
     const labels = screen.getAllByRole('button', { name: /^Sort hubs by / }).map((b) => b.getAttribute('aria-label')!.replace('Sort hubs by ', ''))
-    expect(labels.slice(0, 5)).toEqual(HEADERS)
-    expect(labels.slice(5)).toEqual(['Flood', 'Hurricane'])
+    expect(labels.slice(0, HEADERS.length)).toEqual(HEADERS)
+    expect(labels.slice(HEADERS.length)).toEqual(['Flood', 'Hurricane'])
   })
 
   it('the "High exposure but Medium priority" footer only when such a hub is present', () => {

@@ -52,7 +52,8 @@ describe('plain-language tips', () => {
   })
 
   it('priority steps show people served in compact form', () => {
-    expect(prioritySteps(hub).join(' ')).toContain('1.28M people')
+    const people = hub.priority_signals.find((p) => p.unit === 'people')!.raw!
+    expect(prioritySteps(hub).join(' ')).toContain(`${compact(people)} people`)
   })
 
   it('InfoTip shows numbered steps and hides the technical detail until asked', async () => {

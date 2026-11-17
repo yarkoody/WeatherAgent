@@ -1,4 +1,5 @@
 // Print reports (rendered by ExportReportButton). Plain HTML for paper: no glass, no charts, no motion.
+import { DataSources } from '@/components/DataSources'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { FAMILIES, FAMILY_LABEL, formatDate, formatValue, hubName } from '@/lib/format'
@@ -68,6 +69,7 @@ export function AnswerReport({ response, question, dataAsOf }: { response: ChatR
           </ul>
         </>
       )}
+      <DataSources className="mt-4" />
     </article>
   )
 }
@@ -98,7 +100,7 @@ export function HubReport({ hub }: { hub: HubScore }) {
             </td>
           </tr>
           <tr>
-            <th>Screening priority (0-100)</th>
+            <th>Review priority (0-100)</th>
             <td>
               {hub.priority} ({hub.priority_band})
             </td>
@@ -145,6 +147,7 @@ export function HubReport({ hub }: { hub: HubScore }) {
         {t.family_medium_from_days} days and high from {t.family_high_from_days}; hurricane is banded by its 10-year chance (medium from {t.hurricane_medium_from_pct}%,
         high from {t.hurricane_high_from_pct}%).
       </p>
+      <DataSources className="mt-4" />
     </article>
   )
 }

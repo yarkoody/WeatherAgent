@@ -29,7 +29,7 @@ export function exposureLines(s: HubScore): string[] {
   ]
 }
 
-/** Screening priority: weighted blend of 0-100 signals. */
+/** Review priority: weighted blend of 0-100 signals. */
 export function priorityLines(s: HubScore): string[] {
   return [
     ...(s.priority_signals ?? []).map((p) => {
@@ -179,7 +179,7 @@ export function prioritySteps(s: HubScore): string[] {
     return `${n0}: ${r1(p.normalized)} of 100 points`
   }
   return [
-    'Screening priority suggests where to look first at upgrades; it is not a cost-benefit estimate. It mixes three things:',
+    `${REVIEW_PRIORITY_MEANING} It mixes three things:`,
     ...(s.priority_signals ?? []).map((p) => `${plain(p)}${isNum(p.weight) ? `, counting for ${Math.round(p.weight * 100)}%` : ''}.`),
     `Result: ${r1(s.priority)} of 100.`,
   ]
@@ -216,6 +216,18 @@ export function weatherStatDetail(s: WeatherStat): string[] {
 export const LOST_DAYS =
   'days a year the hub cannot run normally because of weather (closed or badly slowed), as modeled from how often each hazard happens and how long it usually disrupts a hub.'
 
+/** The one-line meaning of review priority, wherever it is explained. */
+export const REVIEW_PRIORITY_MEANING =
+  "Which hubs to examine first. It doesn't include upgrade costs or existing protection, so it's a starting point for a decision, not the decision itself."
+
+/** One plain line wherever people-days appear. */
+export const PEOPLE_DAYS_LINE =
+  'People-days: if the hub is disrupted, the people it serves (metro estimate) × lost days a year. Computed before rounding.'
+
+/** People served is a proxy, never the hub's customers. */
+export const PEOPLE_SERVED_DEF =
+  "the metro-area population (a Census estimate), used as a stand-in for the people a hub serves, not its actual customers."
+
 export interface LegendEntry {
   term: string
   text: string
@@ -234,9 +246,11 @@ export function readingGuide(t: BandThresholds | null | undefined): LegendEntry[
       text: `lost days a year ÷ ${n(th.days_cap)} × 100, capped at 100.${cut(th.medium_from_days, th.high_from_days, ' days a year')}`,
     },
     {
-      term: 'Screening priority',
-      text: 'the exposure score, scaled up by the people served and the recovery gap (how well the area recovers), 0 to 100. A screening aid, not a measured return.',
+      term: 'Review priority (typical year)',
+      text: `the exposure score, scaled up by the people served and the recovery gap (how well the area recovers), 0 to 100, computed before rounding. It uses the typical year, so check the bad year too. ${REVIEW_PRIORITY_MEANING}`,
     },
+    { term: 'People served (metro)', text: PEOPLE_SERVED_DEF },
+    { term: 'People-days', text: 'if the hub is disrupted: people it serves (metro estimate) × lost days a year, in millions. Computed before rounding.' },
     {
       term: 'Hazard levels',
       text: `by lost operating days a year.${cut(th.family_medium_from_days, th.family_high_from_days, ' days')} Hurricane is rated by the chance of at least one in 10 years instead.${cut(th.hurricane_medium_from_pct, th.hurricane_high_from_pct, '%')}`,

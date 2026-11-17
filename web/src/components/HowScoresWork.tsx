@@ -2,7 +2,9 @@
 // the open/closed choice is remembered in this browser. The example line is built from the live scores.
 import { ChevronDownIcon } from 'lucide-react'
 import { useState } from 'react'
+import { DataSources } from '@/components/DataSources'
 import { LOST_DAYS } from '@/lib/explain'
+import type { Provenance } from '@/lib/provenance'
 import { FAMILY_LABEL, fmt, shortHubName } from '@/lib/format'
 import type { ScoreRow } from '@/lib/types'
 
@@ -27,7 +29,7 @@ export function topHubLine(rows: ScoreRow[]): { question: string; answer: string
   }
 }
 
-export function HowScoresWork({ rows }: { rows: ScoreRow[] | null }) {
+export function HowScoresWork({ rows, provenance }: { rows: ScoreRow[] | null; provenance?: Provenance | null }) {
   const [open, setOpen] = useState(readOpen)
   const example = rows ? topHubLine(rows) : null
   const toggle = () =>
@@ -67,8 +69,13 @@ export function HowScoresWork({ rows }: { rows: ScoreRow[] | null }) {
           <p>Each hazard blends how often FEMA expects such events in the county with how often the weather at the hub really crossed a disruption threshold.</p>
           <p>
             <span className="font-medium text-foreground">Exposure score</span> puts lost operating days on a 0 to 100 scale.{' '}
-            <span className="font-medium text-foreground">Screening priority</span> weighs exposure up for hubs that serve more people or sit in less
-            resilient counties: where to look first, not what an upgrade is worth.
+            <span className="font-medium text-foreground">Review priority</span> weighs exposure up for hubs that serve more people or sit in less
+            resilient counties: which hubs to examine first, a starting point for a decision, not the decision itself.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">People served</span> is the metro-area population, a Census estimate used as a stand-in for the
+            people a hub serves (not its customers). More people raise review priority. People-days: if the hub is disrupted, the people it serves × lost
+            days a year.
           </p>
           <p>That is why a hub can be High exposure but Medium priority.</p>
           {/* Reserve the line while scores load, so nothing below moves. */}
@@ -79,6 +86,7 @@ export function HowScoresWork({ rows }: { rows: ScoreRow[] | null }) {
               </>
             )}
           </p>
+          <DataSources provenance={provenance} className="border-t border-border/60 pt-2" />
         </div>
       )}
     </section>

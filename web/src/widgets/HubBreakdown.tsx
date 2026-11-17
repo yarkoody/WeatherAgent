@@ -1,18 +1,20 @@
 import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { ReadingGuide } from '@/components/ReadingGuide'
-import { bandGapLine, hubDetail, readingGuide } from '@/lib/explain'
+import { PEOPLE_DAYS_LINE, bandGapLine, hubDetail, readingGuide } from '@/lib/explain'
+import { METHODOLOGY_URL, mathSections } from '@/lib/math'
 import { HazardIcon } from '@/components/HazardIcon'
 import { ExportReportButton } from '@/components/PrintReport'
 import { HubReport } from '@/components/reports'
-import { Button } from '@/components/ui/button'
 import { useAsk } from '@/lib/ask'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { HistoryCharts } from './HistoryWidget'
-import { BAND_COLOR, BAND_LABEL_COLOR, FAMILIES, FAMILY_COLOR, FAMILY_LABEL, fmt, formatDate, hubName, isNum, pct } from '@/lib/format'
+import { BAND_COLOR, BAND_LABEL_COLOR, FAMILIES, FAMILY_COLOR, FAMILY_LABEL, fmt, formatDate, hubName, isNum, pct, compact, hasPeople } from '@/lib/format'
 import { normalizeHub } from '@/lib/normalize'
 import { useCountUp, useReducedMotion } from '@/lib/motion'
-import type { HubScore } from '@/lib/types'
+import type { HubHistory, HubScore } from '@/lib/types'
+import { apiFetch } from '@/lib/mockFetch'
+import { Skeleton } from '@/components/ui/skeleton'
 import { BandText, WidgetFrame } from './WidgetFrame'
 
 const config = {
@@ -125,16 +127,23 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Screening priority</dt>
+            <dt className="text-xs text-muted-foreground">Review priority (typical year)</dt>
             <dd className="mt-0.5 font-semibold tabular-nums">
               {fmt(data.priority)}
               {data.priority_band && <span aria-hidden="true" className="font-normal text-muted-foreground">{' · '}</span>}
               <BandText band={data.priority_band} />
             </dd>
+            {/* The bad year beside it, so a hub with a low typical priority never reads as safe. */}
+            {isNum(data.bad_year_days) && (
+              <dd data-testid="priority-bad-year" className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                Bad year: {fmt(data.bad_year_days)} lost days
+              </dd>
+            )}
           </div>
         </dl>
       </div>
       {bandGapLine(data) && <p className="mt-2 text-xs text-muted-foreground">{bandGapLine(data)}</p>}
+      {hasPeople(data) && <PeopleImpactRows data={data} />}
 
       <ChartContainer config={config} className="mt-4 aspect-auto w-full" style={{ height }} initialDimension={{ width: 560, height }}>
         <BarChart data={rows} layout="vertical" margin={{ top: 16, right: 12, bottom: 0, left: 0 }} barCategoryGap={6} accessibilityLayer>
@@ -205,6 +214,8 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
         })}
       </ul>
 
+      <SeeTheMath data={data} />
+
       {data.upgrade_categories.length > 0 && (
         <p className="mt-4 border-t border-border/60 pt-3 text-sm text-muted-foreground">
           Upgrade types to consider{data.top_driver ? ` for ${FAMILY_LABEL[data.top_driver].toLowerCase()}` : ''}:{' '}
@@ -222,21 +233,90 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
   )
 }
 
-/** History tab: the observed history the agent fetched in this chat, or a button that asks for it. */
+/** History tab: the history the agent already fetched in this chat, otherwise GET /hubs/{hub_id}/history. */
 function HistoryTab({ hubId, name }: { hubId: string; name: string }) {
-  const { ask, histories } = useAsk()
-  const history = histories[hubId]
-  if (history) return <HistoryCharts data={history} />
+  const { histories } = useAsk()
+  const known = histories[hubId]
+  const [state, setState] = useState<{ data?: HubHistory; error?: string } | null>(null)
+  useEffect(() => {
+    if (known) return
+    const ctl = new AbortController()
+    setState(null)
+    apiFetch(`/hubs/${encodeURIComponent(hubId)}/history`, { signal: ctl.signal })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { detail?: string } | null)?.detail ?? `HTTP ${r.status}`)
+        return r.json() as Promise<HubHistory>
+      })
+      .then((data) => setState({ data }))
+      .catch((e: Error) => {
+        if (e.name !== 'AbortError') setState({ error: e.message })
+      })
+    return () => ctl.abort()
+  }, [hubId, known])
+  const data = known ?? state?.data
+  if (data) return <HistoryCharts data={data} />
+  if (state?.error)
+    return (
+      <p className="rounded-2xl bg-band-high-soft px-4 py-3 text-sm text-band-high-text" role="alert">
+        The observed history for {name} could not be loaded ({state.error}).
+      </p>
+    )
   return (
-    <div className="flex flex-col items-start gap-2 py-2 text-sm text-muted-foreground">
-      <p>Observed disruption-threshold days per year and by month: days when weather at the hub crossed a disruption threshold. Not confirmed closures.</p>
-      {ask ? (
-        <Button variant="outline" size="sm" onClick={() => ask(`Show the observed weather history for ${name}.`)}>
-          Show observed history
-        </Button>
-      ) : (
-        <p>Ask in chat for the observed history of {name}.</p>
-      )}
+    <div role="status" aria-label={`Loading the observed history for ${name}`} className="space-y-2 py-2">
+      <Skeleton className="h-32 w-full rounded-2xl" />
+      <Skeleton className="h-20 w-full rounded-2xl" />
     </div>
+  )
+}
+
+/** People impact: people served (metro estimate) and people-days, typical and bad year, with one plain line. */
+function PeopleImpactRows({ data }: { data: HubScore }) {
+  return (
+    <section aria-label="People impact" className="mt-3 border-t border-border/60 pt-3">
+      <dl className="grid grid-cols-3 gap-x-4 text-sm">
+        <div>
+          <dt className="text-xs text-muted-foreground">People served (metro)</dt>
+          <dd className="mt-0.5 font-semibold tabular-nums">{compact(data.people_served)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">People-days, typical (M/yr)</dt>
+          <dd className="mt-0.5 font-semibold tabular-nums">{fmt(data.people_days_m)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">People-days, bad year (M/yr)</dt>
+          <dd className="mt-0.5 font-semibold tabular-nums">{fmt(data.people_days_bad_year_m)}</dd>
+        </div>
+      </dl>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        {PEOPLE_DAYS_LINE} People served is the metro-area population{data.metro_name ? ` (${data.metro_name})` : ''}, an estimate, not the hub&apos;s customers.
+      </p>
+    </section>
+  )
+}
+
+/** "See the math": closed by default; the hub's own calculation, every number from the tool output. */
+function SeeTheMath({ data }: { data: HubScore }) {
+  const sections = mathSections(data)
+  return (
+    <details data-testid="see-the-math" className="group/math mt-4 rounded-2xl bg-foreground/[0.03] px-3 py-2">
+      <summary className="cursor-pointer text-sm font-medium">See the math</summary>
+      <div className="mt-2 space-y-3">
+        {sections.map((sec) => (
+          <section key={sec.title} aria-label={sec.title}>
+            <h4 className="text-xs font-semibold text-foreground">{sec.title}</h4>
+            <ul className="mt-1 space-y-0.5 font-mono text-[0.7rem] leading-relaxed text-muted-foreground tabular-nums">
+              {sec.lines.map((l) => (
+                <li key={l} className="break-words">
+                  {l}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+        <a href={METHODOLOGY_URL} target="_blank" rel="noreferrer" className="inline-block text-xs font-medium text-isobar underline-offset-2 hover:underline">
+          Full methodology
+        </a>
+      </div>
+    </details>
   )
 }

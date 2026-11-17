@@ -4,12 +4,21 @@
 import { MinusIcon, PlusIcon, RotateCcwIcon, XIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useMediaQuery } from '@/lib/useMediaQuery'
+import { useReducedMotion } from '@/lib/motion'
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup, useMapContext } from 'react-simple-maps'
 import states from 'us-atlas/states-10m.json'
 import { HAZARD_ICON, HazardIcon } from '@/components/HazardIcon'
 import { Button } from '@/components/ui/button'
-import { FAMILIES, FAMILY_COLOR, FAMILY_LABEL, fmt, shortHubName } from '@/lib/format'
+import { FAMILIES, FAMILY_COLOR, FAMILY_LABEL, compact, fmt, hasPeople, shortHubName } from '@/lib/format'
 import type { Hub, ScoreRow } from '@/lib/types'
+
+type ColorMode = 'risk' | 'people'
+
+/** One-hue scale for people impact: from a light tint (fewest people-days) to the full accent (most). */
+export function impactColor(value: number, min: number, max: number): string {
+  const t = max > min ? (value - min) / (max - min) : 1
+  return `color-mix(in oklab, var(--color-isobar) ${Math.round(30 + 70 * t)}%, var(--map-land))`
+}
 
 const WIDTH = 975
 const HEIGHT = 610
@@ -18,6 +27,8 @@ export const RING_MILES = Math.sqrt(1000 / Math.PI) // ≈ 17.8
 const MILES_PER_DEGREE_LAT = 69.05
 const HOME = { center: [-96, 38] as [number, number], zoom: 1 }
 const MIN_ZOOM = 1
+/** The zoom used when the table asks the map to show a hub: close enough to see its ring, still regional. */
+const FOCUS_ZOOM = 3
 const MAX_ZOOM = 8
 
 /** Wheel zooms only with Ctrl/⌘ (trackpad pinch sends ctrlKey), so the page still scrolls over the map. */
@@ -53,7 +64,10 @@ export function HubMap({
   onClose,
   panel,
   panelTitle,
+  focusRequest,
 }: {
+  /** Table → map: center and zoom on this hub and pulse its dot once (a new `n` repeats it). */
+  focusRequest?: { id: string; n: number } | null
   hubs: Hub[]
   rows: ScoreRow[]
   selected: string | null
@@ -85,12 +99,31 @@ export function HubMap({
   const [hover, setHover] = useState<string | null>(null)
   const byId = new Map(rows.map((r) => [r.hub_id, r]))
   const maxBad = Math.max(1, ...rows.map((r) => r.bad_year_days))
+  // Color by: the hub's biggest risk (hazard colors, size = bad-year days) or people impact
+  // (one-hue scale by people-days, size = people served). People data may be missing on older backends.
+  const [mode, setMode] = useState<ColorMode>('risk')
+  const peopleKnown = rows.some(hasPeople)
+  const people = mode === 'people' && peopleKnown
+  const peopleDays = rows.filter(hasPeople).map((r) => r.people_days_m!)
+  const [minPd, maxPd] = [Math.min(...peopleDays), Math.max(...peopleDays)]
+  const maxServed = Math.max(1, ...rows.filter(hasPeople).map((r) => r.people_served!))
   // Dots keep their on-screen size while the map zooms (the ring, in map units, grows with it).
   const k = view.zoom
   // Zoom buttons zoom toward the selected hub when there is one.
   const focus = hubs.find((h) => h.id === selected)
   const zoomBy = (f: number) =>
     setView((v) => ({ center: focus ? [focus.lon, focus.lat] : v.center, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * f)) }))
+  // A request from the table: center on the hub at a moderate zoom and pulse its dot once (no pulse under reduced motion).
+  const reduced = useReducedMotion()
+  const [pulse, setPulse] = useState<{ id: string; n: number } | null>(null)
+  useEffect(() => {
+    if (!focusRequest) return
+    const hub = hubs.find((h) => h.id === focusRequest.id)
+    if (!hub) return
+    setView((v) => ({ center: [hub.lon, hub.lat], zoom: Math.max(v.zoom, FOCUS_ZOOM) }))
+    if (!reduced) setPulse(focusRequest)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.n])
   // Selecting a hub while zoomed in brings it into view.
   useEffect(() => {
     if (focus) setView((v) => (v.zoom > 1 ? { ...v, center: [focus.lon, focus.lat] } : v))
@@ -148,11 +181,21 @@ export function HubMap({
           {hubs.map((h) => {
             const r = byId.get(h.id)
             const driver = r?.top_driver
-            const color = driver ? FAMILY_COLOR[driver] : 'var(--muted-foreground)'
+            const withPeople = people && r !== undefined && hasPeople(r)
+            const color = people
+              ? withPeople
+                ? impactColor(r!.people_days_m!, minPd, maxPd)
+                : 'var(--muted-foreground)'
+              : driver
+                ? FAMILY_COLOR[driver]
+                : 'var(--muted-foreground)'
             const active = selected === h.id
             const shown = active || hover === h.id
-            const dot = 4 + 7 * Math.sqrt((r?.bad_year_days ?? 0) / maxBad) // area follows bad-year days
-            const label = `${shortHubName(h.name)}: biggest risk ${driver ? FAMILY_LABEL[driver].toLowerCase() : 'unknown'}, ${fmt(r?.bad_year_days)} lost operating days in a bad year`
+            // Dot area follows bad-year days (risk) or people served (people impact).
+            const dot = people ? 4 + 7 * Math.sqrt((withPeople ? r!.people_served! : 0) / maxServed) : 4 + 7 * Math.sqrt((r?.bad_year_days ?? 0) / maxBad)
+            const label = people
+              ? `${shortHubName(h.name)}: ${withPeople ? `${fmt(r!.people_days_m)} million people-days a year, ${compact(r!.people_served)} people served (metro estimate)` : 'people impact not available'}`
+              : `${shortHubName(h.name)}: biggest risk ${driver ? FAMILY_LABEL[driver].toLowerCase() : 'unknown'}, ${fmt(r?.bad_year_days)} lost operating days in a bad year`
             return (
               <Marker
                 key={h.id}
@@ -174,6 +217,18 @@ export function HubMap({
               >
                 <Ring hub={h} />
                 <g transform={`scale(${1 / k})`}>
+                  {pulse?.id === h.id && (
+                    <circle
+                      key={pulse.n}
+                      data-pulse
+                      r={dot}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                      className="hub-pulse"
+                      onAnimationEnd={() => setPulse(null)}
+                    />
+                  )}
                   <circle
                     className="hub-dot"
                     r={dot}
@@ -183,8 +238,8 @@ export function HubMap({
                   />
                   {shown && (
                     <g data-hub-label pointerEvents="none">
-                      <rect x={-12} y={-dot - 30} width={24} height={24} rx={12} fill="var(--background)" stroke="currentColor" strokeWidth={1.25} />
-                      {driver && <MapIcon hazard={driver} y={-dot - 25} />}
+                      {!people && <rect x={-12} y={-dot - 30} width={24} height={24} rx={12} fill="var(--background)" stroke="currentColor" strokeWidth={1.25} />}
+                      {driver && !people && <MapIcon hazard={driver} y={-dot - 25} />}
                       <text y={dot + 15} textAnchor="middle" fontSize={12} fontWeight={600} fill="var(--foreground)" stroke="var(--background)" strokeWidth={3} paintOrder="stroke">
                         {shortHubName(h.name)}
                       </text>
@@ -230,22 +285,62 @@ export function HubMap({
 
       {/* Legend under the map: one row of hazard keys and what dots and rings mean (wraps on phones), then the hint. */}
       <div data-testid="map-legend" className="mt-2.5 px-1 text-xs leading-relaxed text-muted-foreground">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <ul aria-label="Biggest risk colors" className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            {FAMILIES.map((f) => (
-              <li key={f} className="inline-flex items-center gap-1.5 text-foreground">
-                <span className="size-2.5 rounded-full" style={{ background: FAMILY_COLOR[f] }} aria-hidden="true" />
-                <HazardIcon hazard={f} className="size-3.5" />
-                {FAMILY_LABEL[f]}
-              </li>
-            ))}
-          </ul>
-          <p title="The ring is a 1,000 sq mi circle around the hub">
-            Dot color: biggest risk · Dot size: lost operating days in a bad year · Ring: 18-mile local-hazard area (local floods, tornadoes, wind and
-            hail count toward the hub)
-          </p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <div role="group" aria-label="Color by" className="inline-flex items-center gap-1.5">
+            <span>Color by</span>
+            <span className="inline-flex rounded-lg bg-foreground/5 p-0.5">
+              {(['risk', 'people'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={mode === m}
+                  disabled={m === 'people' && !peopleKnown}
+                  onClick={() => setMode(m)}
+                  className={`rounded-md px-2 py-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${mode === m ? 'bg-background font-medium text-foreground shadow-sm' : 'hover:text-foreground'}`}
+                >
+                  {m === 'risk' ? 'Biggest risk' : 'People impact'}
+                </button>
+              ))}
+            </span>
+          </div>
+          {people ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 text-foreground" data-testid="impact-scale">
+                <span className="tabular-nums">{fmt(minPd)}</span>
+                <span
+                  className="h-2 w-24 rounded-full"
+                  style={{ background: `linear-gradient(to right, ${impactColor(minPd, minPd, maxPd)}, ${impactColor(maxPd, minPd, maxPd)})` }}
+                  aria-hidden="true"
+                />
+                <span className="tabular-nums">{fmt(maxPd)}</span>
+                <span className="text-muted-foreground">million people-days a year</span>
+              </span>
+              <p>
+                Dot color: people-days (if the hub is disrupted: people it serves, metro estimate, × lost days a year) · Dot size: people served (metro population, an estimate, not
+                the hub's customers) · Ring: 18-mile local-hazard area
+              </p>
+            </>
+          ) : (
+            <>
+              <ul aria-label="Biggest risk colors" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                {FAMILIES.map((f) => (
+                  <li key={f} className="inline-flex items-center gap-1.5 text-foreground">
+                    <span className="size-2.5 rounded-full" style={{ background: FAMILY_COLOR[f] }} aria-hidden="true" />
+                    <HazardIcon hazard={f} className="size-3.5" />
+                    {FAMILY_LABEL[f]}
+                  </li>
+                ))}
+              </ul>
+              <p title="The ring is a 1,000 sq mi circle around the hub">
+                Dot color: biggest risk · Dot size: lost operating days in a bad year · Ring: 18-mile local-hazard area (local floods, tornadoes, wind and
+                hail count toward the hub)
+              </p>
+            </>
+          )}
         </div>
-        <p className="mt-1 text-[0.7rem] text-muted-foreground/80">Drag to move; zoom with the buttons, a pinch, or Ctrl/⌘ + scroll.</p>
+        <p className="mt-1 text-[0.7rem] text-muted-foreground/80">
+          Drag to move; zoom with the buttons, a pinch, or Ctrl/⌘ + scroll.{!peopleKnown && ' People impact appears when the scores include it.'}
+        </p>
       </div>
     </section>
   )
