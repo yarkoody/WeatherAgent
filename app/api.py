@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
 from app import agent
-from app.schemas import ChatRequest, ChatResponse, Hub, ScoreRow, WhatIfInput, WhatIfResult
+from app.schemas import ChatRequest, ChatResponse, Hub, ScoreRow, SecondOpinion, WhatIfInput, WhatIfResult
 from app.store import Store, Tracer
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -134,6 +134,8 @@ def create_app(
     nws_fetch: Callable[[], list[dict]] | None = None,
     baseline_path: Path | None = None,
     alerts_log: Path | None = None,
+    second_opinion_path: Path | None = None,
+    second_opinion_builder: Callable[[], Any] | None = None,
 ) -> FastAPI:
     from dotenv import load_dotenv
 
@@ -235,6 +237,33 @@ def create_app(
             return scoring.what_if(scoring.load_hubs(), scoring.load_snapshot(), body)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+    opinion_path = second_opinion_path or DATA_DIR / "jev_second_opinion.json"
+
+    @app.get("/second-opinion")
+    def second_opinion() -> SecondOpinion:
+        """The last offline JEV cross-check, read from a committed file. No live JEV call."""
+        if not opinion_path.exists():
+            raise HTTPException(404, "No JEV second opinion has been run yet.")
+        return SecondOpinion.model_validate_json(opinion_path.read_text())
+
+    @app.post("/second-opinion/rerun")
+    async def second_opinion_rerun(request: Request) -> SecondOpinion:
+        """Developer-only rerun. Enabled only where JEV_RERUN_ENABLED=1 and a TypeSafe key exist (a local machine)."""
+        if os.environ.get("JEV_RERUN_ENABLED") != "1" or not os.environ.get("TYPESAFE_API_KEY"):
+            raise HTTPException(503, "JEV rerun is only available when running locally with JEV_RERUN_ENABLED=1 and a TypeSafe key.")
+        limit(request)
+        builder = second_opinion_builder
+        if builder is None:
+            from app.second_opinion import build_second_opinion as builder
+        try:
+            result = await builder()
+        except Exception as exc:
+            raise HTTPException(503, "The JEV run failed. Try again later.") from exc
+        tmp = opinion_path.with_suffix(".tmp")
+        tmp.write_text(result.model_dump_json(indent=2))
+        tmp.replace(opinion_path)
+        return result
 
     @app.post("/alerts/check")
     def alerts_check(x_alert_token: str | None = Header(default=None)) -> dict[str, Any]:

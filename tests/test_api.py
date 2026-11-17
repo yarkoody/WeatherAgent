@@ -233,3 +233,74 @@ def test_what_if_rejects_bad_input_with_422():
     client = TestClient(create_app(model=object()))
     assert client.post("/what-if", json={"upgrade_costs": [{"hub_id": "boise", "cost_musd": 2.0}]}).status_code == 422
     assert client.post("/what-if", json={"family_weights": {"flood": -1}}).status_code == 422
+
+
+# ---------- /second-opinion (offline JEV results) ----------
+
+
+def _opinion_json() -> dict:
+    return {
+        "model": "jev-latest", "run_at": "2026-11-17T12:00:00Z", "data_as_of": "2026-11-17",
+        "hubs": [{"hub_id": "miami", "name": "Miami FL", "families": [
+            {"family": "hurricane", "jev_band": "high", "jev_score_pct": 81.0, "our_band": "low", "agrees": False}],
+            "agree_count": 0, "total": 1}],
+        "agree_count": 0, "total": 1, "agreement_pct": 0.0,
+        "note": "Independent rating by JEV on the same raw signals. Does not affect scores.",
+    }
+
+
+def test_second_opinion_serves_saved_file(tmp_path):
+    import json
+
+    from fastapi.testclient import TestClient
+
+    from app.api import create_app
+
+    path = tmp_path / "jev.json"
+    path.write_text(json.dumps(_opinion_json()))
+    client = TestClient(create_app(model=object(), second_opinion_path=path))
+    r = client.get("/second-opinion")
+    assert r.status_code == 200
+    assert r.json()["hubs"][0]["families"][0]["jev_band"] == "high"
+
+
+def test_second_opinion_missing_file_is_404(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from app.api import create_app
+
+    client = TestClient(create_app(model=object(), second_opinion_path=tmp_path / "none.json"))
+    assert client.get("/second-opinion").status_code == 404
+
+
+def test_rerun_disabled_without_flag_and_key(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.api import create_app
+
+    monkeypatch.delenv("JEV_RERUN_ENABLED", raising=False)
+    client = TestClient(create_app(model=object(), second_opinion_path=tmp_path / "jev.json"))
+    r = client.post("/second-opinion/rerun")
+    assert r.status_code == 503
+    assert "local" in r.json()["detail"].lower()
+
+
+def test_rerun_runs_injected_builder_and_saves(tmp_path, monkeypatch):
+    import json
+
+    from fastapi.testclient import TestClient
+
+    from app.api import create_app
+    from app.schemas import SecondOpinion
+
+    monkeypatch.setenv("JEV_RERUN_ENABLED", "1")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    path = tmp_path / "jev.json"
+
+    async def fake_builder():
+        return SecondOpinion.model_validate(_opinion_json())
+
+    client = TestClient(create_app(model=object(), second_opinion_path=path, second_opinion_builder=fake_builder))
+    r = client.post("/second-opinion/rerun")
+    assert r.status_code == 200
+    assert json.loads(path.read_text())["model"] == "jev-latest"
