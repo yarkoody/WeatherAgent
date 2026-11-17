@@ -7,7 +7,8 @@ Exposure is expected disruption days per year (typical year):
 - each family blends the two (NRI 0.6, observed 0.4; hurricane NRI only), families add up,
   and the index is min(days / 25, 1) x 100, so the 35/60 bands mean 8.75 and 15 days per year.
 Family bands: 2 / 5 days per year; hurricane by the chance of at least one event in 10 years (20% / 50%).
-Bad-year lens: expected days + 1.645 x sd (a 1-in-20-year year), sd from a compound-Poisson variance.
+Bad-year lens: average lost days in the worst 1 in 20 years (TVaR95), computed exactly from the compound-Poisson
+distribution of annual days (Panjer recursion), with an exact per-family allocation.
 Priority = exposure x (0.6 + 0.25 x people served share + 0.15 x resilience-gap share).
 Same snapshot and config always give the same output; ties break by hub_id.
 """
@@ -17,6 +18,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
+from fractions import Fraction
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -75,6 +77,9 @@ class ScoringConfig(BaseModel):
     reference_area_sq_mi: float = 1000.0
     # coastal flood: county counts scaled by the share of county area NRI marks as exposed (CFLD_EXP_AREA / AREA)
     coastal_exposure_scaling: bool = True
+    # used when NRI has a coastal-flood frequency but no exposed area: median share of the hubs with data
+    # (Detroit 1.7%, LA 2.5%, Chicago 2.9%, Newark 5.2%, Miami 5.6%, Houston 9.2%)
+    coastal_default_exposed_share: float = 0.0405
 
     nri_weight: float = 0.6
     observed_weight: float = 0.4
@@ -101,9 +106,10 @@ class ScoringConfig(BaseModel):
     hurricane_high_from_pct: float = 50.0
     hurricane_window_years: float = 10.0
 
-    # bad-year lens: expected days + z x sd (z = 1.645, one-sided 95%: a 1-in-20-year year)
-    bad_year_z: float = 1.645
-    # hurricane closure-length mix for the variance only: 80% short (4 days), 20% severe (35 days)
+    # bad-year lens: TVaR at 95% = average lost days in the worst 1 in 20 years
+    bad_year_alpha: float = 0.95
+    # hurricane closure-length mix in the bad-year distribution: 80% short (4 days), 20% severe (35 days).
+    # Its mean (10.2 days) is close to the 10 days per event used for expected days.
     hurricane_days_mix: tuple[tuple[float, float], ...] = ((0.8, 4.0), (0.2, 35.0))
 
     # what-if baseline: a disruption day counts the same in every family
@@ -223,20 +229,73 @@ OBS_LABELS = {
 }
 
 
-def _second_moment(key: str, config: ScoringConfig) -> float:
-    """E[D^2] of days lost per event: fixed days, except the hurricane closure-length mix."""
-    if key == "HRCN":
-        return sum(share * d * d for share, d in config.hurricane_days_mix)
-    return config.days_per_event[key] ** 2
+Stream = tuple[float, float]  # (days lost per event, events per year)
+
+
+def _fgcd(a: Fraction, b: Fraction) -> Fraction:
+    return Fraction(math.gcd(a.numerator * b.denominator, b.numerator * a.denominator), a.denominator * b.denominator)
+
+
+def tvar95(streams: dict[str, list[Stream]], alpha: float = 0.95) -> tuple[float, dict[str, float]]:
+    """TVaR (mean of the worst 1 - alpha of years) of annual lost days, and each family's exact share of it.
+
+    Annual days S = sum of independent compound-Poisson streams (events at a rate, each losing a fixed number of
+    days). The distribution of S is computed exactly on a grid whose step is the largest common divisor of the
+    event sizes (Panjer recursion), with no randomness. The atom at the 95% quantile is split so the tail holds
+    exactly 1 - alpha of probability. Family shares are the Euler allocation E[S_family | worst years], computed
+    with E[S_f; S=x] = sum over f's streams of size x rate x P(S = x - size); they sum to the TVaR.
+    """
+    shares = {f: 0.0 for f in streams}
+    active = [(f, Fraction(d).limit_denominator(64), r) for f, lst in streams.items() for d, r in lst if d > 0 and r > 0]
+    if not active:
+        return 0.0, shares
+    unit = active[0][1]
+    for _, d, _ in active[1:]:
+        unit = _fgcd(unit, d)
+    by_family: dict[str, list[tuple[int, float]]] = {}
+    for f, d, r in active:
+        j = int(d / unit)
+        by_family.setdefault(f, []).append((j, r * j))  # (size in grid units, rate x size)
+    lam = sum(r for _, _, r in active)
+    if lam > 700:
+        raise ValueError(f"event rate {lam:.0f} per year is too high for the recursion")
+    mean = sum(rj for lst in by_family.values() for _, rj in lst)
+    sd = math.sqrt(sum(rj * j for lst in by_family.values() for j, rj in lst))
+    max_j = max(j for lst in by_family.values() for j, _ in lst)
+    horizon = int(mean + 15 * sd + 3 * max_j) + 1
+    g = [math.exp(-lam)]
+    h = {f: [0.0] for f in by_family}
+    cum = g[0]
+    x = 0
+    while (x < horizon or 1 - cum > 1e-13) and x < 400_000:
+        x += 1
+        total = 0.0
+        for f, lst in by_family.items():
+            hf = sum(rj * g[x - j] for j, rj in lst if j <= x)
+            h[f].append(hf)
+            total += hf
+        g.append(total / x)
+        cum += g[-1]
+    cum, v = 0.0, 0
+    for v, p in enumerate(g):
+        cum += p
+        if cum >= alpha - 1e-15:
+            break
+    split = (cum - alpha) / g[v] if g[v] > 0 else 0.0  # share of the quantile atom that belongs to the tail
+    scale = float(unit) / (1 - alpha)
+    tail = sum(i * g[i] for i in range(v + 1, len(g))) + split * v * g[v]
+    for f in by_family:
+        shares[f] = (sum(h[f][v + 1:]) + split * h[f][v]) * scale
+    return tail * scale, shares
 
 
 def _family_days(
     hub: Hub, snapshot: Snapshot, config: ScoringConfig,
-) -> dict[Family, tuple[float, list[Signal], float]]:
-    """Per family: expected days per year, signals, and variance of days (for the bad-year lens).
+) -> dict[Family, tuple[float, list[Signal], list[Stream]]]:
+    """Per family: expected days per year, signals, and the event streams of the bad-year distribution.
 
-    Variance follows the formula review: sum over sub-hazards of weight x adjusted frequency x E[D^2]
-    (compound Poisson); the observed signal adds to the mean only.
+    Streams: each NRI sub-hazard at rate weight x adjusted frequency, losing its days per event (hurricane: the
+    closure-length mix); the observed signal as 1-day events at rate observed weight x observed days per year.
     """
     county = snapshot.nri["counties"][hub.county_fips]
     observed, nulls = _observed_days(snapshot.weather["hubs"][hub.id], config)
@@ -246,7 +305,7 @@ def _family_days(
         nri_w = 1.0 if family == "hurricane" else config.nri_weight
         signals: list[Signal] = []
         days = 0.0
-        variance = 0.0
+        streams: list[Stream] = []
         for key, label in NRI_HAZARDS[family]:
             raw = county.get(f"{key}_AFREQ")
             dpe = config.days_per_event[key]
@@ -260,14 +319,20 @@ def _family_days(
             elif key == "CFLD" and config.coastal_exposure_scaling:
                 exposed = county.get("CFLD_EXP_AREA")
                 if exposed is None or not area:
-                    note = "exposed coastal area missing in NRI; not scaled"
+                    factor = config.coastal_default_exposed_share
+                    note = (f"exposed coastal area missing in NRI; default share {100 * factor:.2f}% "
+                            "(median of the hubs with data)")
                 else:
                     factor = min(exposed / area, 1.0)
                     note = f"{100 * factor:.1f}% of county area exposed to coastal flooding (NRI)"
             implied = (raw or 0.0) * dpe * factor
             contribution = nri_w * implied
             days += contribution
-            variance += nri_w * (raw or 0.0) * factor * _second_moment(key, config)
+            rate = nri_w * (raw or 0.0) * factor
+            if key == "HRCN":
+                streams += [(d, share * rate) for share, d in config.hurricane_days_mix]
+            else:
+                streams.append((dpe, rate))
             signals.append(Signal(
                 name=f"{label} (FEMA NRI, {dpe:g} days/event)", source=NRI_SOURCE,
                 raw=None if raw is None else _r(raw, 3), unit="events/year", cap=None,
@@ -277,6 +342,7 @@ def _family_days(
             obs = observed[family]
             contribution = config.observed_weight * obs
             days += contribution
+            streams.append((1.0, contribution))  # observed disruption days as 1-day events
             signals.append(Signal(
                 name=OBS_LABELS[family].format(**config.model_dump()), source=OBS_SOURCE,
                 raw=_r(obs, 3), unit="days/year", cap=None, normalized=_r(obs, 3),
@@ -284,7 +350,7 @@ def _family_days(
                 note=(f"average per year {config.observed_start} to {config.observed_end}; "
                       f"{nulls[family]} null values"),
             ))
-        out[family] = (days, signals, variance)
+        out[family] = (days, signals, streams)
     return out
 
 
@@ -354,10 +420,10 @@ def _score_hub(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> HubScore:
     top = max(FAMILIES, key=lambda f: (fam[f][0], -FAMILIES.index(f)))
     shares = {f: 100 * (fam[f][0] / total_days if total_days else 1 / len(FAMILIES)) for f in FAMILIES}
     hurricane_pct = _r(hurricane_probability_pct(county.get("HRCN_AFREQ") or 0.0, config), 1)
-    bad_year = total_days + config.bad_year_z * math.sqrt(sum(v for _, _, v in fam.values()))
+    bad_year, bad_shares = tvar95({f: fam[f][2] for f in FAMILIES}, config.bad_year_alpha)
     families = {
         f: FamilyScore(family=f, score=_r(normalize(fam[f][0], config.exposure_days_cap), 1),
-                       days_per_year=_r(fam[f][0], 1),
+                       days_per_year=_r(fam[f][0], 1), bad_year_days=_r(bad_shares[f], 1),
                        # bands follow the displayed (rounded) values, like exposure_band
                        band=(hurricane_band(hurricane_pct, config) if f == "hurricane"
                              else family_band(_r(fam[f][0], 1), config)),
@@ -384,6 +450,17 @@ def _score_hub(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> HubScore:
     )
 
 
+def expected_days(hub: Hub, snapshot: Snapshot, config: ScoringConfig = DEFAULT_CONFIG) -> float:
+    """Unrounded expected disruption days per year (typical year)."""
+    return sum(d for d, _, _ in _family_days(hub, snapshot, config).values())
+
+
+def bad_year_days(hub: Hub, snapshot: Snapshot, config: ScoringConfig = DEFAULT_CONFIG) -> float:
+    """Unrounded average lost days in the worst 1 in 20 years (TVaR95)."""
+    fam = _family_days(hub, snapshot, config)
+    return tvar95({f: fam[f][2] for f in FAMILIES}, config.bad_year_alpha)[0]
+
+
 def score_all(hubs: list[Hub], snapshot: Snapshot, config: ScoringConfig = DEFAULT_CONFIG) -> dict[str, HubScore]:
     return {h.id: _score_hub(h, snapshot, config) for h in sorted(hubs, key=lambda h: h.id)}
 
@@ -403,7 +480,6 @@ def rank(
 ) -> Ranking:
     if hazard != "overall" and kind != "exposure":
         raise ValueError("a hazard other than 'overall' is only valid with kind='exposure'")
-    cap = config.exposure_days_cap
     by_id = {h.id: h for h in hubs}
     values = {}
     for hub_id, s in scores.items():
@@ -418,9 +494,9 @@ def rank(
         else:
             values[hub_id] = s.families[hazard].score
 
-    def item_band(hub_id: str, v: float) -> Band:
-        if kind == "bad_year":  # bad-year days on the same day cut-offs as exposure (8.75 / 15)
-            return band(normalize(v, cap), config)
+    def item_band(hub_id: str, v: float) -> Band | None:
+        if kind == "bad_year":  # no meaningful band on the tail lens: most hubs would read "high"
+            return None
         if kind == "exposure" and hazard != "overall":
             return scores[hub_id].families[hazard].band
         return band(v, config)

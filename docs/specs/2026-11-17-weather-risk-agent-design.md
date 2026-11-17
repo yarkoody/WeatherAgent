@@ -128,11 +128,17 @@ Why these days per event: most NRI winter-weather events are advisory level and 
 
 Each signal reports `raw` (events/year or days/year), `normalized` (days/year implied by that signal), `weight` (0.6, 0.4 or 1.0) and `contribution` (weighted days/year). `family_weights` is each family's share of the hub's days in percent. `band_thresholds` carries every cut-off (index, days, family days, hurricane %). Observed days per year = event days ÷ (days in the window ÷ 365.25); each observed note states the window's null count. `exposure_days_per_year` and `days_per_year` are unclipped, 1 decimal.
 
-### 6.2 Bad-year lens (1-in-20-year disruption days)
+### 6.2 Bad-year lens: average lost days in the worst 1 in 20 years (TVaR95)
 
-Expected days describe a typical year; an investment must also survive a bad one. `bad_year_days` = expected days + 1.645 × σ, the one-sided 95th percentile under a normal approximation, i.e. roughly a 1-in-20-year year. σ² = Σ over NRI sub-hazards of weight × adjusted frequency × E[D²] (compound Poisson: events arrive at random, each closing the hub for D days). D is fixed per hazard except hurricane, modeled as a mix: 80% of events close the hub ~4 days, 20% ~35 days (E[D²] = 257.8; the expected-days metric keeps Eden's 10 days per hurricane). The observed signal adds to the mean only. `rank_hubs` with `score="bad_year"` ranks by it.
+Expected days describe a typical year; an investment must also survive a bad one. `bad_year_days` is the **average lost days in the worst 1 in 20 years** (tail value at risk at 95%, TVaR95), computed exactly, with no approximation and no randomness:
 
-On the snapshot the bad-year order differs from the typical-year order where the tail matters: Newark moves from 6th to 2nd (25.4 days), Houston from 11th to 6th (23.0), Miami from 13th to 7th (22.9). Minneapolis stays first (33.5).
+- **Model.** A hub's annual lost days are a sum of independent compound-Poisson streams: each NRI sub-hazard is a stream of events at rate weight × adjusted frequency (the same weights, area and coastal scaling as 6.1), each event losing its days per event; the observed signal is a stream of 1-day events at rate 0.4 × observed days per year. So the bad-year distribution has the same mean as the typical year, apart from the hurricane mix below.
+- **Hurricane closures** are a mix: 80% of events close the hub about 4 days, 20% about 35 days. The mix mean is 10.2 days, against Eden's 10 days per event in the expected-days metric; the 0.2-day difference per event (0.06 days per year for Miami) is left in, so the two lenses stay readable side by side.
+- **Distribution.** The probability of every possible annual total is computed with a Panjer recursion on a grid whose step is the largest common divisor of the event sizes (0.25 days with the current table). TVaR95 = the mean of the worst 5% of years; the probability atom at the 95% quantile is split so the tail holds exactly 5%. A seeded Monte Carlo with 200,000 simulated years agreed to 0.01 days (Miami 42.79, Minneapolis 38.75).
+- **Explanation.** Each family's `bad_year_days` is its exact share of the hub's TVaR (Euler allocation: E[family days | worst 5% of years], from the same recursion); the four add up to the hub's value. The bad-year excess of a family = its `bad_year_days` − its `days_per_year`.
+- **No band.** `rank_hubs` with `score="bad_year"` ranks by it and returns no band: on the day cut-offs almost every hub would read "high".
+
+On the snapshot the bad-year order differs from the typical-year order where the tail matters: Miami rises from 13th to 1st (42.8 days; hurricane is 34.4 of its 35.0-day excess), Houston from 11th to 3rd (38.2), Newark from 6th to 4th (35.4); Minneapolis drops from 1st to 2nd (38.7).
 
 ### 6.3 Priority score (0-100)
 
@@ -140,10 +146,13 @@ priority = exposure index × (0.6 + 0.25 × people share + 0.15 × resilience-ga
 - people share = min(county population ÷ 5,000,000, 1) (county population is a proxy; a regional hub serves more than its county).
 - resilience-gap share = (100 − FEMA community resilience score) ÷ 100.
 - Multiplicative: people served and low resilience **amplify** weather exposure (up to × 1.0 instead of × 0.6), but cannot create priority where there is little weather. This replaces the additive v1 formula, under which Los Angeles ranked 6th on priority (55.3) with low exposure. Now Los Angeles has exposure 14.7 and priority 14.4. Signal contributions add up to the priority: the base share 0.6 × exposure plus the people and resilience uplifts.
+- Priority bands use the same 35 / 60 cut-offs as exposure, but priority is at most the exposure index (the multiplier runs from 0.6 to 1.0), so by construction priority bands run lower than exposure bands: on the snapshot 2 hubs are high on priority against 6 on exposure.
 
 ### 6.4 Sensitivity (`python -m app.sensitivity` → `evals/results/sensitivity.md`)
 
-Each days-per-event value halved and doubled, and the NRI / observed blend varied 0.3-1.0. Spearman rank correlation of the expected-days ranking with the current one stays >= 0.954 for every days-per-event change (lowest: inland flood × 2, Memphis +4 places) and >= 0.889 for the blend (lowest: NRI 0.3 / observed 0.7, Denver +6). The top hub (Minneapolis) never changes. The ranking is robust to any single assumption within a factor of two; the blend matters most.
+All rankings compared on unrounded values (Spearman rank correlation with the current order).
+- **Typical year:** each days-per-event value halved and doubled: >= 0.961 (lowest: inland flood × 2). NRI / observed blend 0.3-1.0: >= 0.893 (lowest: NRI 0.3 / observed 0.7, Denver +6). Reference area 500 / 2,000 sq mi: >= 0.961. The top hub (Minneapolis) never changes.
+- **Bad year:** hurricane mix 70/30 and 90/10, long closure 20 and 50 days: >= 0.925 (lowest: long closure 20 days, Miami −4). The top hub changes (Houston at 70/30, Minneapolis at 90/10 and at 20 days, Miami otherwise): for the coastal hubs the yearly chance of a long closure sits near 5%, exactly where TVaR95 looks, so the bad-year order among Miami, Houston, Minneapolis and Newark rests on the assumed closure mix. The typical-year ranking is robust to any single assumption within a factor of two; the bad-year top 4 is not, and answers say so.
 
 ### 6.5 Breakdown and upgrade types
 - Every score returns its breakdown: each signal's raw value, normalized value, weight, contribution and source. The top driver is the largest weighted contribution. "Why is X high" answers are built from this.
@@ -156,9 +165,10 @@ Each days-per-event value halved and doubled, and the NRI / observed blend varie
 
 ### 6.7 Documented instead of fixed (README limitations)
 - **Days per event are assumptions**, not fitted to loss data (none exists for us). Sanity checks: Hurricane Harvey closed the Houston port and many distribution centres for 3-5 days; Hurricane Matthew's closures averaged about 17.5 days in the review's sources; the February 2021 Texas freeze stopped most freight for about 4 days. To be fitted to company downtime logs in production.
-- **The hurricane closure mix (80% × 4 days, 20% × 35 days) is assumed.**
-- **NRI hurricane frequency likely includes tropical storms**, so the 10-year probabilities (Newark 65.7%, Chicago 8.9%, Phoenix 10.9%) read as "a hurricane-class storm reaches the county", not landfall.
+- **The hurricane closure mix (80% × 4 days, 20% × 35 days) is assumed**, and the bad-year order of the coastal hubs depends on it (6.4).
+- **NRI hurricane frequency likely includes tropical storms**, so the 10-year probabilities (Newark 65.7%, Chicago 8.9%, Phoenix 10.9%) read as "a hurricane-class storm reaches the county", not landfall. The medium hurricane band of Memphis (21.0%) and Atlanta (31.6%), far inland, most likely reflects tropical-storm remnants in NRI.
 - **Coastal flood overlaps hurricane storm surge:** the same storm can count under both. With the exposed-area share the double count is small (coastal flood is 0.15 of Miami's 3.1 flood days, 0.41 of Houston's 5.9); fix with more time: max(hurricane, coastal flood) per hub, or model surge explicitly.
+- **Missing exposed coastal area:** if NRI has a coastal-flood frequency but no exposed area, the default share 4.05% (median of the six hubs with data) is used and the signal note says so; no hub needs it on the current snapshot.
 - **County-level location vs flood zone is unknown:** the hub's actual site could be inside or outside the exposed area.
 - **Artefacts:** NRI's cold-wave count is relative to local normals (Miami 1.28 cold waves per year); Los Angeles County includes mountains, so winter weather (6.59 events per year) gives LA a winter top driver it does not have at sea level.
 - **Area scaling for tornado, wind and hail may double-adjust:** NRI already models these on a grid of roughly 930 sq mi, so scaling by county area can understate large counties.

@@ -37,7 +37,7 @@ class ListHubsArgs(_Args):
 
 class RankHubsArgs(_Args):
     score: ScoreKind = Field(description="'exposure' (typical-year weather disruption), 'priority' (investment priority) "
-                                         "or 'bad_year' (disruption days in a 1-in-20-year bad year).")
+                                         "or 'bad_year' (average lost days in the worst 1 in 20 years; no band).")
     hazard: Hazard = Field(description="Hazard family to rank by; anything but 'overall' needs score='exposure'.")
     region: Region | None = Field(default=None, description="Region filter, or null for all hubs.")
     top_n: int = Field(ge=1, le=15, description="How many hubs to return (1-15).")
@@ -261,7 +261,8 @@ async def list_hubs(region: Region | None = None) -> list:
 async def rank_hubs(score: ScoreKind, hazard: Hazard = "overall", region: Region | None = None, top_n: int = 15):
     """Rank hubs by 'exposure' (expected weather-disruption days in a typical year, as a 0-100 index; can be per
     hazard family), by 'priority' (investment priority: exposure amplified by people served and resilience gap) or
-    by 'bad_year' (disruption days in a 1-in-20-year bad year; overall only). Returns the ordered hubs with value
+    by 'bad_year' (average lost days in the worst 1 in 20 years; overall only, items have no band). Returns the
+    ordered hubs with value
     and band, the band thresholds and the data date. Use it for any 'which hubs are most/least...' question."""
     hubs, _, scores = _state()
     return scoring.rank(scores, hubs, score, hazard=hazard, region=region, top_n=top_n)

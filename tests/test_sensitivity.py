@@ -35,3 +35,23 @@ def test_top_hub_is_reported():
 def test_markdown_report_lists_results():
     md = sensitivity.to_markdown(sensitivity.run(HUBS, SNAPSHOT))
     assert "Spearman" in md and "HRCN x0.5" in md and "NRI 1.0 / observed 0.0" in md
+
+
+def test_rankings_use_unrounded_values():
+    from app import scoring
+
+    order = sensitivity.expected_order(HUBS, SNAPSHOT, scoring.DEFAULT_CONFIG)
+    days = {h.id: scoring.expected_days(h, SNAPSHOT) for h in HUBS}
+    assert order == sorted(days, key=lambda k: (-days[k], k))
+    bad = sensitivity.bad_year_order(HUBS, SNAPSHOT, scoring.DEFAULT_CONFIG)
+    tv = {h.id: scoring.bad_year_days(h, SNAPSHOT) for h in HUBS}
+    assert bad == sorted(tv, key=lambda k: (-tv[k], k))
+
+
+def test_bad_year_and_reference_area_groups():
+    result = sensitivity.run(HUBS, SNAPSHOT)
+    bad = [r.label for r in result.rows if r.group == "bad-year: hurricane closures"]
+    assert bad == ["mix 70% / 30%", "mix 90% / 10%", "long closure 20 days", "long closure 50 days"]
+    area = [r.label for r in result.rows if r.group == "reference area"]
+    assert area == ["500 sq mi", "2,000 sq mi"]
+    assert result.base_bad_year_order[0] == "charlie"

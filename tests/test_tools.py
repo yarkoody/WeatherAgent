@@ -171,6 +171,7 @@ async def test_what_if_tool_rejects_huge_weight():
 async def test_rank_hubs_bad_year_kind():
     out = await tools.run_tool("rank_hubs", json.dumps({"score": "bad_year", "hazard": "overall", "region": None, "top_n": 3}))
     assert out["kind"] == "bad_year" and len(out["items"]) == 3
+    assert all(i["band"] is None for i in out["items"])
     values = [i["value"] for i in out["items"]]
     assert values == sorted(values, reverse=True)
 

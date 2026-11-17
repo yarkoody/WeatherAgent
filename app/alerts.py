@@ -37,6 +37,9 @@ ROOT = Path(__file__).resolve().parent.parent
 BASELINE_PATH = ROOT / "data" / "snapshot" / "score_baseline.json"
 LOG_PATH = ROOT / "logs" / "alerts.jsonl"
 POINTS_THRESHOLD = 5.0
+BAND_HYSTERESIS = 2.0  # a band change alerts only when the new score is this far past the cut-off
+BAD_YEAR_DAYS_THRESHOLD = 3.0
+HURRICANE_PCT_THRESHOLD = 10.0
 NWS_SEVERITIES = {"Severe", "Extreme"}
 # Scoring config fields that hold the observed weather window (Track A's ScoringConfig).
 WINDOW_FIELDS = ("observed_start", "observed_end")
@@ -59,6 +62,23 @@ def write_baseline(path: Path, rows: list[ScoreRow], computed_at: str) -> None:
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
+_BAND_ORDER = ("low", "medium", "high")
+
+
+def _band_change_is_clear(band_a: str, band_b: str, value: float) -> bool:
+    """Hysteresis: the new score must be BAND_HYSTERESIS points past the cut-off it crossed.
+
+    Stops a hub that hovers around a cut-off (59.7 -> 60.1 -> 59.8) from alerting on every run.
+    """
+    from app import scoring
+
+    cut = {"medium": scoring.DEFAULT_CONFIG.medium_from, "high": scoring.DEFAULT_CONFIG.high_from}
+    if _BAND_ORDER.index(band_b) > _BAND_ORDER.index(band_a):  # moved up: past the new band's lower cut-off
+        return value >= cut[band_b] + BAND_HYSTERESIS
+    upper = _BAND_ORDER[_BAND_ORDER.index(band_b) + 1]  # moved down: below the cut-off of the band above
+    return value <= cut[upper] - BAND_HYSTERESIS
+
+
 def compare(old: ScoreRow, new: ScoreRow) -> dict[str, Any] | None:
     """The change record for one hub, or None if nothing crossed a threshold."""
     reasons: list[tuple[str, str, float, float]] = []  # (metric, reason, old, new)
@@ -68,8 +88,16 @@ def compare(old: ScoreRow, new: ScoreRow) -> dict[str, Any] | None:
         if abs(delta) >= POINTS_THRESHOLD:
             reasons.append((metric, f"{metric} {delta:+.1f} ({a:.1f} -> {b:.1f})", a, b))
         band_a, band_b = getattr(old, f"{metric}_band"), getattr(new, f"{metric}_band")
-        if band_a != band_b:
+        if band_a != band_b and _band_change_is_clear(band_a, band_b, b):
             reasons.append((metric, f"{metric} band {band_a} -> {band_b} ({a:.1f} -> {b:.1f})", a, b))
+    for metric, label, threshold, unit in (
+        ("bad_year_days", "bad-year days", BAD_YEAR_DAYS_THRESHOLD, ""),
+        ("hurricane_10yr_probability_pct", "hurricane 10-year probability", HURRICANE_PCT_THRESHOLD, " points"),
+    ):
+        a, b = getattr(old, metric), getattr(new, metric)
+        delta = round(b - a, 2)
+        if abs(delta) >= threshold:
+            reasons.append((metric, f"{label} {delta:+.1f}{unit} ({a:.1f} -> {b:.1f})", a, b))
     if not reasons:
         return None
     return {

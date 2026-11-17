@@ -5,16 +5,15 @@ same events every year, so 2015-2025 observed rates equal the per-year counts (t
 alpha  winter 0.6*(10*0.5 + 1*2 + 2*1) + 0.4*8 = 8.6 days; flood 0.6*(2*2) + 0.4*3 = 3.6;
        severe 0.6*(0.4*0.5 + 4*0.25 + 4*0.25) + 0.4*2 = 2.12; total 14.32 days -> index 57.28.
        priority 57.28 * (0.6 + 0.25*0.5 + 0.15*0.4) = 44.96.
-       bad year: var = 0.6*(10*0.25 + 1*4 + 2*1 + 2*4 + 0.4*0.25 + 4*0.0625 + 4*0.0625) = 10.26,
-       14.32 + 1.645*sqrt(10.26) = 19.59.
 bravo  (county 4,000 sq mi -> local hazards x0.25; coastal flood x 400/4000 exposed area)
        flood 0.6*(8*2*0.25 + 2*2*0.1) + 0.4*5 = 4.64; hurricane 0.3*10 = 3.0;
        severe 0.6*(2*0.5 + 2*0.25 + 2*0.25)*0.25 + 0.4*1 = 0.7; total 8.34 -> index 33.36.
        priority 33.36 * (0.6 + 0.25*1 + 0.15*0.8) = 32.36. Hurricane 10-yr probability 1 - e^-3 = 95.0%.
-       bad year: var = 1.0*0.3*257.8 + 0.6*(2*4 + 0.2*4 + 0.5*0.25 + 0.5*0.0625 + 0.5*0.0625) = 82.73,
-       8.34 + 1.645*sqrt(82.73) = 23.30. (Hurricane E[D^2] = 0.8*4^2 + 0.2*35^2 = 257.8.)
 charlie winter 0.6*40 + 0.4*30 = 36 days -> index clipped at 100; priority 100 * (0.6 + 0.05 + 0.015) = 66.5.
+Bad year (TVaR95) is checked against an independent Poisson convolution in the tests below.
 """
+
+import math
 
 import pytest
 
@@ -159,17 +158,70 @@ def test_hurricane_10yr_probability(scores):
     assert scores["alpha"].hurricane_10yr_probability_pct == 0.0  # null in NRI
 
 
-def test_bad_year_days_add_1645_sd(scores):
-    assert scores["alpha"].bad_year_days == 19.6
-    assert scores["bravo"].bad_year_days == 23.3  # hurricane tail lifts bravo above alpha
-    assert scores["charlie"].bad_year_days == 44.1  # 36 + 1.645*sqrt(0.6*(40*0.25 + 5*4 + 10*1))
+def _poisson(lam, n):
+    return [math.exp(-lam) * lam**k / math.factorial(k) for k in range(n)]
+
+
+def _tvar_from_pmf(pmf, step, alpha=0.95):
+    """Reference TVaR: mean of the worst (1 - alpha) of years, splitting the atom at the quantile."""
+    cum = 0.0
+    for v, p in enumerate(pmf):
+        cum += p
+        if cum >= alpha:
+            break
+    tail = sum(x * step * p for x, p in enumerate(pmf) if x > v) + v * step * (cum - alpha)
+    return tail / (1 - alpha)
+
+
+def test_tvar_of_a_poisson_count_matches_the_closed_form():
+    # one stream of 1-day events at 3 per year: annual days ~ Poisson(3)
+    tvar, shares = scoring.tvar95({"winter": [(1.0, 3.0)]})
+    assert tvar == pytest.approx(_tvar_from_pmf(_poisson(3.0, 80), 1.0), abs=1e-9)
+    assert shares == {"winter": pytest.approx(tvar, abs=1e-9)}
+
+
+def test_tvar_of_two_streams_matches_a_direct_convolution():
+    # 1-day events at rate 2 (winter) + 2-day events at rate 0.5 (flood), computed by brute force
+    a, b = _poisson(2.0, 60), _poisson(0.5, 30)
+    pmf = [0.0] * 120
+    for i, pa in enumerate(a):
+        for j, pb in enumerate(b):
+            pmf[i + 2 * j] += pa * pb
+    tvar, shares = scoring.tvar95({"winter": [(1.0, 2.0)], "flood": [(2.0, 0.5)]})
+    assert tvar == pytest.approx(_tvar_from_pmf(pmf, 1.0), abs=1e-9)
+    assert sum(shares.values()) == pytest.approx(tvar, abs=1e-9)  # Euler allocation is exact
+    assert shares["winter"] > 2.0 and shares["flood"] > 1.0  # each above its own mean
+
+
+def test_tvar_handles_quarter_and_eighth_day_events():
+    t1, _ = scoring.tvar95({"severe_storm": [(0.25, 4.0)]})  # 4 events x 0.25 days = Poisson(4) / 4
+    assert t1 == pytest.approx(_tvar_from_pmf(_poisson(4.0, 80), 0.25), abs=1e-9)
+    t2, _ = scoring.tvar95({"severe_storm": [(0.125, 4.0)]})  # off the quarter grid: the step adapts
+    assert t2 == pytest.approx(_tvar_from_pmf(_poisson(4.0, 80), 0.125), abs=1e-9)
+
+
+def test_tvar_of_nothing_is_zero():
+    assert scoring.tvar95({"winter": [], "flood": [(2.0, 0.0)]}) == (0.0, {"winter": 0.0, "flood": 0.0})
+
+
+def test_bad_year_is_tvar95_with_family_allocation(scores):
+    for hub in ("alpha", "bravo", "charlie"):
+        h = scores[hub]
+        assert h.bad_year_days > h.exposure_days_per_year
+        assert sum(f.bad_year_days for f in h.families.values()) == pytest.approx(h.bad_year_days, abs=0.25)
+    b = scores["bravo"].families
+    excess = {f: b[f].bad_year_days - b[f].days_per_year for f in b}
+    assert max(excess, key=excess.get) == "hurricane"  # the 35-day hurricane tail drives bravo's bad year
+    assert scores["bravo"].bad_year_days > scores["alpha"].bad_year_days  # although alpha's typical year is worse
     assert DEFAULT_CONFIG.hurricane_days_mix == ((0.8, 4.0), (0.2, 35.0))
+    assert DEFAULT_CONFIG.bad_year_alpha == 0.95
 
 
 def test_rank_by_bad_year(scores):
     r = scoring.rank(scores, HUBS, "bad_year")
-    assert [(i.hub_id, i.value) for i in r.items] == [
-        ("charlie", 44.1), ("bravo", 23.3), ("alpha", 19.6), ("delta", 19.6)]
+    assert [i.hub_id for i in r.items] == ["charlie", "bravo", "alpha", "delta"]
+    assert [i.value for i in r.items] == [scores[i.hub_id].bad_year_days for i in r.items]
+    assert all(i.band is None for i in r.items)  # no meaningful band for the tail lens
     with pytest.raises(ValueError):
         scoring.rank(scores, HUBS, "bad_year", hazard="winter")
 
@@ -222,7 +274,7 @@ def test_score_rows_sorted_by_priority(scores):
     assert [r.hub_id for r in rows] == ["charlie", "alpha", "delta", "bravo"]
     assert rows[1].name == "Alpha Hub" and rows[1].region == "Midwest"
     assert (rows[1].exposure_days_per_year, rows[1].bad_year_days, rows[1].hurricane_10yr_probability_pct) == (
-        14.3, 19.6, 0.0)
+        14.3, scores["alpha"].bad_year_days, 0.0)
 
 
 def test_weather_stat_snow_days_pct():
@@ -329,13 +381,24 @@ def test_committed_snapshot_matches_spec_values():
     assert (s["los_angeles"].families["winter"].days_per_year, s["los_angeles"].families["winter"].band) == (2.0, "medium")
 
 
-# (expected days, bad-year days, priority) from the reviewed v2 run; spec section 6 quotes these
+# (expected days, bad-year TVaR95 days, priority) from the reviewed run; spec section 6 quotes these
 REGRESSION = {
-    "minneapolis": (27.6, 33.5, 66.7),
-    "chicago": (18.1, 25.0, 64.5),
-    "newark": (15.0, 25.4, 45.2),
-    "houston": (10.5, 23.0, 40.3),
-    "miami": (7.8, 22.9, 25.6),
-    "los_angeles": (3.7, 6.6, 14.4),
-    "phoenix": (1.6, 5.3, 5.9),
+    "minneapolis": (27.6, 38.7, 66.7),
+    "chicago": (18.1, 29.1, 64.5),
+    "newark": (15.0, 35.4, 45.2),
+    "houston": (10.5, 38.2, 40.3),
+    "miami": (7.8, 42.8, 25.6),
+    "los_angeles": (3.7, 8.4, 14.4),
+    "phoenix": (1.6, 7.2, 5.9),
 }
+
+
+def test_coastal_flood_without_exposed_area_uses_the_default_share():
+    import copy
+
+    nri = copy.deepcopy(SNAPSHOT.nri)
+    nri["counties"]["00002"]["CFLD_EXP_AREA"] = None
+    snap = scoring.Snapshot(nri=nri, weather=SNAPSHOT.weather)
+    coastal = _signal(scoring.score_all(HUBS, snap)["bravo"], "flood", "coastal flood")
+    assert coastal.normalized == pytest.approx(2 * 2 * 0.0405)
+    assert "default share 4.05%" in coastal.note
