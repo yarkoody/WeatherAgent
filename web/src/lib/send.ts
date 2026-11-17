@@ -1,22 +1,20 @@
-// Send an answer to Discord or by email, and the "Send & alerts" settings they use.
-// Settings live in this browser only (localStorage), like the chat history. Discord posts go through the backend
-// (POST /send/discord), which accepts Discord webhook URLs only. Email is a mailto: link: this site never sends email.
-import { formatDate, formatValue, hubName } from './format'
+// "Send & alerts": score-change alerts to a Discord webhook or an email address, set up from the sidebar.
+// The browser remembers what it set up (localStorage); the server keeps the subscriptions and sends the alerts.
 import { apiFetch } from './mockFetch'
-import type { ChatResponse } from './types'
 
-export const SEND_KEY = 'weather-risk.send.v1'
+export const SEND_KEY = 'weather-risk.send.v2'
 const OPEN_EVENT = 'send-settings:open'
-const CHANGE_EVENT = 'send-settings:change'
 
 export interface SendSettings {
   discordWebhook: string
+  /** This browser subscribed the webhook to score-change alerts. */
+  discordAlerts: boolean
   email: string
-  /** This browser subscribed its webhook to score-change alerts (the server keeps the subscription). */
-  alerts: boolean
+  /** This browser subscribed the address to score-change alerts. */
+  emailAlerts: boolean
 }
 
-const EMPTY: SendSettings = { discordWebhook: '', email: '', alerts: false }
+const EMPTY: SendSettings = { discordWebhook: '', discordAlerts: false, email: '', emailAlerts: false }
 
 function storage(): Storage | null {
   try {
@@ -30,10 +28,13 @@ export function loadSendSettings(): SendSettings {
   try {
     const raw = JSON.parse(storage()?.getItem(SEND_KEY) ?? 'null') as Partial<SendSettings> | null
     if (!raw || typeof raw !== 'object') return { ...EMPTY }
+    const discordWebhook = typeof raw.discordWebhook === 'string' && isDiscordWebhook(raw.discordWebhook) ? raw.discordWebhook : ''
+    const email = typeof raw.email === 'string' && isEmail(raw.email) ? raw.email : ''
     return {
-      discordWebhook: typeof raw.discordWebhook === 'string' && isDiscordWebhook(raw.discordWebhook) ? raw.discordWebhook : '',
-      email: typeof raw.email === 'string' ? raw.email : '',
-      alerts: raw.alerts === true,
+      discordWebhook,
+      discordAlerts: raw.discordAlerts === true && discordWebhook !== '',
+      email,
+      emailAlerts: raw.emailAlerts === true && email !== '',
     }
   } catch {
     return { ...EMPTY }
@@ -47,24 +48,17 @@ export function saveSendSettings(update: Partial<SendSettings>): SendSettings {
   } catch {
     /* private mode: settings last for this page only */
   }
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT))
   return next
 }
 
-export function onSendSettingsChange(handler: () => void): () => void {
-  window.addEventListener(CHANGE_EVENT, handler)
-  return () => window.removeEventListener(CHANGE_EVENT, handler)
+/** Opens the "Send & alerts" panel. */
+export function openSendSettings(): void {
+  window.dispatchEvent(new CustomEvent(OPEN_EVENT))
 }
 
-/** Opens the "Send & alerts" panel (from the sidebar, or a send button with nothing configured). */
-export function openSendSettings(focus?: 'discord' | 'email'): void {
-  window.dispatchEvent(new CustomEvent<string | undefined>(OPEN_EVENT, { detail: focus }))
-}
-
-export function onOpenSendSettings(handler: (focus?: 'discord' | 'email') => void): () => void {
-  const listener = (e: Event) => handler((e as CustomEvent<'discord' | 'email' | undefined>).detail)
-  window.addEventListener(OPEN_EVENT, listener)
-  return () => window.removeEventListener(OPEN_EVENT, listener)
+export function onOpenSendSettings(handler: () => void): () => void {
+  window.addEventListener(OPEN_EVENT, handler)
+  return () => window.removeEventListener(OPEN_EVENT, handler)
 }
 
 /** Same rule as the backend (app/send.py): https, host discord.com or discordapp.com, /api/webhooks/<id>/<token>. */
@@ -72,92 +66,21 @@ export function isDiscordWebhook(url: string): boolean {
   return /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d{1,25}\/[A-Za-z0-9_-]{1,200}$/.test(url)
 }
 
+/** Same rule as the backend's validate_email (before lower-casing). */
 export function isEmail(text: string): boolean {
-  return /^[^\s@,;?&<>"]+@[^\s@,;?&<>"]+\.[^\s@,;?&<>".]+$/.test(text)
+  return text.length <= 254 && /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(\.[A-Za-z0-9-]{1,63})*\.[A-Za-z]{2,63}$/.test(text)
 }
 
-export function truncate(text: string, max: number): string {
-  return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`
-}
-
-const STATUS = { pass: 'Figures checked', retried: 'Figures checked after retry', failed: 'Unverified' } as const
-export const DISCORD_DESCRIPTION_MAX = 4096
-export const EMAIL_BODY_MAX = 1800
-const MAX_FIGURES = 8
-
-export function appLink(): string {
-  return `${window.location.origin}/`
-}
-
-function figureLines(response: ChatResponse): { name: string; value: string }[] {
-  return response.answer.figures.slice(0, MAX_FIGURES).map((f) => ({
-    name: truncate(f.hub_id ? `${f.label}, ${hubName(f.hub_id)}` : f.label, 256),
-    value: formatValue(f.value, f.unit),
-  }))
-}
-
-function statusLine(response: ChatResponse, dataAsOf?: string): string {
-  const parts: string[] = response.answer.figures.length > 0 || response.grounding.status === 'failed' ? [STATUS[response.grounding.status]] : []
-  if (dataAsOf) parts.push(`Data as of ${formatDate(dataAsOf)}`)
-  return parts.join('. ')
-}
-
-export interface DiscordMessage {
-  title: string
-  description: string
-  fields: { name: string; value: string }[]
-  footer: string
-  link: string
-  verified: boolean | null
-}
-
-/** The body of POST /send/discord for one answer (the backend builds the embed and clips it again). */
-export function discordMessage(response: ChatResponse, question?: string, dataAsOf?: string): DiscordMessage {
-  const hasFigures = response.answer.figures.length > 0
-  return {
-    title: truncate(question?.trim() || 'Hub Weather Risk answer', 256),
-    description: truncate(response.answer.answer, DISCORD_DESCRIPTION_MAX),
-    fields: figureLines(response),
-    footer: [statusLine(response, dataAsOf), 'Hub Weather Risk'].filter(Boolean).join('. '),
-    link: appLink(),
-    verified: response.grounding.status === 'failed' ? false : hasFigures ? true : null,
-  }
-}
-
-/** Markdown to readable plain text for an email body. */
-export function plainText(markdown: string): string {
-  return markdown
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/(\*\*|__)(.+?)\1/g, '$2')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
-/** A mailto: link with the question as subject and a plain-text body of at most EMAIL_BODY_MAX characters. */
-export function mailtoLink(response: ChatResponse, question?: string, dataAsOf?: string, to = ''): string {
-  const subject = truncate(`Hub Weather Risk: ${question?.trim() || 'answer'}`, 150)
-  const figures = figureLines(response)
-  const tail = [
-    figures.length ? `Key figures:\n${figures.map((f) => `- ${f.name}: ${f.value}`).join('\n')}` : '',
-    statusLine(response, dataAsOf),
-    `Hub Weather Risk: ${appLink()}`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-  const head = question?.trim() ? `Question: ${question.trim()}\n\n` : ''
-  const room = Math.max(EMAIL_BODY_MAX - head.length - tail.length - 2, 80)
-  const body = truncate(`${head}${truncate(plainText(response.answer.answer), room)}\n\n${tail}`, EMAIL_BODY_MAX)
-  const address = isEmail(to.trim()) ? to.trim() : ''
-  return `mailto:${address}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-}
+export const EMAIL_DISABLED = 'Email alerts need an email provider configured on the server.'
 
 export type SendResult = { ok: true; status: string } | { ok: false; status: number; message: string }
 
-async function post(path: string, body: unknown): Promise<SendResult> {
+async function call(path: string, body?: unknown): Promise<SendResult> {
   try {
-    const res = await apiFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const res = await apiFetch(
+      path,
+      body === undefined ? undefined : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    )
     const data = (await res.json().catch(() => ({}))) as { status?: string; detail?: string }
     if (res.ok) return { ok: true, status: data.status ?? 'ok' }
     return { ok: false, status: res.status, message: data.detail || `The server answered ${res.status}.` }
@@ -166,25 +89,28 @@ async function post(path: string, body: unknown): Promise<SendResult> {
   }
 }
 
-export function sendToDiscord(webhookUrl: string, message: DiscordMessage): Promise<SendResult> {
-  return post('/send/discord', { webhook_url: webhookUrl, ...message })
+/** Which alert channels the server can deliver to (email needs a provider configured there). */
+export async function fetchAlertConfig(): Promise<{ discord: boolean; email: boolean }> {
+  try {
+    const res = await apiFetch('/alerts/config')
+    if (!res.ok) return { discord: true, email: false }
+    const data = (await res.json()) as { discord?: unknown; email?: unknown }
+    return { discord: data.discord !== false, email: data.email === true }
+  } catch {
+    return { discord: true, email: false }
+  }
 }
 
 export function sendTestMessage(webhookUrl: string): Promise<SendResult> {
-  return sendToDiscord(webhookUrl, {
-    title: 'Test message from Hub Weather Risk',
-    description: 'This webhook works. Answers you send from the app will appear in this channel.',
-    fields: [],
-    footer: 'Hub Weather Risk',
-    link: appLink(),
-    verified: null,
-  })
+  return call('/send/discord', { webhook_url: webhookUrl })
 }
 
-export function subscribeAlerts(webhookUrl: string): Promise<SendResult> {
-  return post('/alerts/subscribe', { webhook_url: webhookUrl })
+export type Target = { webhook_url: string } | { email: string }
+
+export function subscribeAlerts(target: Target): Promise<SendResult> {
+  return call('/alerts/subscribe', target)
 }
 
-export function unsubscribeAlerts(webhookUrl: string): Promise<SendResult> {
-  return post('/alerts/unsubscribe', { webhook_url: webhookUrl })
+export function unsubscribeAlerts(target: Target): Promise<SendResult> {
+  return call('/alerts/unsubscribe', target)
 }

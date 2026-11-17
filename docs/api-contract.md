@@ -89,15 +89,39 @@ Returns `{ "status": "ok" }`.
 
 Requires the header `X-Alert-Token: <ALERT_TOKEN>`. Returns `{ "changes": [...], "nws": [...], "delivered": ..., "subscribers": { "sent", "failed", "removed" } }`. Alerts go to `ALERT_WEBHOOK_URL` and then to every subscribed webhook. Optional `?demo_window=2015-2017` rescores the snapshot on those observed years, so an operator can show a real alert (the snapshot's own scores don't change between deploys).
 
+## `GET /alerts/config`
+
+Returns `{ "discord": true, "email": bool }`. `email` is true only when `RESEND_API_KEY` and `ALERT_EMAIL_FROM` are set.
+
 ## `POST /send/discord`
 
-Body: `{ "webhook_url", "title" (<= 256), "description" (cut to 4,096), "fields": [{ "name", "value" }] (<= 10), "footer", "link", "verified": true | false | null }`. The server builds one Discord embed (green when verified, red when unverified) with mentions disabled and posts it. Returns `{ "status": "sent" }`.
+Body: `{ "webhook_url" }`. Posts a fixed test message (no user text) with mentions disabled. Returns `{ "status": "sent" }`. Allows 5 requests a minute per IP.
 
-`webhook_url` must be `https://discord.com/api/webhooks/<id>/<token>` or the same on `discordapp.com`: no other host, port, user info, IP literal, path, query or fragment (422 otherwise). Redirects are not followed, the timeout is 5 s, and the URL is never logged or echoed. Discord's answers map to: unknown webhook 404, Discord rate limit 429, rejected message 422, timeout 504, anything else 502. Shares the 120-a-minute limit of the no-LLM routes.
+`webhook_url` must be `https://discord.com/api/webhooks/<id>/<token>` or the same on `discordapp.com`, with no other host, port, user info, IP literal, path, query or fragment (otherwise 422). Redirects are not followed, the timeout is 5 s, and the URL is never logged or echoed. Discord's answers map to:
+
+| Discord's answer | Status |
+|---|---|
+| Unknown webhook | 404 |
+| Discord's rate limit | 429 |
+| Timeout | 504 |
+| Anything else | 502 |
 
 ## `POST /alerts/subscribe`, `POST /alerts/unsubscribe`
 
-Body: `{ "webhook_url" }`, with the same check. Subscribe posts a confirmation message first and stores the URL only if Discord accepted it: `{ "status": "subscribed" | "already_subscribed" }`, or 409 when the demo's 50 subscriptions are taken. Unsubscribe returns `{ "status": "unsubscribed" | "not_subscribed" }`. Both allow 5 requests a minute per IP. Subscriptions live in SQLite, so a Render redeploy clears them.
+The body is exactly one of `{ "webhook_url" }` (same check as above) or `{ "email" }` (format checked, lower-cased).
+
+Subscribe sends a confirmation first (a Discord message, or an email through Resend) and stores the target only if it was accepted. It returns `{ "status": "subscribed" | "already_subscribed" }`.
+
+| Case | Status |
+|---|---|
+| Email with no provider configured (nothing is sent) | 503: "Email alerts need an email provider configured on the server." |
+| Caps reached (50 Discord, 20 email) | 409 |
+
+Rate limits: Discord allows 5 a minute per IP. Email subscribe allows 3 a minute per IP and 20 a day per server.
+
+Unsubscribe returns `{ "status": "unsubscribed" | "not_subscribed" }`.
+
+Subscriptions live in SQLite, so a Render redeploy clears them.
 
 ## Errors
 
@@ -110,7 +134,8 @@ The body is always `{ "detail": string }`. The status codes:
 | 401 | Bad alert token |
 | 404 | Discord does not know the webhook (`/send/discord`, `/alerts/subscribe`) |
 | 409 | Alert subscriptions are full |
-| 502, 504 | Discord could not be reached, or did not answer within 5 s |
+| 502, 504 | Discord or the email provider could not be reached, or did not answer within 5 s |
+| 503 | Email alerts requested with no email provider configured |
 | 404 | Unknown or ambiguous hub name (`GET /hubs/{hub_id}/score` and `/history`) |
 | 503 | The model or an upstream service is unavailable |
 

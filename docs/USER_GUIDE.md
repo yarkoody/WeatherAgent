@@ -64,19 +64,23 @@ Type a question, or press the mic and speak (Chrome and Edge). Enter sends, even
 - **See the math** (in each hub breakdown) shows that hub's own calculation step by step: each hazard's FEMA events × days per event, the 60/40 blend with observed days, the bad-year split, and the review priority formula. "≈" marks a line whose parts were rounded separately.
 - **Methodology** (sidebar) opens the full method document inside the app.
 
-## Send an answer, and score-change alerts
+## Score-change alerts (Send & alerts)
 
-Open **Send & alerts** in the sidebar (above Methodology). Everything there is saved in this browser only.
+Open **Send & alerts** in the sidebar (above Methodology). It sends you a message when a hub's exposure or review priority moves 5 points or more, or its level changes, and for severe live NWS alerts at a hub.
 
-- **Discord:** paste a webhook URL from your Discord channel (channel settings, Integrations, Webhooks, New Webhook, Copy Webhook URL). Only `https://discord.com/api/webhooks/...` URLs are accepted. **Send test message** checks that it works. Treat the URL like a password: anyone who has it can post to that channel.
-- **Email:** an optional default address.
-- On each answer, next to **Export report**:
-  - **Send to Discord** posts the question, the answer, the key figures, "Figures checked" or "Unverified", the data date and a link to the app. Long answers are cut to Discord's 4,096-character limit. With no webhook set, the button opens Send & alerts.
-  - **Send by email** opens your own mail app with the question as the subject and the answer as plain text, to your default address if you set one. The site never sends email itself.
-- **Alert me when a hub's score changes** subscribes your Discord webhook. A confirmation is posted to the channel. You then get a message when a hub's score moves 5 points or more, or its level changes, and for severe live NWS alerts at a hub. Turning it off unsubscribes. This is a demo, with limits:
+- **Discord:**
+  - Paste a webhook URL from your Discord channel: channel settings, Integrations, Webhooks, New Webhook, Copy Webhook URL. Only `https://discord.com/api/webhooks/...` URLs are accepted.
+  - **Send test message** checks that it works.
+  - **Alert this channel when a hub's score changes** subscribes it, and a confirmation is posted to the channel.
+  - Treat the URL like a password: anyone who has it can post to that channel.
+- **Email:**
+  - Enter an address and turn on **Email me when a hub's score changes**. A confirmation email goes out.
+  - This works only when the server has an email provider configured. Otherwise the panel says "Email alerts need an email provider configured on the server", and the email controls are disabled.
+- Turning a switch off unsubscribes. Changing the webhook or address turns its alerts off.
+- This is a demo, with limits:
   - Scores change only when the data is refreshed, so alerts are rare.
   - The server forgets subscriptions when it is redeployed. If alerts stop, turn the switch off and on again.
-  - Turning it on stores your webhook URL on the server until you turn it off.
+  - Turning alerts on stores the webhook URL or the address on the server until you turn them off.
 
 ## Scores: the table and map
 

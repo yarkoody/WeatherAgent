@@ -39,8 +39,10 @@ CREATE TABLE IF NOT EXISTS alerts_sent (
     reason TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS alert_subscriptions (
-    webhook_url TEXT PRIMARY KEY,
-    created_at TEXT NOT NULL
+    kind TEXT NOT NULL,
+    target TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (kind, target)
 );
 """
 
@@ -146,26 +148,27 @@ class Store:
             rows = conn.execute("SELECT hub_id, sent_at, old, new, reason FROM alerts_sent ORDER BY rowid").fetchall()
         return [dict(zip(("hub_id", "sent_at", "old", "new", "reason"), r)) for r in rows]
 
-    # ---------- score-change alert subscriptions (Discord webhook URLs) ----------
+    # ---------- score-change alert subscriptions ----------
+    # kind "discord" holds a Discord webhook URL, kind "email" an email address.
 
-    def add_subscription(self, webhook_url: str, cap: int) -> str:
-        """Return "added", "exists", or "full" when `cap` subscriptions are already stored."""
+    def add_subscription(self, kind: str, target: str, cap: int) -> str:
+        """Return "added", "exists", or "full" when `cap` subscriptions of this kind are already stored."""
         with self._write() as conn:
-            if conn.execute("SELECT 1 FROM alert_subscriptions WHERE webhook_url = ?", (webhook_url,)).fetchone():
+            if conn.execute("SELECT 1 FROM alert_subscriptions WHERE kind = ? AND target = ?", (kind, target)).fetchone():
                 return "exists"
-            if conn.execute("SELECT COUNT(*) FROM alert_subscriptions").fetchone()[0] >= cap:
+            if conn.execute("SELECT COUNT(*) FROM alert_subscriptions WHERE kind = ?", (kind,)).fetchone()[0] >= cap:
                 return "full"
-            conn.execute("INSERT INTO alert_subscriptions (webhook_url, created_at) VALUES (?, ?)", (webhook_url, _now()))
+            conn.execute("INSERT INTO alert_subscriptions (kind, target, created_at) VALUES (?, ?, ?)", (kind, target, _now()))
             return "added"
 
-    def remove_subscription(self, webhook_url: str) -> bool:
+    def remove_subscription(self, kind: str, target: str) -> bool:
         with self._write() as conn:
-            return conn.execute("DELETE FROM alert_subscriptions WHERE webhook_url = ?", (webhook_url,)).rowcount > 0
+            return conn.execute("DELETE FROM alert_subscriptions WHERE kind = ? AND target = ?", (kind, target)).rowcount > 0
 
-    def subscriptions(self) -> list[str]:
+    def subscriptions(self, kind: str) -> list[str]:
         with self._connect() as conn:
-            return [r[0] for r in conn.execute("SELECT webhook_url FROM alert_subscriptions ORDER BY created_at, rowid")]
-
+            rows = conn.execute("SELECT target FROM alert_subscriptions WHERE kind = ? ORDER BY created_at, rowid", (kind,))
+            return [r[0] for r in rows]
 
 
 class Tracer:
