@@ -14,11 +14,18 @@ export const WEIGHT_STEPS = [0.1, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5
 const DEFAULT = WEIGHT_STEPS.indexOf(1)
 const label = (w: number) => `×${w}`
 
+/** An upgrade cost the API accepts: a number from 0.1 to 1000 ($M). */
+const COST_MIN = 0.1
+const COST_MAX = 1000
+const costOk = (v: string) => v.trim() !== '' && Number.isFinite(Number(v)) && Number(v) >= COST_MIN && Number(v) <= COST_MAX
+/** Typed but not usable. An empty box is not an error: it just means no cost for that hub. */
+const costInvalid = (v: string | undefined) => !!v && v.trim() !== '' && !costOk(v)
+
 function buildInput(weights: Record<Family, number>, costs: Record<string, string>): WhatIfInput | null {
   const family_weights = Object.fromEntries(FAMILIES.filter((f) => weights[f] !== DEFAULT).map((f) => [f, WEIGHT_STEPS[weights[f]]]))
   const upgrade_costs = Object.entries(costs)
+    .filter(([, v]) => costOk(v))
     .map(([hub_id, v]) => ({ hub_id, cost_musd: Number(v) }))
-    .filter((c) => Number.isFinite(c.cost_musd) && c.cost_musd >= 0.1 && c.cost_musd <= 1000)
   if (Object.keys(family_weights).length === 0 && upgrade_costs.length === 0) return null
   return {
     ...(Object.keys(family_weights).length ? { family_weights } : {}),
@@ -68,6 +75,9 @@ export function WhatIfPanel({ rows }: { rows: ScoreRow[] }) {
     return new Map(order.map((r, i) => [r.hub_id, i + 1]))
   }, [rows])
 
+  const byName = useMemo(() => [...rows].sort((a, b) => a.name.localeCompare(b.name)), [rows])
+  const leftOut = byName.filter((r) => costInvalid(costs[r.hub_id])).map((r) => shortHubName(r.name))
+
   const reset = () => {
     setWeights({ winter: DEFAULT, flood: DEFAULT, hurricane: DEFAULT, severe_storm: DEFAULT })
     setCosts({})
@@ -113,23 +123,33 @@ export function WhatIfPanel({ rows }: { rows: ScoreRow[] }) {
           <details className="rounded-2xl bg-foreground/[0.03] px-3 py-2">
             <summary className="text-sm font-medium">Upgrade costs ($M, optional)</summary>
             <p className="mt-1 text-xs text-muted-foreground">Enter a cost to rank hubs by priority per $1M.</p>
-            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-              {[...rows]
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((r) => (
+            {/* As many columns as fit with the full hub name beside its box, so a narrow panel never cuts names to "De…". */}
+            <div className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-x-4 gap-y-2">
+              {byName.map((r) => {
+                const bad = costInvalid(costs[r.hub_id])
+                return (
                   <label key={r.hub_id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate">{shortHubName(r.name)}</span>
+                    <span className="min-w-0 truncate" title={shortHubName(r.name)}>
+                      {shortHubName(r.name)}
+                    </span>
                     <input
                       inputMode="decimal"
                       value={costs[r.hub_id] ?? ''}
                       onChange={(e) => setCosts((c) => ({ ...c, [r.hub_id]: e.target.value }))}
                       aria-label={`Upgrade cost for ${shortHubName(r.name)} ($M)`}
+                      aria-invalid={bad || undefined}
                       placeholder="–"
-                      className="h-8 w-16 rounded-lg border border-border/70 bg-background/70 px-2 text-right text-sm tabular-nums"
+                      className={`h-8 w-16 shrink-0 rounded-lg border bg-background/70 px-2 text-right text-sm tabular-nums ${bad ? 'border-band-high-text' : 'border-border/70'}`}
                     />
                   </label>
-                ))}
+                )
+              })}
             </div>
+            {leftOut.length > 0 && (
+              <p role="alert" className="mt-2 text-xs text-band-high-text">
+                Enter a number from {COST_MIN} to {COST_MAX} ($M). Left out: {leftOut.join(', ')}.
+              </p>
+            )}
           </details>
         </div>
 
