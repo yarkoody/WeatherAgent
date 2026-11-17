@@ -13,10 +13,9 @@ An AI agent for a logistics company's analysts. It answers questions about which
 - **Bonus alert:** a daily GitHub Actions job (and a webhook endpoint) re-scores hubs and posts score changes to a Discord webhook.
 
 ## Evidence that it works
-<!-- EVAL-V2: update with the final eval run numbers. -->
-- **Evals:** 23+ cases against the real model with an oracle: the brief's questions, follow-ups, determinism, a false premise, missing data, prompt injection, and recommendations. Last run: 23/23 passed, 100% correct tool selection, 100% grounding on the first try, about 10 s per turn, about $0.60 per run.
+- **Evals:** 29 cases against the real model with an oracle: the brief's questions, follow-ups, determinism, a false premise, missing data, city resolution, prompt injection, and recommendations. Last run: 28/29 as run, and 29/29 after fixing one eval check that rejected a correct answer. Tool selection was 100% correct, grounding passed on the first try in 35/35 turns, turns averaged about 9 s, and the run cost about $0.82.
 - **Independent reviews:** every part was reviewed before merge. Each review's findings and fixes are summarized in `docs/reviews/`.
-- **Second opinion:** an offline cross-check against TypeSafe's JEV decision model. It never changes scores.
+- **Second opinion:** an offline cross-check against TypeSafe's JEV decision model. It never changes scores. It exposed miscalibrated hazard bands in v1, and band agreement rose from 40% to 65% in v2.
 
 ## Key decisions
 - **A bounded agent instead of a router workflow**, because analysts ask open, combined questions. Numbers stay in code.

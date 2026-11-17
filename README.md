@@ -63,7 +63,32 @@ The details are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), the API is in
 
 ## The KPI: expected disruption days per year
 
-<!-- FORMULA-V2: replaced with the final v2 formula and numbers once formula v2 is merged. -->
+The KPI answers the question a logistics planner asks: **how many operating days a year does weather cost this hub?** Everything below is deterministic code (`app/scoring.py`). Every number lives in one `ScoringConfig`, and the full rationale is in spec section 6.
+
+**Typical year: expected disruption days.**
+- **Four hazard families:** winter, flood, hurricane and severe storm.
+- **Modeled days (FEMA NRI, weight 0.6):** each sub-hazard's annual frequency × the days it closes a hub. The days per event are stated assumptions (for example hurricane 10, ice storm 2, flood 2, winter-weather day 0.5), checked against published downtime figures.
+- **Observed days (Open-Meteo 2015-2025, weight 0.4):** days at the hub over a disruption threshold.
+- **Local hazards** are scaled to the area around the hub. **Coastal flood** is scaled by the share of the county in the flood zone (2.5-9.2%).
+- **Index:** days ÷ 25 × 100. Bands start at 8.75 days (medium) and 15 days (high).
+
+**Bad year: the average lost days in the worst 1 in 20 years (TVaR95).** Averages hide rare disasters, so this is computed exactly with a compound-Poisson (Panjer) recursion, with no approximation and no randomness. It is split by hazard so "why" questions have an answer, and it assumes hurricanes usually close a hub about 4 days and about 1 in 5 times about 35 days. The order of the top hubs depends on that mix, and answers say so.
+
+**Hazard bands** are in days: medium from 2 a year, high from 5, a working week. Hurricane is banded by its **10-year probability** (high from 50%).
+
+**Investment priority** = exposure × (0.6 + 0.25 × people served + 0.15 × resilience gap). It is multiplicative, so a hub with no weather risk gets no priority however large it is.
+
+| Hub | Typical year (days) | Bad year (days) | Hurricane within 10 years | Priority |
+|---|---|---|---|---|
+| Miami | 7.8 | **42.8** (1st) | 95% | 25.6 |
+| Minneapolis | **27.6** (1st) | 38.7 | 0% | 66.7 |
+| Houston | 10.5 | 38.2 | 84% | 40.3 |
+| Newark (New York metro) | 15.0 | 35.4 | 66% | 45.2 |
+| Chicago | 18.1 | 29.1 | 9% | 64.5 |
+
+**Robustness.** [`evals/results/sensitivity.md`](evals/results/sensitivity.md) halves and doubles each assumption. The typical-year ranking keeps a rank correlation of at least 0.96, and the top hub never changes. The bad-year order is also tested against the hurricane mix and the 35-day assumption.
+
+**City names** resolve to hubs through OMB's official metro-area delineations (Census, July 2023). New York resolves to the Newark NJ hub because they share a metro area. Boston lies in a metro without a hub and says so, and an ambiguous Portland gets a question back.
 
 ## Decisions and trade-offs
 
@@ -93,10 +118,19 @@ The cases cover:
 
 One LLM-judge rubric checks that each explanation names the hub's actual top driver.
 
-<!-- EVAL-V2: replace with the re-run results after formula v2. -->
-Last run, before formula v2: **23/23 cases passed**, with 100% tool selection and 100% grounding on the first try. Latency per turn was 9.6 s mean and 14.9 s p95, and the run cost about $0.58. Per-case results and the failure analysis from earlier runs are in [`evals/results/latest.md`](evals/results/latest.md).
+**Last full run, on formula v2: 28/29 as run, 29/29 after one eval-check fix.** The one failure was the check's own regex: the agent correctly said Boston's metro has no hub, but the regex expected the exact words "no hub". Across the run:
 
-The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crosscheck.md) compares our hazard bands with TypeSafe's JEV decision model, which rates hubs from the same raw signals. It found that our per-hazard bands were miscalibrated while our ordering held up, and it led to formula v2.
+| Metric | Result |
+|---|---|
+| Tool selection | 100% |
+| Grounding on the first try | 35/35 turns |
+| Same ranking across 3 runs | Yes |
+| Latency per turn | 8.7 s mean, 12.6 s p95 |
+| Cost of the run | About $0.82 |
+
+Per-case results and the failure analysis of every run, including what earlier failures taught and changed, are in [`evals/results/latest.md`](evals/results/latest.md).
+
+The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crosscheck.md) compares our hazard bands with TypeSafe's JEV decision model, which rates hubs from the same raw signals. On formula v1 it agreed on only 40% of bands, while ranking hubs almost the same way (winter +0.98). That exposed miscalibrated per-hazard bands. On v2, band agreement rose to 65%. It also showed JEV's own blind spot: it rated Miami's hurricane risk at 4%, because "0.3 events a year" means little without domain scale. That is why it advises and doesn't decide.
 
 ## Reliability and guardrails
 
@@ -124,8 +158,9 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
 
 ## Limitations
 
-<!-- LIMITS-V2: finalize after formula v2 (list from spec section 6). -->
-- **Days per event are assumptions,** not fitted to downtime logs.
+- **Days per event are assumptions,** not fitted to downtime logs. So is the hurricane closure mix, and the bad-year order of the top hubs depends on it.
+- **FEMA's hurricane frequency probably includes tropical storms.** Miami at 0.3 a year is about double the historical hurricane rate. Memphis and Atlanta's "medium" hurricane band probably reflects storm remnants.
+- **The hub's exact location relative to the flood zone is unknown,** so coastal flood uses the county's flood-zone share.
 - **FEMA NRI is county-level and modeled,** and Open-Meteo is reanalysis grid data, not station observations.
 - **County population is a proxy** for the demand a hub serves.
 - **Render's free plan:** the disk resets on deploy, so conversations are lost on restart.
