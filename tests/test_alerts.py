@@ -14,6 +14,7 @@ def row(hub="dallas", exposure=50.0, priority=40.0, exposure_band="medium", prio
     return ScoreRow(
         hub_id=hub, name=hub.title(), region="South", exposure=exposure, exposure_band=exposure_band,
         priority=priority, priority_band=priority_band, top_driver="severe_storm",
+        exposure_days_per_year=exposure / 4, bad_year_days=exposure / 2, hurricane_10yr_probability_pct=0.0,
     )
 
 
@@ -97,13 +98,57 @@ def test_no_webhook_writes_jsonl(tmp_path):
     assert len(lines[0]["changes"][0]["reasons"]) == 2  # -6.0 points and band medium -> low
 
 
-def test_rolling_window_is_last_36_complete_months():
+def test_rolling_window_matches_the_scoring_window_length():
+    # Scoring uses 2015-2025 (132 months); the scheduled job rescores on the last 132 complete months,
+    # so a fresh run differs from the baseline only by the months that rolled in and out.
     from datetime import date
 
-    from app.alerts import rolling_window
+    from app.alerts import rolling_window, window_months
 
-    assert rolling_window(date(2026, 11, 17)) == ("2023-11-01", "2026-10-31")
-    assert rolling_window(date(2026, 1, 1)) == ("2023-01-01", "2025-12-31")
+    assert window_months() == 132
+    assert rolling_window(date(2026, 11, 17)) == ("2015-11-01", "2026-10-31")
+    assert rolling_window(date(2026, 1, 1)) == ("2015-01-01", "2025-12-31")
+    assert rolling_window(date(2026, 11, 17), months=36) == ("2023-11-01", "2026-10-31")
+
+
+def test_fresh_rows_fetch_only_days_after_the_snapshot(monkeypatch):
+    from datetime import date, timedelta
+
+    from app import alerts, data
+
+    calls = []
+
+    def fake_fetch(hub, start, end):
+        calls.append((hub.id, start, end))
+        d, last, out = date.fromisoformat(start), date.fromisoformat(end), {"time": []}
+        for var in data.DAILY_VARS:
+            out[var] = []
+        while d <= last:
+            out["time"].append(d.isoformat())
+            for var in data.DAILY_VARS:
+                out[var].append(0.0)
+            d += timedelta(days=1)
+        return out
+
+    monkeypatch.setattr(data, "fetch_weather", fake_fetch)
+    rows = alerts.fresh_rows(date(2026, 2, 10))  # window 2015-02-01 .. 2026-01-31
+    assert len(rows) == 15
+    assert len(calls) == 15
+    assert {(start, end) for _, start, end in calls} == {("2026-01-01", "2026-01-31")}
+
+
+def test_fresh_rows_on_snapshot_window_fetches_nothing(monkeypatch):
+    from datetime import date
+
+    from app import alerts, data
+
+    def no_fetch(*args, **kwargs):
+        raise AssertionError("nothing to fetch: the window is inside the snapshot")
+
+    monkeypatch.setattr(data, "fetch_weather", no_fetch)
+    fresh = {r.hub_id: r for r in alerts.fresh_rows(date(2026, 1, 15))}  # window 2015-01-01 .. 2025-12-31
+    base = {r.hub_id: r for r in alerts.snapshot_rows()}
+    assert fresh == base
 
 
 def test_invalid_webhook_url_falls_back_to_jsonl(tmp_path, monkeypatch):

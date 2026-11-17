@@ -38,7 +38,7 @@ FAMILY_TEXT = {
 CONTEXT = (
     "Raw hazard signals for one US logistics distribution hub. FEMA National Risk Index values are annualized "
     "event frequencies for the hub's county (events per year; null means NRI has no value). Open-Meteo values are "
-    "days per year observed at the hub location, averaged over 2023-2025. The county area is given because county "
+    "days per year observed at the hub location, averaged over 2015-2025. The county area is given because county "
     "event counts grow with county size."
 )
 CRITERIA = [

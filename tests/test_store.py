@@ -73,6 +73,9 @@ def row(hub, priority, exposure=50.0):
         priority=priority,
         priority_band="medium",
         top_driver="flood",
+        exposure_days_per_year=exposure / 4,
+        bad_year_days=exposure / 2,
+        hurricane_10yr_probability_pct=0.0,
     )
 
 

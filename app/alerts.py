@@ -6,7 +6,7 @@ changed. Also reports active Severe or Extreme NWS alerts at the hubs. Delivery:
 POST to ALERT_WEBHOOK_URL, or a line in logs/alerts.jsonl when no URL is set (or the
 webhook fails).
 
-    python -m app.alerts                       # fresh weather, rolling last 36 complete months
+    python -m app.alerts                       # fresh weather, rolling window as long as the scoring window
     python -m app.alerts --snapshot            # committed snapshot as is
     python -m app.alerts --demo-window 2015-2017   # snapshot rescored on another window (live demo)
     python -m app.alerts --update-baseline     # also replace the baseline with this run's scores
@@ -183,23 +183,57 @@ def snapshot_rows() -> list[ScoreRow]:
     return list(_cached_snapshot_rows())
 
 
-def rolling_window(today: date) -> tuple[str, str]:
-    """The last 36 complete calendar months before today."""
+def window_months() -> int:
+    """Length of the scoring config's observed window in months (2015-01..2025-12 = 132)."""
+    from app import scoring
+
+    a = date.fromisoformat(scoring.DEFAULT_CONFIG.observed_start)
+    b = date.fromisoformat(scoring.DEFAULT_CONFIG.observed_end)
+    return (b.year * 12 + b.month) - (a.year * 12 + a.month) + 1
+
+
+def rolling_window(today: date, months: int | None = None) -> tuple[str, str]:
+    """The last `months` complete calendar months before today (default: as long as the scoring window).
+
+    Same length as the baseline's window, so a fresh run differs from the baseline only by the months
+    that rolled in and out, not by a different averaging period.
+    """
+    months = months or window_months()
     end = today.replace(day=1) - timedelta(days=1)
-    months = end.year * 12 + end.month - 36  # month index of the first month, 0-based
-    start = date(months // 12, months % 12 + 1, 1)
+    first = end.year * 12 + end.month - months  # month index of the first month, 0-based
+    start = date(first // 12, first % 12 + 1, 1)
     return start.isoformat(), end.isoformat()
 
 
+def _window_series(series: dict[str, list], start: str, end: str) -> dict[str, list]:
+    keep = [i for i, t in enumerate(series["time"]) if start <= t <= end]
+    return {k: [v[i] for i in keep] for k, v in series.items()}
+
+
 def fresh_rows(today: date | None = None) -> list[ScoreRow]:
-    """Fetch weather for the rolling window and rescore on it (NRI stays from the snapshot)."""
+    """Rescore on the rolling window (NRI stays from the snapshot).
+
+    Days inside the committed snapshot are reused; only the days after the snapshot's end are
+    fetched from Open-Meteo, which keeps the scheduled job well under its rate limit.
+    """
     from app import data, scoring
 
     start, end = rolling_window(today or datetime.now(UTC).date())
     snapshot = scoring.load_snapshot()
     hubs = scoring.load_hubs()
+    snap_end = snapshot.weather["end"]
+    fetch_from = max(start, (date.fromisoformat(snap_end) + timedelta(days=1)).isoformat())
+    merged = {}
+    for hub in hubs:
+        series = _window_series(snapshot.weather["hubs"][hub.id], start, end)
+        if fetch_from <= end:
+            new = data.fetch_weather(hub, fetch_from, end)
+            series = {k: series[k] + list(new[k]) for k in series}
+        merged[hub.id] = series
     weather = dict(snapshot.weather)
-    weather.update(fetched_at=_now(), start=start, end=end, hubs={h.id: data.fetch_weather(h, start, end) for h in hubs})
+    weather.update(start=start, end=end, hubs=merged)
+    if fetch_from <= end:
+        weather["fetched_at"] = _now()
     return _score_rows(dataclasses.replace(snapshot, weather=weather), (start, end))
 
 

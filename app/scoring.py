@@ -1,11 +1,14 @@
-"""Deterministic scoring over the committed snapshot (spec section 6).
+"""Deterministic scoring over the committed snapshot (spec section 6, formula v2).
 
-Exposure is expected disruption days per year:
-- modeled days = FEMA NRI events per year x days lost per event (local hazards scaled down for large counties)
-- observed days = days per year at the hub point over a disruption threshold (Open-Meteo, 2023-2025)
+Exposure is expected disruption days per year (typical year):
+- modeled days = FEMA NRI events per year x days lost per event (local hazards scaled down for large
+  counties, coastal flood scaled by the share of county area exposed)
+- observed days = days per year at the hub point over a disruption threshold (Open-Meteo, 2015-2025)
 - each family blends the two (NRI 0.6, observed 0.4; hurricane NRI only), families add up,
   and the index is min(days / 25, 1) x 100, so the 35/60 bands mean 8.75 and 15 days per year.
-Priority = 0.6 x exposure + 0.25 x people served + 0.15 x resilience gap.
+Family bands: 2 / 5 days per year; hurricane by the chance of at least one event in 10 years (20% / 50%).
+Bad-year lens: expected days + 1.645 x sd (a 1-in-20-year year), sd from a compound-Poisson variance.
+Priority = exposure x (0.6 + 0.25 x people served share + 0.15 x resilience-gap share).
 Same snapshot and config always give the same output; ties break by hub_id.
 """
 
@@ -70,10 +73,12 @@ class ScoringConfig(BaseModel):
     # local hazards: county counts scaled by min(1, reference_area / county area)
     local_hazards: tuple[str, ...] = ("IFLD", "TRND", "SWND", "HAIL")
     reference_area_sq_mi: float = 1000.0
+    # coastal flood: county counts scaled by the share of county area NRI marks as exposed (CFLD_EXP_AREA / AREA)
+    coastal_exposure_scaling: bool = True
 
     nri_weight: float = 0.6
     observed_weight: float = 0.4
-    observed_start: str = "2023-01-01"
+    observed_start: str = "2015-01-01"  # full snapshot: 11 years
     observed_end: str = "2025-12-31"
     snow_cm: float = 5.0  # winter disruption day: snowfall >= 5 cm or min temp <= -18 C
     cold_c: float = -18.0
@@ -89,6 +94,17 @@ class ScoringConfig(BaseModel):
 
     medium_from: float = 35.0
     high_from: float = 60.0
+    # family bands: by days per year; hurricane by chance of at least one event in 10 years
+    family_medium_from_days: float = 2.0
+    family_high_from_days: float = 5.0
+    hurricane_medium_from_pct: float = 20.0
+    hurricane_high_from_pct: float = 50.0
+    hurricane_window_years: float = 10.0
+
+    # bad-year lens: expected days + z x sd (z = 1.645, one-sided 95%: a 1-in-20-year year)
+    bad_year_z: float = 1.645
+    # hurricane closure-length mix for the variance only: 80% short (4 days), 20% severe (35 days)
+    hurricane_days_mix: tuple[tuple[float, float], ...] = ((0.8, 4.0), (0.2, 35.0))
 
     # what-if baseline: a disruption day counts the same in every family
     default_family_weights: dict[str, float] = {"winter": 0.25, "flood": 0.25, "hurricane": 0.25, "severe_storm": 0.25}
@@ -134,11 +150,35 @@ def band(value: float, config: ScoringConfig = DEFAULT_CONFIG) -> Band:
     return "low"
 
 
+def family_band(days: float, config: ScoringConfig = DEFAULT_CONFIG) -> Band:
+    if days >= config.family_high_from_days:
+        return "high"
+    if days >= config.family_medium_from_days:
+        return "medium"
+    return "low"
+
+
+def hurricane_band(probability_pct: float, config: ScoringConfig = DEFAULT_CONFIG) -> Band:
+    if probability_pct >= config.hurricane_high_from_pct:
+        return "high"
+    if probability_pct >= config.hurricane_medium_from_pct:
+        return "medium"
+    return "low"
+
+
+def hurricane_probability_pct(frequency: float, config: ScoringConfig = DEFAULT_CONFIG) -> float:
+    """Chance of at least one event in the window, Poisson: (1 - e^(-years x frequency)) x 100."""
+    return (1 - math.exp(-config.hurricane_window_years * max(frequency, 0.0))) * 100
+
+
 def _thresholds(config: ScoringConfig) -> BandThresholds:
     cap = config.exposure_days_cap
     return BandThresholds(
         medium_from=config.medium_from, high_from=config.high_from, days_cap=cap,
         medium_from_days=_r(config.medium_from / 100 * cap, 2), high_from_days=_r(config.high_from / 100 * cap, 2),
+        family_medium_from_days=config.family_medium_from_days, family_high_from_days=config.family_high_from_days,
+        hurricane_medium_from_pct=config.hurricane_medium_from_pct,
+        hurricane_high_from_pct=config.hurricane_high_from_pct,
     )
 
 
@@ -183,15 +223,30 @@ OBS_LABELS = {
 }
 
 
-def _family_days(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> dict[Family, tuple[float, list[Signal]]]:
+def _second_moment(key: str, config: ScoringConfig) -> float:
+    """E[D^2] of days lost per event: fixed days, except the hurricane closure-length mix."""
+    if key == "HRCN":
+        return sum(share * d * d for share, d in config.hurricane_days_mix)
+    return config.days_per_event[key] ** 2
+
+
+def _family_days(
+    hub: Hub, snapshot: Snapshot, config: ScoringConfig,
+) -> dict[Family, tuple[float, list[Signal], float]]:
+    """Per family: expected days per year, signals, and variance of days (for the bad-year lens).
+
+    Variance follows the formula review: sum over sub-hazards of weight x adjusted frequency x E[D^2]
+    (compound Poisson); the observed signal adds to the mean only.
+    """
     county = snapshot.nri["counties"][hub.county_fips]
     observed, nulls = _observed_days(snapshot.weather["hubs"][hub.id], config)
     area = county.get("AREA") or 0
-    out: dict[Family, tuple[float, list[Signal]]] = {}
+    out: dict[Family, tuple[float, list[Signal], float]] = {}
     for family in FAMILIES:
         nri_w = 1.0 if family == "hurricane" else config.nri_weight
         signals: list[Signal] = []
         days = 0.0
+        variance = 0.0
         for key, label in NRI_HAZARDS[family]:
             raw = county.get(f"{key}_AFREQ")
             dpe = config.days_per_event[key]
@@ -202,9 +257,17 @@ def _family_days(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> dict[Fa
             elif key in config.local_hazards and area > config.reference_area_sq_mi:
                 factor = config.reference_area_sq_mi / area
                 note = f"area-adjusted x{factor:.2f} (county {area:,.0f} sq mi)"
+            elif key == "CFLD" and config.coastal_exposure_scaling:
+                exposed = county.get("CFLD_EXP_AREA")
+                if exposed is None or not area:
+                    note = "exposed coastal area missing in NRI; not scaled"
+                else:
+                    factor = min(exposed / area, 1.0)
+                    note = f"{100 * factor:.1f}% of county area exposed to coastal flooding (NRI)"
             implied = (raw or 0.0) * dpe * factor
             contribution = nri_w * implied
             days += contribution
+            variance += nri_w * (raw or 0.0) * factor * _second_moment(key, config)
             signals.append(Signal(
                 name=f"{label} (FEMA NRI, {dpe:g} days/event)", source=NRI_SOURCE,
                 raw=None if raw is None else _r(raw, 3), unit="events/year", cap=None,
@@ -221,31 +284,39 @@ def _family_days(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> dict[Fa
                 note=(f"average per year {config.observed_start} to {config.observed_end}; "
                       f"{nulls[family]} null values"),
             ))
-        out[family] = (days, signals)
+        out[family] = (days, signals, variance)
     return out
 
 
 def _priority(exposure: float, county: dict, config: ScoringConfig) -> tuple[float, list[Signal]]:
+    """priority = exposure x (0.6 + 0.25 x people share + 0.15 x resilience-gap share), 0-100.
+
+    Multiplicative: people served and low resilience amplify weather exposure; they cannot create
+    priority where there is no exposure. Signal contributions add up to the priority.
+    """
     pop = county.get("POPULATION")
     resl = county.get("RESL_SCORE")
-    people = normalize(pop or 0, config.population_cap)
-    gap = 100 - (resl or 0)
+    people = normalize(pop or 0, config.population_cap)  # 0-100
+    gap = 100 - (resl or 0)  # 0-100
     parts = [
-        ("overall exposure", "scoring", exposure, "score 0-100", None, exposure, config.priority_exposure_weight, None),
+        ("overall exposure (base share)", "scoring", exposure, "score 0-100", None, exposure,
+         config.priority_exposure_weight, config.priority_exposure_weight * exposure, None),
         ("people served (county population)", NRI_SOURCE.replace("annualized frequency", "population"),
          pop, "people", config.population_cap, people, config.priority_people_weight,
-         "missing in NRI" if pop is None else None),
+         exposure * config.priority_people_weight * people / 100,
+         "missing in NRI" if pop is None else "multiplies exposure"),
         ("resilience gap (100 - FEMA community resilience score)",
          "FEMA National Risk Index, community resilience (county)", resl, "score 0-100", None, gap,
-         config.priority_resilience_weight, "missing in NRI" if resl is None else None),
+         config.priority_resilience_weight, exposure * config.priority_resilience_weight * gap / 100,
+         "missing in NRI" if resl is None else "multiplies exposure"),
     ]
     total = 0.0
     signals = []
-    for name, source, raw, unit, cap, normalized, weight, note in parts:
-        total += weight * normalized
+    for name, source, raw, unit, cap, normalized, weight, contribution, note in parts:
+        total += contribution
         signals.append(Signal(
             name=name, source=source, raw=None if raw is None else _r(raw, 3), unit=unit, cap=cap,
-            normalized=_r(normalized, 2), weight=weight, contribution=_r(weight * normalized, 2), note=note,
+            normalized=_r(normalized, 2), weight=weight, contribution=_r(contribution, 2), note=note,
         ))
     return total, signals
 
@@ -276,15 +347,21 @@ def _multipliers(effective: dict[Family, float], config: ScoringConfig) -> dict[
 
 def _score_hub(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> HubScore:
     fam = _family_days(hub, snapshot, config)
-    total_days = sum(d for d, _ in fam.values())
+    total_days = sum(d for d, _, _ in fam.values())
     exposure = normalize(total_days, config.exposure_days_cap)
     county = snapshot.nri["counties"][hub.county_fips]
     priority, priority_signals = _priority(exposure, county, config)
     top = max(FAMILIES, key=lambda f: (fam[f][0], -FAMILIES.index(f)))
     shares = {f: 100 * (fam[f][0] / total_days if total_days else 1 / len(FAMILIES)) for f in FAMILIES}
+    hurricane_pct = _r(hurricane_probability_pct(county.get("HRCN_AFREQ") or 0.0, config), 1)
+    bad_year = total_days + config.bad_year_z * math.sqrt(sum(v for _, _, v in fam.values()))
     families = {
         f: FamilyScore(family=f, score=_r(normalize(fam[f][0], config.exposure_days_cap), 1),
-                       days_per_year=_r(fam[f][0], 1), signals=fam[f][1])
+                       days_per_year=_r(fam[f][0], 1),
+                       # bands follow the displayed (rounded) values, like exposure_band
+                       band=(hurricane_band(hurricane_pct, config) if f == "hurricane"
+                             else family_band(_r(fam[f][0], 1), config)),
+                       signals=fam[f][1])
         for f in FAMILIES
     }
     exposure_r, priority_r = _r(exposure, 1), _r(priority, 1)
@@ -292,6 +369,8 @@ def _score_hub(hub: Hub, snapshot: Snapshot, config: ScoringConfig) -> HubScore:
         hub_id=hub.id,
         exposure=exposure_r,
         exposure_days_per_year=_r(total_days, 1),
+        bad_year_days=_r(bad_year, 1),
+        hurricane_10yr_probability_pct=_r(hurricane_pct, 1),
         exposure_band=band(exposure_r, config),
         families=families,
         family_weights={f: _r(shares[f], 1) for f in FAMILIES},
@@ -324,6 +403,7 @@ def rank(
 ) -> Ranking:
     if hazard != "overall" and kind != "exposure":
         raise ValueError("a hazard other than 'overall' is only valid with kind='exposure'")
+    cap = config.exposure_days_cap
     by_id = {h.id: h for h in hubs}
     values = {}
     for hub_id, s in scores.items():
@@ -331,12 +411,22 @@ def rank(
             continue
         if kind == "priority":
             values[hub_id] = s.priority
+        elif kind == "bad_year":
+            values[hub_id] = s.bad_year_days
         elif hazard == "overall":
             values[hub_id] = s.exposure
         else:
             values[hub_id] = s.families[hazard].score
+
+    def item_band(hub_id: str, v: float) -> Band:
+        if kind == "bad_year":  # bad-year days on the same day cut-offs as exposure (8.75 / 15)
+            return band(normalize(v, cap), config)
+        if kind == "exposure" and hazard != "overall":
+            return scores[hub_id].families[hazard].band
+        return band(v, config)
+
     items = [
-        RankedHub(rank=i, hub_id=hub_id, name=by_id[hub_id].name, value=v, band=band(v, config))
+        RankedHub(rank=i, hub_id=hub_id, name=by_id[hub_id].name, value=v, band=item_band(hub_id, v))
         for i, (hub_id, v) in enumerate(_ordered(values)[:top_n], start=1)
     ]
     data_as_of = next(iter(scores.values())).data_as_of if scores else ""
@@ -350,7 +440,9 @@ def score_rows(scores: dict[str, HubScore], hubs: list[Hub]) -> list[ScoreRow]:
     return [
         ScoreRow(hub_id=k, name=by_id[k].name, region=by_id[k].region, exposure=scores[k].exposure,
                  exposure_band=scores[k].exposure_band, priority=scores[k].priority,
-                 priority_band=scores[k].priority_band, top_driver=scores[k].top_driver)
+                 priority_band=scores[k].priority_band, top_driver=scores[k].top_driver,
+                 exposure_days_per_year=scores[k].exposure_days_per_year, bad_year_days=scores[k].bad_year_days,
+                 hurricane_10yr_probability_pct=scores[k].hurricane_10yr_probability_pct)
         for k, _ in order
     ]
 

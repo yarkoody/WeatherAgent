@@ -22,6 +22,7 @@ def rows():
         return ScoreRow(
             hub_id=hub, name=hub.title(), region="South", exposure=50.0, exposure_band="medium",
             priority=priority, priority_band=band, top_driver="flood",
+            exposure_days_per_year=12.5, bad_year_days=20.0, hurricane_10yr_probability_pct=0.0,
         )
 
     return [r("dallas", 44.9, "medium"), r("miami", 63.5, "high"), r("houston", 58.2, "medium"), r("atlanta", 58.2, "medium")]
