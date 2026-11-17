@@ -66,21 +66,16 @@ Type a question, or press the mic and speak (Chrome and Edge). Enter sends, even
 
 ## Score-change alerts (Send & alerts)
 
-Open **Send & alerts** in the sidebar (above Methodology). It sends you a message when a hub's exposure or review priority moves 5 points or more, or its level changes, and for severe live NWS alerts at a hub.
+Open **Send & alerts** in the sidebar (above Methodology). It posts a message to your Discord channel when a hub's exposure or review priority moves 5 points or more, or its level changes, and for severe live NWS alerts at a hub.
 
-- **Discord:**
-  - Paste a webhook URL from your Discord channel: channel settings, Integrations, Webhooks, New Webhook, Copy Webhook URL. Only `https://discord.com/api/webhooks/...` URLs are accepted.
-  - **Send test message** checks that it works.
-  - **Alert this channel when a hub's score changes** subscribes it, and a confirmation is posted to the channel.
-  - Treat the URL like a password: anyone who has it can post to that channel.
-- **Email:**
-  - Enter an address and turn on **Email me when a hub's score changes**. A confirmation email goes out.
-  - This works only when the server has an email provider configured. Otherwise the panel says "Email alerts need an email provider configured on the server", and the email controls are disabled.
-- Turning a switch off unsubscribes. Changing the webhook or address turns its alerts off.
+- Paste a webhook URL from your Discord channel: channel settings, Integrations, Webhooks, New Webhook, Copy Webhook URL. Only `https://discord.com/api/webhooks/...` URLs are accepted.
+- **Send test message** checks that it works.
+- **Alert this channel when a hub's score changes** subscribes it, and a confirmation is posted to the channel. Turning it off unsubscribes. Changing the webhook turns its alerts off.
+- Treat the URL like a password: anyone who has it can post to that channel.
 - This is a demo, with limits:
   - Scores change only when the data is refreshed, so alerts are rare.
   - The server forgets subscriptions when it is redeployed. If alerts stop, turn the switch off and on again.
-  - Turning alerts on stores the webhook URL or the address on the server until you turn them off.
+  - Turning alerts on stores the webhook URL on the server until you turn them off.
 
 ## Scores: the table and map
 

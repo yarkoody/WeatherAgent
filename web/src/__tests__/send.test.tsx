@@ -1,10 +1,10 @@
-// "Send & alerts": score-change alerts to Discord or email, set up from the sidebar. fetch is mocked: nothing is sent.
+// "Send & alerts": score-change alerts to the user's Discord webhook, set up from the sidebar. fetch is mocked: nothing is sent.
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import { AnswerCard } from '../components/AnswerCard'
 import { SendAlertsHost } from '../components/SendAlertsPanel'
-import { SEND_KEY, isDiscordWebhook, isEmail, loadSendSettings, openSendSettings, saveSendSettings } from '../lib/send'
+import { SEND_KEY, isDiscordWebhook, loadSendSettings, openSendSettings, saveSendSettings } from '../lib/send'
 import type { ChatResponse } from '../lib/types'
 import mock from '../mocks/chat-response.json'
 
@@ -12,13 +12,12 @@ const HOOK = 'https://discord.com/api/webhooks/123/abc_DEF-1'
 
 type Call = { method: string; url: string; body: Record<string, unknown> | null }
 
-/** fetch stub: GET /alerts/config says whether email is on; POSTs answer `status` with `answer`. */
-function stubFetch({ email = false, status = 200, answer = { status: 'subscribed' } as Record<string, unknown> } = {}) {
+/** fetch stub: every POST answers `status` with `answer`. */
+function stubFetch({ status = 200, answer = { status: 'subscribed' } as Record<string, unknown> } = {}) {
   const calls: Call[] = []
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === '/alerts/config') return Response.json({ discord: true, email })
       calls.push({ method: init?.method ?? 'GET', url, body: init?.body ? JSON.parse(String(init.body)) : null })
       return Response.json(answer, { status })
     }),
@@ -41,7 +40,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-describe('input checks (same rules as the backend)', () => {
+describe('webhook URL check (same rule as the backend)', () => {
   it.each([HOOK, 'https://discordapp.com/api/webhooks/1/x'])('accepts the webhook %s', (url) => expect(isDiscordWebhook(url)).toBe(true))
   it.each([
     'http://discord.com/api/webhooks/1/x',
@@ -53,14 +52,9 @@ describe('input checks (same rules as the backend)', () => {
     'https://discord.com/api/webhooks/1/x?wait=true',
   ])('rejects the webhook %s', (url) => expect(isDiscordWebhook(url)).toBe(false))
 
-  it.each(['ops@example.com', 'a.b+c@sub.example.co.uk'])('accepts the address %s', (a) => expect(isEmail(a)).toBe(true))
-  it.each(['ops', 'ops@example', 'a@b.c', 'a@b.com, c@d.com', 'a@b.com\nBcc: x@y.com'])('rejects the address %j', (a) =>
-    expect(isEmail(a)).toBe(false),
-  )
-
-  it('drops stored values that fail the checks', () => {
-    localStorage.setItem(SEND_KEY, JSON.stringify({ discordWebhook: 'https://evil.com/x', discordAlerts: true, email: 'nope', emailAlerts: true }))
-    expect(loadSendSettings()).toEqual({ discordWebhook: '', discordAlerts: false, email: '', emailAlerts: false })
+  it('drops a stored URL that fails the check', () => {
+    localStorage.setItem(SEND_KEY, JSON.stringify({ discordWebhook: 'https://evil.com/x', discordAlerts: true }))
+    expect(loadSendSettings()).toEqual({ discordWebhook: '', discordAlerts: false })
   })
 })
 
@@ -118,6 +112,13 @@ describe('Discord alerts', () => {
     expect(loadSendSettings().discordAlerts).toBe(false)
   })
 
+  it('has no email option', async () => {
+    stubFetch()
+    const panel = await openPanel()
+    expect(within(panel).queryByLabelText(/email/i)).toBeNull()
+    expect(within(panel).queryByText(/email/i)).toBeNull()
+  })
+
   it('a new webhook ends the old subscription', async () => {
     saveSendSettings({ discordWebhook: HOOK, discordAlerts: true })
     const calls = stubFetch()
@@ -132,30 +133,6 @@ describe('Discord alerts', () => {
     stubFetch()
     const panel = await openPanel()
     expect(within(panel).getByRole('switch', { name: /Alert this channel/ })).toHaveAttribute('aria-disabled', 'true')
-  })
-})
-
-describe('email alerts', () => {
-  it('are disabled, with the reason, when the server has no email provider', async () => {
-    stubFetch({ email: false })
-    const panel = await openPanel()
-    expect(await within(panel).findByText('Email alerts need an email provider configured on the server.')).toBeInTheDocument()
-    expect(within(panel).getByLabelText('Email address')).toBeDisabled()
-    expect(within(panel).getByRole('switch', { name: /Email me/ })).toHaveAttribute('aria-disabled', 'true')
-  })
-
-  it('subscribe an address when the server can send email', async () => {
-    const calls = stubFetch({ email: true })
-    const panel = await openPanel()
-    const input = within(panel).getByLabelText('Email address')
-    await waitFor(() => expect(input).toBeEnabled())
-    fireEvent.change(input, { target: { value: 'not an email' } })
-    expect(within(panel).getByText(/does not look like an email address/)).toBeInTheDocument()
-    fireEvent.change(input, { target: { value: 'ops@example.com' } })
-    fireEvent.click(within(panel).getByRole('switch', { name: /Email me/ }))
-    expect(await within(panel).findByText(/Subscribed\. A confirmation email is on its way/)).toBeInTheDocument()
-    expect(calls).toEqual([{ method: 'POST', url: '/alerts/subscribe', body: { email: 'ops@example.com' } }])
-    expect(loadSendSettings()).toMatchObject({ email: 'ops@example.com', emailAlerts: true })
   })
 })
 

@@ -38,7 +38,7 @@ DATA_DIR = ROOT / "data"
 MAX_MESSAGE_CHARS = 2000
 TEST_TEXT = "Test message from Hub Weather Risk. This webhook works: score-change alerts you turn on will appear here."
 SUBSCRIBED_TEXT = (
-    "This {} now gets Hub Weather Risk score-change alerts: a message when a hub's score moves 5 points or more, or its "
+    "This channel now gets Hub Weather Risk score-change alerts: a message when a hub's score moves 5 points or more, or its "
     "level changes, and for severe live NWS alerts at a hub. Scores change only when the data is refreshed, and this "
     "demo forgets subscriptions when it is redeployed."
 )
@@ -102,15 +102,8 @@ class WebhookBody(BaseModel):
     webhook_url: str = Field(max_length=300)
 
 
-class SubscriptionBody(BaseModel):
-    """Exactly one of a Discord webhook URL or an email address."""
-
-    webhook_url: str | None = Field(default=None, max_length=300)
-    email: str | None = Field(default=None, max_length=320)
-
-
-MAX_SUBSCRIPTIONS = {"discord": 50, "email": 20}
-FULL = "This demo already has the maximum number of {} alert subscriptions."
+MAX_SUBSCRIPTIONS = 50
+FULL = "This demo already has the maximum number of alert subscriptions."
 
 
 def last_user_text(messages: list[dict[str, Any]]) -> str | None:
@@ -281,8 +274,6 @@ def create_app(
     read_limiter = RateLimiter(_env_int("READ_RATE_LIMIT_PER_MIN", 120), 10**9)
     # Subscribing posts a confirmation and writes a row: a tight limit, so the table cannot be filled in a burst.
     subscribe_limiter = RateLimiter(_env_int("SUBSCRIBE_RATE_LIMIT_PER_MIN", 5), _env_int("SUBSCRIBE_DAILY_CAP", 200))
-    # Each email subscription sends a confirmation to an address someone typed in: tighter still, per IP and per day.
-    email_limiter = RateLimiter(_env_int("EMAIL_SUBSCRIBE_RATE_LIMIT_PER_MIN", 3), _env_int("EMAIL_SUBSCRIBE_DAILY_CAP", 20))
     proxy_hops = _env_int("TRUSTED_PROXY_HOPS", 1)
     ip_header = os.environ.get("CLIENT_IP_HEADER", "").strip().lower()
     alert_token = os.environ.get("ALERT_TOKEN", "")
@@ -469,74 +460,44 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 
-    def deliver(kind: str, target: str, text: str) -> None:
+    def deliver(url: str, text: str) -> None:
         from app import send
 
         try:
-            if kind == "discord":
-                send.post_discord(target, text)
-            else:
-                send.send_email(target, "Hub Weather Risk: score-change alerts are on", text)
+            send.post_discord(url, text)
         except send.SendError as exc:
             raise HTTPException(exc.status, exc.message) from exc
-
-    def subscription_target(body: SubscriptionBody) -> tuple[str, str]:
-        from app import send
-
-        if (body.webhook_url is None) == (body.email is None):
-            raise HTTPException(422, "Send either webhook_url or email.")
-        if body.webhook_url is not None:
-            return "discord", checked_webhook(body.webhook_url)
-        try:
-            return "email", send.validate_email(body.email or "")
-        except ValueError as exc:
-            raise HTTPException(422, "That does not look like an email address.") from exc
 
     @app.post("/send/discord")
     def send_discord(body: WebhookBody, request: Request) -> dict[str, str]:
         """Post a fixed test message to a Discord webhook ("Send test message"). Discord webhook URLs only, never logged."""
         url = checked_webhook(body.webhook_url)
         limit(request, subscribe_limiter)
-        deliver("discord", url, TEST_TEXT)
+        deliver(url, TEST_TEXT)
         return {"status": "sent"}
 
-    @app.get("/alerts/config")
-    def alerts_config() -> dict[str, bool]:
-        """Which alert channels this server can deliver to. Email needs RESEND_API_KEY and ALERT_EMAIL_FROM."""
-        from app import send
-
-        return {"discord": True, "email": send.email_configured()}
-
     @app.post("/alerts/subscribe")
-    def alerts_subscribe(body: SubscriptionBody, request: Request) -> dict[str, str]:
-        """Subscribe a Discord webhook or an email address to score-change alerts.
-
-        A confirmation goes out first, so a dead webhook or a refused address is never stored. Email needs a provider:
-        without one nothing is sent and the request is refused.
-        """
-        from app import send
-
-        kind, target = subscription_target(body)
-        if kind == "email" and not send.email_configured():
-            raise HTTPException(503, send.EMAIL_DISABLED)
-        limit(request, subscribe_limiter if kind == "discord" else email_limiter)
+    def alerts_subscribe(body: WebhookBody, request: Request) -> dict[str, str]:
+        """Send score-change alerts to this Discord webhook too. A confirmation is posted first, so a dead URL is never stored."""
+        url = checked_webhook(body.webhook_url)
+        limit(request, subscribe_limiter)
         store_ = get("store")
-        existing = store_.subscriptions(kind)
-        if target in existing:
+        existing = store_.subscriptions()
+        if url in existing:
             return {"status": "already_subscribed"}
-        if len(existing) >= MAX_SUBSCRIPTIONS[kind]:
-            raise HTTPException(409, FULL.format(kind))
-        deliver(kind, target, SUBSCRIBED_TEXT.format("channel" if kind == "discord" else "address"))
-        result = store_.add_subscription(kind, target, MAX_SUBSCRIPTIONS[kind])
+        if len(existing) >= MAX_SUBSCRIPTIONS:
+            raise HTTPException(409, FULL)
+        deliver(url, SUBSCRIBED_TEXT)
+        result = store_.add_subscription(url, MAX_SUBSCRIPTIONS)
         if result == "full":
-            raise HTTPException(409, FULL.format(kind))
+            raise HTTPException(409, FULL)
         return {"status": "subscribed" if result == "added" else "already_subscribed"}
 
     @app.post("/alerts/unsubscribe")
-    def alerts_unsubscribe(body: SubscriptionBody, request: Request) -> dict[str, str]:
-        kind, target = subscription_target(body)
+    def alerts_unsubscribe(body: WebhookBody, request: Request) -> dict[str, str]:
+        url = checked_webhook(body.webhook_url)
         limit(request, subscribe_limiter)
-        return {"status": "unsubscribed" if get("store").remove_subscription(kind, target) else "not_subscribed"}
+        return {"status": "unsubscribed" if get("store").remove_subscription(url) else "not_subscribed"}
 
     @app.post("/alerts/check")
     def alerts_check(x_alert_token: str | None = Header(default=None), demo_window: str | None = None) -> dict[str, Any]:

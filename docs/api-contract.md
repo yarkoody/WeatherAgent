@@ -89,10 +89,6 @@ Returns `{ "status": "ok" }`.
 
 Requires the header `X-Alert-Token: <ALERT_TOKEN>`. Returns `{ "changes": [...], "nws": [...], "delivered": ..., "subscribers": { "sent", "failed", "removed" } }`. Alerts go to `ALERT_WEBHOOK_URL` and then to every subscribed webhook. Optional `?demo_window=2015-2017` rescores the snapshot on those observed years, so an operator can show a real alert (the snapshot's own scores don't change between deploys).
 
-## `GET /alerts/config`
-
-Returns `{ "discord": true, "email": bool }`. `email` is true only when `RESEND_API_KEY` and `ALERT_EMAIL_FROM` are set.
-
 ## `POST /send/discord`
 
 Body: `{ "webhook_url" }`. Posts a fixed test message (no user text) with mentions disabled. Returns `{ "status": "sent" }`. Allows 5 requests a minute per IP.
@@ -108,16 +104,9 @@ Body: `{ "webhook_url" }`. Posts a fixed test message (no user text) with mentio
 
 ## `POST /alerts/subscribe`, `POST /alerts/unsubscribe`
 
-The body is exactly one of `{ "webhook_url" }` (same check as above) or `{ "email" }` (format checked, lower-cased).
+Body: `{ "webhook_url" }`, with the same check as above. Both allow 5 requests a minute per IP.
 
-Subscribe sends a confirmation first (a Discord message, or an email through Resend) and stores the target only if it was accepted. It returns `{ "status": "subscribed" | "already_subscribed" }`.
-
-| Case | Status |
-|---|---|
-| Email with no provider configured (nothing is sent) | 503: "Email alerts need an email provider configured on the server." |
-| Caps reached (50 Discord, 20 email) | 409 |
-
-Rate limits: Discord allows 5 a minute per IP. Email subscribe allows 3 a minute per IP and 20 a day per server.
+Subscribe posts a confirmation message first and stores the URL only if Discord accepted it. It returns `{ "status": "subscribed" | "already_subscribed" }`, or 409 when the demo's 50 subscriptions are taken.
 
 Unsubscribe returns `{ "status": "unsubscribed" | "not_subscribed" }`.
 
@@ -134,8 +123,7 @@ The body is always `{ "detail": string }`. The status codes:
 | 401 | Bad alert token |
 | 404 | Discord does not know the webhook (`/send/discord`, `/alerts/subscribe`) |
 | 409 | Alert subscriptions are full |
-| 502, 504 | Discord or the email provider could not be reached, or did not answer within 5 s |
-| 503 | Email alerts requested with no email provider configured |
+| 502, 504 | Discord could not be reached, or did not answer within 5 s |
 | 404 | Unknown or ambiguous hub name (`GET /hubs/{hub_id}/score` and `/history`) |
 | 503 | The model or an upstream service is unavailable |
 

@@ -4,9 +4,8 @@ Recompute scores, compare with the committed baseline `data/snapshot/score_basel
 and report every hub whose exposure or priority moved by 5 points or more, or whose band
 changed. Also reports active Severe or Extreme NWS alerts at the hubs. Delivery: a JSON
 POST to ALERT_WEBHOOK_URL, or a line in logs/alerts.jsonl when no URL is set (or the
-webhook fails). The same text then goes to every subscriber in the store (POST /alerts/subscribe):
-Discord webhooks, and email addresses when an email provider is configured. A subscriber that fails
-never blocks the others or the state.
+webhook fails). The same text then goes to every Discord webhook subscribed in the store
+(POST /alerts/subscribe); a subscriber that fails never blocks the others or the state.
 
     python -m app.alerts                       # fresh weather, rolling window as long as the scoring window
     python -m app.alerts --snapshot            # committed snapshot as is
@@ -323,42 +322,23 @@ def check_alerts(
     }
 
 
-NO_FAN_OUT = {"sent": 0, "failed": 0, "removed": 0, "skipped": 0}
-EMAIL_SUBJECT = "Hub Weather Risk: score-change alert"
-EMAIL_FOOTER = (
-    "\n\nYou get this because this address was subscribed to score-change alerts in Hub Weather Risk "
-    "(Send & alerts in the sidebar). To stop, turn email alerts off there with this address."
-)
+NO_FAN_OUT = {"sent": 0, "failed": 0, "removed": 0}
 
 
 def fan_out(store: Store, text: str) -> dict[str, int]:
-    """Post the alert text to every subscriber.
-
-    A Discord webhook that Discord no longer knows is removed. Email subscribers are skipped (kept) while no
-    email provider is configured.
-    """
+    """Post the alert text to every subscribed Discord webhook. A webhook Discord no longer knows is removed."""
     from app import send
 
     counts = dict(NO_FAN_OUT)
-    for url in store.subscriptions("discord"):
+    for url in store.subscriptions():
         try:
             send.post_discord(url, text)
             counts["sent"] += 1
         except (send.SendError, ValueError) as exc:
             counts["failed"] += 1
             if isinstance(exc, ValueError) or exc.status == 404:
-                store.remove_subscription("discord", url)
+                store.remove_subscription(url)
                 counts["removed"] += 1
-    emails = store.subscriptions("email")
-    if emails and not send.email_configured():
-        counts["skipped"] += len(emails)
-        return counts
-    for address in emails:
-        try:
-            send.send_email(address, EMAIL_SUBJECT, text + EMAIL_FOOTER)
-            counts["sent"] += 1
-        except (send.SendError, ValueError):
-            counts["failed"] += 1
     return counts
 
 
