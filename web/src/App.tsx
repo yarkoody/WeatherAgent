@@ -116,38 +116,42 @@ export default function App() {
     <TooltipProvider>
       <div className="flex h-dvh flex-col">
         <header className="glass-bar relative z-20">
-          <div className="flex w-full items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3">
-            {/* Hamburger: opens and closes the chat history on every screen size. */}
-            <Button
-              ref={menuButton}
-              variant="ghost"
-              size="icon-sm"
-              onClick={toggleSidebar}
-              aria-label={historyOpen ? 'Close chat history' : 'Open chat history'}
-              aria-expanded={historyOpen}
-              aria-controls="chat-history"
-            >
-              <MenuIcon />
-            </Button>
-            <a href="/" className="flex shrink-0 items-center gap-2" aria-label="Hub Weather Risk" onClick={(e) => (e.preventDefault(), setView('chat'))}>
-              <img src="/favicon.svg" alt="" width={26} height={26} />
-              <span className="heading-tight hidden text-[0.95rem] font-semibold tracking-tight whitespace-nowrap md:inline">Hub Weather Risk</span>
-            </a>
-            {USE_MOCKS && (
-              <span className="hidden rounded bg-band-medium-soft px-1.5 py-0.5 text-[0.65rem] font-semibold whitespace-nowrap text-band-medium-text sm:inline">
-                Mock data
-              </span>
-            )}
-            {debug && (
-              <a
-                href="?debug=0"
-                title="Shows tool names, arguments, trace ids and grounding errors. Click to turn off."
-                className="rounded bg-isobar-soft px-1.5 py-0.5 text-[0.65rem] font-semibold whitespace-nowrap text-isobar"
+          {/* Three columns: the tabs sit in the middle of the page width, not the leftover space.
+              The side columns never shrink below their content, so the tabs shift rather than overlap. */}
+          <div className="grid w-full grid-cols-[minmax(max-content,1fr)_auto_minmax(max-content,1fr)] items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Hamburger: opens and closes the chat history on every screen size. */}
+              <Button
+                ref={menuButton}
+                variant="ghost"
+                size="icon-sm"
+                onClick={toggleSidebar}
+                aria-label={historyOpen ? 'Close chat history' : 'Open chat history'}
+                aria-expanded={historyOpen}
+                aria-controls="chat-history"
               >
-                Developer view
+                <MenuIcon />
+              </Button>
+              <a href="/" className="flex shrink-0 items-center gap-2" aria-label="Hub Weather Risk" onClick={(e) => (e.preventDefault(), setView('chat'))}>
+                <img src="/favicon.svg" alt="" width={26} height={26} />
+                <span className="heading-tight hidden text-[0.95rem] font-semibold tracking-tight whitespace-nowrap md:inline">Hub Weather Risk</span>
               </a>
-            )}
-            <nav className="flex gap-1 sm:ml-2" aria-label="Views">
+              {USE_MOCKS && (
+                <span className="hidden rounded bg-band-medium-soft px-1.5 py-0.5 text-[0.65rem] font-semibold whitespace-nowrap text-band-medium-text sm:inline">
+                  Mock data
+                </span>
+              )}
+              {debug && (
+                <a
+                  href="?debug=0"
+                  title="Shows tool names, arguments, trace ids and grounding errors. Click to turn off."
+                  className="rounded bg-isobar-soft px-1.5 py-0.5 text-[0.65rem] font-semibold whitespace-nowrap text-isobar"
+                >
+                  Developer view
+                </a>
+              )}
+            </div>
+            <nav className="flex gap-1" aria-label="Views">
               {(['chat', 'scores'] as const).map((v) => (
                 <Button
                   key={v}
@@ -160,12 +164,13 @@ export default function App() {
                 </Button>
               ))}
             </nav>
-            <span className="flex-1" />
-            {narrow && (
-              <Button variant="outline" size="icon-sm" onClick={newChat} aria-label="Start a new chat">
-                <PlusIcon />
-              </Button>
-            )}
+            <div className="flex items-center justify-end gap-2">
+              {narrow && (
+                <Button variant="outline" size="icon-sm" onClick={newChat} aria-label="Start a new chat">
+                  <PlusIcon />
+                </Button>
+              )}
+            </div>
           </div>
         </header>
         <div className="flex min-h-0 flex-1">
