@@ -96,3 +96,13 @@ describe('Ask next', () => {
     expect(screen.queryByRole('group', { name: 'Ask next' })).not.toBeInTheDocument()
   })
 })
+
+describe('starter questions on narrow and short screens', () => {
+  it('chips may shrink and wrap, and the empty state scrolls on its own above the composer', async () => {
+    const { Suggestions } = await import('../components/ai-elements/suggestions')
+    const { render: r, screen: s } = await import('@testing-library/react')
+    r(<Suggestions suggestions={['Which Midwest hubs are most exposed to winter weather?']} onPick={() => {}} />)
+    const chip = s.getByRole('button', { name: /Which Midwest hubs/ })
+    for (const c of ['shrink', 'min-w-0', 'max-w-full', 'whitespace-normal']) expect(chip.className.split(' ')).toContain(c)
+  })
+})

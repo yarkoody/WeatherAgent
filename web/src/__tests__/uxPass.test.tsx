@@ -30,7 +30,7 @@ describe('compact numbers (display only)', () => {
 
   it('formats percentages without needless decimals', () => {
     expect(pct(95.04)).toBe('95%')
-    expect(pct(10.1)).toBe('10%')
+    expect(pct(10.1)).toBe('10.1%') // the tool's precision: never rounds 10.1% to 10%
     expect(pct(2.43)).toBe('2.4%')
     expect(pct(0)).toBe('0%')
   })
@@ -40,15 +40,15 @@ describe('plain-language tips', () => {
   it('explain a hazard family in at most five short steps, from tool data', () => {
     const steps = familySteps(hub.families.winter, hub.band_thresholds)
     expect(steps.length).toBeLessThanOrEqual(5)
-    expect(steps[0]).toBe('FEMA expects about 16.6 winter weather, 0.5 ice storm and 8.9 cold wave events a year in this county.')
+    expect(steps[0]).toBe('FEMA estimates about 16.6 winter weather, 0.5 ice storm and 8.9 cold wave events a year in this county.')
     expect(steps.join(' ')).toContain('60% FEMA, 40% observed')
-    expect(steps.at(-1)).toContain(`about ${hub.families.winter.days_per_year} lost days a year`)
+    expect(steps.at(-1)).toContain(`about ${hub.families.winter.days_per_year} modeled lost days a year`)
     expect(steps.join(' ')).not.toMatch(/×|normalized|contribution|_/)
   })
 
   it('explain the score and the bad year in one plain sentence each', () => {
     expect(indexSteps(hub.band_thresholds)[0]).toBe('Score = lost days ÷ 25 × 100. 25 days a year counts as the maximum.')
-    expect(badYearSteps(hub)[0]).toBe(`In the worst 1 year in 20, this hub loses on average about ${hub.bad_year_days} days.`)
+    expect(badYearSteps(hub)[0]).toBe(`In the worst 1 year in 20, the model puts this hub's lost days at about ${hub.bad_year_days} on average (an estimate).`)
   })
 
   it('priority steps show people served in compact form', () => {

@@ -1,7 +1,7 @@
 // "How is this calculated?" text. Every number comes from the tool output (signals, scores, thresholds);
 // the only fixed text is the wording around them.
 import { FAMILIES, FAMILY_LABEL, NA, compact, fmt, isNum, pct } from './format'
-import type { BandThresholds, Family, FamilyScore, HubScore, Signal } from './types'
+import type { BandThresholds, Family, FamilyScore, HubScore, Signal, WeatherStat } from './types'
 
 /** Exact tool value, or n/a when the field is missing (older backends and saved chats can lack optional fields). */
 const n = (v: number | null | undefined) => (isNum(v) ? String(v) : NA)
@@ -29,7 +29,7 @@ export function exposureLines(s: HubScore): string[] {
   ]
 }
 
-/** Investment priority: weighted blend of 0-100 signals. */
+/** Screening priority: weighted blend of 0-100 signals. */
 export function priorityLines(s: HubScore): string[] {
   return [
     ...(s.priority_signals ?? []).map((p) => {
@@ -43,7 +43,7 @@ export function priorityLines(s: HubScore): string[] {
 
 /** Fixed wording (approved): what the two lenses mean. */
 export const LENS_EXPLAINER =
-  'Typical year is the expected number of lost days. Bad year is the average across the worst 1 year in 20, because averages hide rare, severe events such as hurricanes.'
+  'Both are modeled lost days (estimates). Typical year is the modeled average. Bad year is the average across the worst 1 year in 20, because averages hide rare, severe events such as hurricanes.'
 
 /** Each family's share of the bad year, when the data has it. */
 function badYearShares(s: HubScore): { family: Family; days: number }[] | null {
@@ -54,7 +54,7 @@ function badYearShares(s: HubScore): { family: Family; days: number }[] | null {
 export function badYearLines(s: HubScore): string[] {
   const shares = badYearShares(s)
   return [
-    `Typical year: ${n(s.exposure_days_per_year)} days lost on average.`,
+    `Typical year: ${n(s.exposure_days_per_year)} modeled lost days on average.`,
     `Bad year: ${n(s.bad_year_days)} days on average across the worst 1 year in 20 (TVaR at 95%).`,
     ...(shares ? [`By hazard: ${shares.map((x) => `${FAMILY_LABEL[x.family].toLowerCase()} ${n(x.days)}`).join(', ')} (they add up to the bad year).`] : []),
   ]
@@ -101,7 +101,7 @@ export function familySteps(f: FamilyScore, t: BandThresholds): string[] {
   const known = fema.filter((s) => isNum(s.raw))
   const steps: string[] = []
   if (known.length) {
-    steps.push(`FEMA expects about ${listJoin(known.map((s) => `${r1(s.raw!)} ${baseName(s.name)}`))} events a year in this county.`)
+    steps.push(`FEMA estimates about ${listJoin(known.map((s) => `${r1(s.raw!)} ${baseName(s.name)}`))} events a year in this county.`)
     const per = known.map(daysPerEvent).filter((d): d is number => d !== null)
     const femaDays = known.reduce((a, s) => a + s.normalized, 0)
     steps.push(
@@ -121,7 +121,7 @@ export function familySteps(f: FamilyScore, t: BandThresholds): string[] {
     )
   }
   const cut = f.family === 'hurricane' || !isNum(t?.family_medium_from_days) || !isNum(t?.family_high_from_days) ? '' : ` (medium from ${r1(t.family_medium_from_days)} days, high from ${r1(t.family_high_from_days)})`
-  steps.push(`Result: about ${r1(f.days_per_year)} lost days a year, which counts as ${f.band ?? 'unrated'}${cut}.`)
+  steps.push(`Result: about ${r1(f.days_per_year)} modeled lost days a year, which counts as ${f.band ?? 'unrated'}${cut}.`)
   return steps
 }
 
@@ -134,7 +134,7 @@ export function indexSteps(t: BandThresholds): string[] {
 
 export function exposureSteps(s: HubScore): string[] {
   const parts = FAMILIES.map((f) => `${FAMILY_LABEL[f].toLowerCase()} ${r1(s.families?.[f]?.days_per_year ?? 0)}`)
-  return [`Lost days a year by hazard: ${listJoin(parts)}.`, `Together: about ${r1(s.exposure_days_per_year)} lost days in a typical year.`, ...indexSteps(s.band_thresholds)]
+  return [`Lost days a year by hazard: ${listJoin(parts)}.`, `Together: about ${r1(s.exposure_days_per_year)} modeled lost days in a typical year (an estimate).`, ...indexSteps(s.band_thresholds)]
 }
 
 const DRIVER: Record<Family, { name: string; plural: boolean }> = {
@@ -145,7 +145,7 @@ const DRIVER: Record<Family, { name: string; plural: boolean }> = {
 }
 
 export function badYearSteps(s: HubScore): string[] {
-  const steps = [`In the worst 1 year in 20, this hub loses on average about ${r1(s.bad_year_days)} days.`]
+  const steps = [`In the worst 1 year in 20, the model puts this hub's lost days at about ${r1(s.bad_year_days)} on average (an estimate).`]
   const shares = badYearShares(s)
   if (shares && isNum(s.bad_year_days) && s.bad_year_days > 0) {
     const top = [...shares].sort((a, b) => b.days - a.days)[0]
@@ -156,7 +156,7 @@ export function badYearSteps(s: HubScore): string[] {
         : `${d.name} is the largest part (${r1(top.days)} days).`,
     )
   }
-  steps.push(`In a typical year it loses about ${r1(s.exposure_days_per_year)} days.`)
+  steps.push(`In a typical year the model puts it at about ${r1(s.exposure_days_per_year)} lost days.`)
   return steps
 }
 
@@ -164,7 +164,7 @@ export function hurricaneSteps(s: HubScore): string[] {
   const t = s.band_thresholds
   const freq = s.families?.hurricane?.signals?.find((x) => isNum(x.raw))
   return [
-    freq ? `FEMA expects about ${n(freq.raw)} hurricanes a year near this hub.` : 'FEMA has no hurricane data for this county.',
+    freq ? `FEMA estimates about ${n(freq.raw)} hurricanes a year near this hub.` : 'FEMA has no hurricane data for this county.',
     `That is a ${pct(s.hurricane_10yr_probability_pct)} chance of at least one in the next 10 years.`,
     ...(isNum(t?.hurricane_medium_from_pct) && isNum(t?.hurricane_high_from_pct)
       ? [`Hurricane risk counts as medium from a ${pct(t.hurricane_medium_from_pct)} chance, high from ${pct(t.hurricane_high_from_pct)}.`]
@@ -179,8 +179,33 @@ export function prioritySteps(s: HubScore): string[] {
     return `${n0}: ${r1(p.normalized)} of 100 points`
   }
   return [
-    'Investment priority says where upgrades would help most. It mixes three things:',
+    'Screening priority suggests where to look first at upgrades; it is not a cost-benefit estimate. It mixes three things:',
     ...(s.priority_signals ?? []).map((p) => `${plain(p)}${isNum(p.weight) ? `, counting for ${Math.round(p.weight * 100)}%` : ''}.`),
     `Result: ${r1(s.priority)} of 100.`,
   ]
+}
+
+// ---------- weather_stat: the explanation depends on the metric's unit ----------
+
+/** Day counts and shares count days over the year; totals (mm, cm) sum a quantity over the year. */
+export function weatherStatKind(s: WeatherStat): 'share' | 'days' | 'total' {
+  if (s.unit === '%') return 'share'
+  if (s.unit === 'days') return 'days'
+  return 'total'
+}
+
+export function weatherStatSteps(s: WeatherStat): string[] {
+  const kind = weatherStatKind(s)
+  const what = `What counts: ${s.definition}.`
+  if (kind === 'share') return [`${n(s.numerator)} of the ${n(s.denominator)} days in ${s.year} met the threshold, which is ${n(s.value)}%.`, what]
+  if (kind === 'days') return [`${n(s.numerator)} of the ${n(s.denominator)} days in ${s.year} met the threshold.`, what]
+  return [`Added up over the ${n(s.denominator)} days of ${s.year}: ${n(s.value)} ${s.unit}.`, what]
+}
+
+export function weatherStatDetail(s: WeatherStat): string[] {
+  const exactLine =
+    weatherStatKind(s) === 'total'
+      ? `Exact value: ${n(s.value)} ${s.unit}, summed over ${n(s.denominator)} days.`
+      : `Exact value: ${n(s.value)} ${s.unit} (${n(s.numerator)} of ${n(s.denominator)} days).`
+  return [exactLine, `Source: ${s.source}.`]
 }

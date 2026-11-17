@@ -31,6 +31,28 @@ describe('FiguresTable', () => {
     expect(screen.getByText('General')).toBeInTheDocument()
   })
 
+  it('shows source_field (with its family path) next to the source tool, in developer mode only', () => {
+    const figs = [
+      { hub_id: 'denver', label: 'winter days', value: 12.1, unit: 'days/year', source_tool: 'get_hub_risk', source_field: 'days_per_year', family: 'winter' as const },
+      { hub_id: 'denver', label: 'priority', value: 40.2, unit: 'score 0-100', source_tool: 'get_hub_risk', source_field: 'priority', family: null },
+      { hub_id: 'denver', label: 'old answer', value: 3, unit: 'days', source_tool: 'get_hub_risk' }, // saved before the field existed
+    ]
+    const { unmount } = render(
+      <DebugProvider debug>
+        <FiguresTable figures={figs} verified />
+      </DebugProvider>,
+    )
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1)
+    expect(within(rows[0]).getAllByRole('cell')[3]).toHaveTextContent('get_hub_riskfamilies.winter.days_per_year')
+    expect(within(rows[1]).getAllByRole('cell')[3]).toHaveTextContent(/^get_hub_riskpriority$/)
+    expect(within(rows[2]).getAllByRole('cell')[3]).toHaveTextContent(/^get_hub_risk$/)
+    unmount()
+
+    render(<FiguresTable figures={figs} verified />)
+    expect(screen.queryByText('families.winter.days_per_year')).not.toBeInTheDocument()
+    expect(screen.queryByText('get_hub_risk')).not.toBeInTheDocument()
+  })
+
   it('renders nothing without figures', () => {
     const { container } = render(<FiguresTable figures={[]} verified />)
     expect(container).toBeEmptyDOMElement()

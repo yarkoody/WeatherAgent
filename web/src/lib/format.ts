@@ -77,10 +77,10 @@ export function fmt(value: number | null | undefined, digits = 1): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: digits })
 }
 
-/** Percent for display: "95%", "10%", "2.4%" (one decimal only below 10). */
+/** Percent for display at the tools' own precision (one decimal): "95%", "10.1%", "2.4%". */
 export function pct(value: number | null | undefined): string {
   if (!isNum(value)) return NA
-  return `${value.toLocaleString('en-US', { maximumFractionDigits: Math.abs(value) < 10 ? 1 : 0 })}%`
+  return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`
 }
 
 /** A cited figure exactly as the tool returned it: no rounding. */

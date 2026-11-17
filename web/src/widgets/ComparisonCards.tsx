@@ -34,7 +34,7 @@ export function ComparisonCards({ data: raw }: { data: HubComparison }) {
     <WidgetFrame
       label="Hub comparison"
       title={names.length === 2 ? `${names[0]} and ${names[1]}` : `Comparing ${names.length} hubs`}
-      note={`More lost days means more exposed. Data as of ${formatDate(data.data_as_of)}.`}
+      note={`More modeled lost days means more exposed. Data as of ${formatDate(data.data_as_of)}.`}
     >
       <div
         className="grid gap-3"
@@ -71,7 +71,7 @@ export function ComparisonCards({ data: raw }: { data: HubComparison }) {
                   <div key={h} className="flex items-center justify-between gap-2">
                     <dt className="flex items-center gap-1 text-muted-foreground">
                       {h !== 'overall' && <HazardIcon hazard={h} className="size-3.5" />}
-                      {h === 'overall' ? 'Lost days, typical year' : HAZARD_LABEL[h]}
+                      {h === 'overall' ? 'Exposure score' : HAZARD_LABEL[h]}
                       <InfoTip
                         subject={`${hubName(s.hub_id)} ${h === 'overall' ? 'exposure' : HAZARD_LABEL[h]} score`}
                         steps={h === 'overall' ? exposureSteps(s) : s.families[h] ? familySteps(s.families[h], s.band_thresholds) : []}
@@ -99,8 +99,8 @@ export function ComparisonCards({ data: raw }: { data: HubComparison }) {
               </div>
               <div className="flex items-center justify-between gap-2">
                 <dt className="flex items-center gap-1 text-muted-foreground">
-                  Investment priority
-                  <InfoTip subject={`${hubName(s.hub_id)} investment priority`} steps={prioritySteps(s)} detail={priorityLines(s)} />
+                  Screening priority
+                  <InfoTip subject={`${hubName(s.hub_id)} screening priority`} steps={prioritySteps(s)} detail={priorityLines(s)} />
                 </dt>
                 <dd className="flex items-center gap-1.5">
                   <span className="font-semibold">{fmt(s.priority)}</span> <BandText band={s.priority_band} />

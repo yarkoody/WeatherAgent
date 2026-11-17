@@ -92,7 +92,7 @@ describe('history widgets', () => {
     render(<HistoryWidget data={history} />)
     const worst = history.years.find((y) => y.year === history.worst_year)!
     expect(screen.getByText(`Worst year: ${history.worst_year} (${worst.total} days)`)).toBeInTheDocument()
-    const heat = screen.getByRole('table', { name: /Average disruption days by month/ })
+    const heat = screen.getByRole('table', { name: /Average disruption-threshold days by month/ })
     const jan = within(heat).getByRole('cell', { name: /Winter, Jan:/ })
     expect(jan).toBeInTheDocument()
     for (const m of history.peak_months) {
@@ -159,7 +159,7 @@ describe('export', () => {
     expect(click).toHaveBeenCalled()
     const text = await blob!.text()
     const lines = text.trim().split('\r\n')
-    expect(lines[0]).toBe('Rank,Hub,Region,Typical year (lost days),Bad year (lost days),Hurricane 10-yr chance (%),Investment priority,Priority band,Exposure band,Top driver')
+    expect(lines[0]).toBe('Rank,Hub,Region,Typical year (modeled lost days),Bad year (modeled lost days),Hurricane 10-yr chance (%),Screening priority,Priority band,Exposure band,Top driver')
     const south = scores.filter((r) => r.region === 'South').map((r) => r.name.replace(/ Hub$/, '')).sort((a, b) => a.localeCompare(b))
     expect(lines.slice(1).map((l) => l.split(',')[1])).toEqual(south)
     click.mockRestore()
@@ -173,7 +173,7 @@ describe('export', () => {
     const report = screen.getByRole('document', { name: 'Printable report' })
     expect(report).toHaveTextContent('Minneapolis')
     expect(within(report).getByRole('table')).toBeInTheDocument() // figures
-    expect(report).toHaveTextContent('Numbers verified')
+    expect(report).toHaveTextContent('Figures checked')
     expect(report).toHaveTextContent(answer.answer.uncertainty)
     expect(report).toHaveTextContent(window.location.origin)
     expect(print).toHaveBeenCalled()

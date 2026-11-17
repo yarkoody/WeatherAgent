@@ -22,7 +22,7 @@ const opinion = opinionJson as SecondOpinion
 describe('explanations built from tool data', () => {
   it('bad-year lines cite the typical and bad-year days', () => {
     const lines = badYearLines(hub)
-    expect(lines.join(' ')).toContain(`${hub.exposure_days_per_year} days`)
+    expect(lines.join(' ')).toContain(`${hub.exposure_days_per_year} modeled lost days`)
     expect(lines.join(' ')).toContain(`${hub.bad_year_days} days`)
     expect(LENS_EXPLAINER).toContain('worst 1 year in 20')
   })

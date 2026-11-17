@@ -1,8 +1,9 @@
 import { Cell, Pie, PieChart } from 'recharts'
 import { ChartContainer, type ChartConfig } from '@/components/ui/chart'
-import { METRIC_LABEL, fmt, formatDate, hubName, pct } from '@/lib/format'
+import { METRIC_LABEL, fmt, formatDate, hubName } from '@/lib/format'
 import type { WeatherStat } from '@/lib/types'
 import { InfoTip } from '@/components/InfoTip'
+import { weatherStatDetail, weatherStatSteps } from '@/lib/explain'
 import { useCountUp, useReducedMotion } from '@/lib/motion'
 import { WidgetFrame } from './WidgetFrame'
 
@@ -21,7 +22,8 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
   const color = RING_COLOR[data.metric] ?? 'var(--color-hazard-flood)'
   const reduced = useReducedMotion()
   const shown = useCountUp(data.value)
-  const headline = data.unit === '%' ? pct(shown) : fmt(shown)
+  // The tool's own precision (one decimal): 10.1% stays 10.1%, never rounded to 10%.
+  const headline = data.unit === '%' ? `${fmt(shown, 1)}%` : fmt(shown, 1)
 
   return (
     <WidgetFrame
@@ -31,11 +33,8 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
           {name} {metric} in {data.year}
           <InfoTip
             subject={metric}
-            steps={[
-              `${fmt(data.numerator)} of the ${fmt(data.denominator)} days in ${data.year} counted (${data.unit === '%' ? pct(data.value) : `${fmt(data.value)} ${data.unit}`}).`,
-              `What counts: ${data.definition}.`,
-            ]}
-            detail={[`Exact value: ${data.value} ${data.unit} (${data.numerator} of ${data.denominator}).`, `Source: ${data.source}.`]}
+            steps={weatherStatSteps(data)}
+            detail={weatherStatDetail(data)}
           />
         </span>
       }

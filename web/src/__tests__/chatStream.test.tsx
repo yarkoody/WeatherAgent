@@ -38,7 +38,7 @@ describe('chat over the recorded stream (real AI SDK parser)', () => {
     expect(screen.getByText('Ranked hubs by winter exposure in the Midwest')).toBeInTheDocument()
     expect(screen.getByText('Checked Minneapolis risk')).toBeInTheDocument()
     expect(screen.getAllByLabelText('Answer')).toHaveLength(1)
-    expect(screen.getByText('Numbers verified')).toBeInTheDocument()
+    expect(screen.getByText('Figures checked')).toBeInTheDocument()
     expect(await screen.findByLabelText('Ranking chart')).toBeInTheDocument()
     expect(await screen.findByLabelText('Minneapolis risk breakdown')).toBeInTheDocument()
   }, 10000)

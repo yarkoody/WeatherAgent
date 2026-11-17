@@ -5,14 +5,14 @@ import type { Grounding } from '@/lib/types'
 
 const VARIANTS = {
   pass: {
-    label: 'Numbers verified',
-    title: 'Every figure in this answer matches the scoring data.',
+    label: 'Figures checked',
+    title: 'Each figure in this answer was checked against the scoring data it cites.',
     className: 'bg-band-low-soft text-band-low-text',
     Icon: CircleCheckIcon,
   },
   retried: {
-    label: 'Verified after retry',
-    title: 'The first draft cited a number no tool returned. It was corrected and then verified.',
+    label: 'Figures checked after retry',
+    title: 'The first draft cited a number no tool returned. It was corrected and then checked.',
     className: 'bg-isobar-soft text-isobar',
     Icon: RotateCwIcon,
   },

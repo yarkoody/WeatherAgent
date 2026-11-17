@@ -123,7 +123,9 @@ function ChatThread({ sessionId }: { sessionId: string }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1">
         {thread.length === 0 ? (
-          <Empty className="h-full px-4">
+          // Scrolls on its own in a short window, so the last starter question never runs under the composer.
+          <div data-testid="empty-scroll" className="h-full overflow-y-auto">
+          <Empty className="min-h-full px-4 pt-6 pb-8">
             <EmptyHeader className="max-w-xl">
               <EmptyMedia variant="icon">
                 <CloudLightningIcon />
@@ -132,7 +134,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
                 Where will weather hit your network hardest?
               </EmptyTitle>
               <EmptyDescription>
-                Ask about disruption exposure and investment priority for 15 US logistics hubs. Every figure in an answer is validated against the scoring data, and charts are
+                Ask about modeled disruption exposure and screening priority for 15 US logistics hubs. Figures in an answer are checked against the scoring data they cite, and charts are
                 drawn from it directly.
               </EmptyDescription>
             </EmptyHeader>
@@ -140,6 +142,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
               <Suggestions suggestions={SUGGESTIONS} onPick={send} />
             </EmptyContent>
           </Empty>
+          </div>
         ) : (
           <AskProvider ask={send} histories={histories}>
           <MessageScrollerProvider autoScroll defaultScrollPosition="end">
@@ -194,7 +197,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
         <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6">
           <Composer busy={busy} onSend={send} onStop={stop} />
           <p className="mt-1.5 text-center text-[0.7rem] text-muted-foreground">
-            Scores come from a fixed data snapshot. Every figure is validated against the scoring data.
+            Scores come from a fixed data snapshot. Figures are checked against the scoring data they cite.
           </p>
         </div>
       </div>

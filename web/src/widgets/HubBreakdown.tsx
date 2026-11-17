@@ -48,7 +48,7 @@ export function Lenses({ data: raw }: { data: HubScore }) {
         <p className={number}>
           <CountUp value={data.exposure_days_per_year} />
         </p>
-        <p className="mt-1.5 text-xs text-muted-foreground">lost days in a typical year</p>
+        <p className="mt-1.5 text-xs text-muted-foreground">modeled lost days, typical year (estimate)</p>
       </div>
       {typeof data.bad_year_days === 'number' && (
         <div role="group" aria-label="Bad year (1 in 20)">
@@ -132,8 +132,8 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
           </div>
           <div>
             <dt className="flex items-center gap-1 text-xs text-muted-foreground">
-              Investment priority
-              <InfoTip subject="investment priority" steps={prioritySteps(data)} detail={priorityLines(data)} />
+              Screening priority
+              <InfoTip subject="screening priority" steps={prioritySteps(data)} detail={priorityLines(data)} />
             </dt>
             <dd className="mt-0.5 flex items-baseline gap-1.5 font-semibold">
               {fmt(data.priority)} <BandText band={data.priority_band} />
@@ -203,7 +203,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
                   />
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  {isHurricane ? `${pct(data.hurricane_10yr_probability_pct)} chance in 10 years` : `${fmt(fam.days_per_year)} lost days/yr`}
+                  {isHurricane ? `${pct(data.hurricane_10yr_probability_pct)} chance in 10 years` : `${fmt(fam.days_per_year)} modeled lost days/yr`}
                   {typeof fam.bad_year_days === 'number' && `, ${fmt(fam.bad_year_days)} in a bad year`}
                   {fam.band && (
                     <>
@@ -221,7 +221,7 @@ export function HubBreakdown({ data: raw }: { data: HubScore }) {
 
       {data.upgrade_categories.length > 0 && (
         <p className="mt-4 border-t border-border/60 pt-3 text-sm text-muted-foreground">
-          Upgrades that help most{data.top_driver ? ` against ${FAMILY_LABEL[data.top_driver].toLowerCase()}` : ''}:{' '}
+          Upgrade types to consider{data.top_driver ? ` for ${FAMILY_LABEL[data.top_driver].toLowerCase()}` : ''}:{' '}
           {data.upgrade_categories.map((u, i) => (
             <span key={u}>
               <span className="text-foreground">{u}</span>
@@ -243,7 +243,7 @@ function HistoryTab({ hubId, name }: { hubId: string; name: string }) {
   if (history) return <HistoryCharts data={history} />
   return (
     <div className="flex flex-col items-start gap-2 py-2 text-sm text-muted-foreground">
-      <p>Observed lost days per year and by month, from daily weather at the hub.</p>
+      <p>Observed disruption-threshold days per year and by month: days when weather at the hub crossed a disruption threshold. Not confirmed closures.</p>
       {ask ? (
         <Button variant="outline" size="sm" onClick={() => ask(`Show the observed weather history for ${name}.`)}>
           Show observed history

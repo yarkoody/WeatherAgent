@@ -1,5 +1,5 @@
 {
-  "session_id": "mock-session-1",
+  "session_id": "mock-ranking",
   "answer": {
     "answer": "**Minneapolis Hub** has the highest winter exposure among Midwest hubs (92.1), followed by **Chicago Hub** (43.6) and **Detroit Hub** (39.4). Its overall investment priority is 66.7 (high).",
     "hubs": [
@@ -18,28 +18,36 @@
         "label": "winter exposure score",
         "value": 92.1,
         "unit": "score 0-100",
-        "source_tool": "rank_hubs"
+        "source_tool": "rank_hubs",
+        "source_field": "value",
+        "family": null
       },
       {
         "hub_id": "chicago",
         "label": "winter exposure score",
         "value": 43.6,
         "unit": "score 0-100",
-        "source_tool": "rank_hubs"
+        "source_tool": "rank_hubs",
+        "source_field": "value",
+        "family": null
       },
       {
         "hub_id": "detroit",
         "label": "winter exposure score",
         "value": 39.4,
         "unit": "score 0-100",
-        "source_tool": "rank_hubs"
+        "source_tool": "rank_hubs",
+        "source_field": "value",
+        "family": null
       },
       {
         "hub_id": "minneapolis",
         "label": "investment priority",
         "value": 66.7,
         "unit": "score 0-100",
-        "source_tool": "get_hub_risk"
+        "source_tool": "get_hub_risk",
+        "source_field": "priority",
+        "family": null
       }
     ],
     "assumptions": [
@@ -54,7 +62,7 @@
     "status": "pass",
     "errors": []
   },
-  "trace_id": "mock-trace-1",
+  "trace_id": "cc55a37a2be640d09be8baf38faeaed1",
   "follow_ups": [
     "Why is Minneapolis ranked first?",
     "Compare Minneapolis and Chicago",

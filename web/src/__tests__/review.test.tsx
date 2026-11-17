@@ -74,7 +74,7 @@ describe('failed grounding (critical)', () => {
 
   it('changes the citation text by grounding status', () => {
     const f = response.answer.figures[0]
-    expect(citationText(f, true)).toMatch(/matched it to that tool's output/)
+    expect(citationText(f, true)).toMatch(/found it in that tool's output/)
     expect(citationText(f, false)).toMatch(/could not be matched/i)
     expect(citationText(f, false)).not.toMatch(/matched it to/)
   })

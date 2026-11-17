@@ -62,7 +62,7 @@ const COLUMNS: Column[] = [
     value: (r) => r.exposure_days_per_year,
     tip: {
       title: 'About the typical year',
-      steps: ['Lost days a hub can expect in an average year, across all hazards.', 'The bar is the 0 to 100 exposure score; the two marks are the medium and high cut-offs.'],
+      steps: ['Modeled lost days in an average year, across all hazards. An estimate, not a forecast.', 'The bar is the 0 to 100 exposure score; the two marks are the medium and high cut-offs.'],
     },
   },
   {
@@ -71,7 +71,7 @@ const COLUMNS: Column[] = [
     align: 'right',
     first: 'desc',
     value: (r) => r.bad_year_days,
-    tip: { title: 'About the bad year', steps: ['Average lost days in the worst 1 year in 20.', 'Averages hide rare, severe events such as hurricanes; this column shows them.'] },
+    tip: { title: 'About the bad year', steps: ['Modeled average lost days in the worst 1 year in 20 (an estimate).', 'Averages hide rare, severe events such as hurricanes; this column shows them.'] },
   },
   {
     key: 'hurricane',
@@ -90,7 +90,7 @@ const COLUMNS: Column[] = [
     align: 'right',
     first: 'desc',
     value: (r) => r.priority,
-    tip: { title: 'About investment priority', steps: ['Where upgrades would help most, from 0 to 100.', 'It mixes the exposure score with people served and the resilience gap.'] },
+    tip: { title: 'About screening priority', steps: ['A 0 to 100 screening score for where to look first at upgrades. It is not a cost-benefit estimate.', 'It mixes the exposure score with people served and the resilience gap.'] },
   },
   {
     key: 'driver',
@@ -98,7 +98,7 @@ const COLUMNS: Column[] = [
     align: 'left',
     first: 'asc',
     value: (r) => FAMILY_LABEL[r.top_driver],
-    tip: { title: 'About the top driver', steps: ['The hazard that causes the most lost days in a typical year.'] },
+    tip: { title: 'About the top driver', steps: ['The hazard with the most modeled lost days in a typical year.'] },
   },
 ]
 
@@ -185,8 +185,8 @@ export function ScoresView() {
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
         <h1 className="heading-tight text-2xl font-semibold tracking-tight">All hubs</h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Lost days are the weather-disruption days a hub can expect, in a typical year and in the worst 1 year in 20. Investment priority shows where
-          upgrades would help most.
+          Lost days are modeled weather-disruption days (estimates), in a typical year and in the worst 1 year in 20. Screening priority suggests where
+          to look first at upgrades; it is not a cost-benefit estimate.
           {USE_MOCKS && ' Mock mode: showing recorded snapshot scores.'}
         </p>
 
@@ -469,10 +469,10 @@ function exportCsv(rows: ScoreRow[]) {
     'Rank',
     'Hub',
     'Region',
-    'Typical year (lost days)',
-    'Bad year (lost days)',
+    'Typical year (modeled lost days)',
+    'Bad year (modeled lost days)',
     'Hurricane 10-yr chance (%)',
-    'Investment priority',
+    'Screening priority',
     'Priority band',
     'Exposure band',
     'Top driver',

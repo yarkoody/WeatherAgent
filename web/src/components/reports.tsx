@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { FAMILIES, FAMILY_LABEL, formatDate, formatValue, hubName, pct } from '@/lib/format'
 import type { ChatResponse, HubScore } from '@/lib/types'
 
-const STATUS = { pass: 'Numbers verified', retried: 'Verified after retry', failed: 'Unverified' } as const
+const STATUS = { pass: 'Figures checked', retried: 'Figures checked after retry', failed: 'Unverified' } as const
 
 export function AnswerReport({ response, question, dataAsOf }: { response: ChatResponse; question?: string; dataAsOf?: string }) {
   const a = response.answer
@@ -98,7 +98,7 @@ export function HubReport({ hub }: { hub: HubScore }) {
             </td>
           </tr>
           <tr>
-            <th>Investment priority</th>
+            <th>Screening priority</th>
             <td>
               {hub.priority} ({hub.priority_band})
             </td>
@@ -139,7 +139,7 @@ export function HubReport({ hub }: { hub: HubScore }) {
           })}
         </tbody>
       </table>
-      {hub.upgrade_categories.length > 0 && <p>Upgrades that help most: {hub.upgrade_categories.join(', ')}.</p>}
+      {hub.upgrade_categories.length > 0 && <p>Upgrade types to consider: {hub.upgrade_categories.join(', ')}.</p>}
       <p className="report-note">
         Score = lost days ÷ {t.days_cap} × 100. Medium from {t.medium_from_days} lost days a year, high from {t.high_from_days}. A hazard is medium from{' '}
         {t.family_medium_from_days} days and high from {t.family_high_from_days}; hurricane is banded by its 10-year chance (medium from {t.hurricane_medium_from_pct}%,

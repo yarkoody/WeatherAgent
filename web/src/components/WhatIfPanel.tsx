@@ -1,4 +1,4 @@
-// What if: analyst-supplied hazard weights and upgrade costs re-rank investment priority (POST /what-if).
+// What if: analyst-supplied hazard weights and upgrade costs re-rank screening priority (POST /what-if).
 // The scores themselves never change; this is a sensitivity view.
 import { ArrowDownIcon, ArrowUpIcon, MinusIcon, RotateCcwIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -143,7 +143,7 @@ export function WhatIfPanel({ rows }: { rows: ScoreRow[] }) {
           {error && <p className="text-sm text-band-high-text">The what-if could not be calculated ({error}).</p>}
           {input && result && (
             <div className={loading ? 'opacity-60 transition-opacity' : ''}>
-              <h3 className="text-sm font-medium">Investment priority with these inputs</h3>
+              <h3 className="text-sm font-medium">Screening priority with these inputs</h3>
               <ol aria-label="What-if priority ranking" className="mt-2 space-y-1">
                 {result.ranking.map((r) => (
                   <li key={r.hub_id} className="grid grid-cols-[1.5rem_1fr_3rem_3.5rem] items-center gap-2 text-sm">

@@ -178,6 +178,8 @@ export interface Figure {
   value: number
   unit: string
   source_tool: string
+  source_field?: string // exact field in that tool's result (optional: older answers and saved chats lack it)
+  family?: Family | null // set when the field sits inside a hazard family (families.<family>.<field>)
 }
 
 export interface AgentAnswer {

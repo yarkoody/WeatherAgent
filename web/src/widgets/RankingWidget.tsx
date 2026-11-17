@@ -13,7 +13,7 @@ import { WidgetFrame } from './WidgetFrame'
 
 export function rankingTitle(r: Ranking): string {
   if (r.kind === 'bad_year') return r.region ? `Bad-year disruption days (1 in 20) in the ${r.region}` : 'Bad-year disruption days (1 in 20)'
-  const kind = r.kind === 'priority' ? 'investment priority' : 'exposure'
+  const kind = r.kind === 'priority' ? 'screening priority' : 'exposure'
   const what = r.hazard === 'overall' ? kind[0].toUpperCase() + kind.slice(1) : `${HAZARD_LABEL[r.hazard]} ${kind}`
   return r.region ? `${what} in the ${r.region}` : `${what} across all hubs`
 }
@@ -26,18 +26,18 @@ function rankingLines(r: Ranking): string[] {
   if (r.kind === 'bad_year')
     return [
       'In a bad year (about 1 year in 20) a hub can lose far more days than average, because rare events like hurricanes are much worse.',
-      'These bars show those bad-year lost days.',
+      'These bars show those modeled bad-year lost days (estimates).',
       'Ask about one hub to compare its typical and bad year.',
     ]
   if (r.kind === 'priority')
     return [
-      'Investment priority says where upgrades would help most.',
+      'Screening priority suggests where to look first at upgrades; it is not a cost-benefit estimate.',
       'It mixes the exposure score with people served and the resilience gap.',
       `Medium from ${fmt(t.medium_from)}, high from ${fmt(t.high_from)} (out of 100).`,
     ]
-  if (r.hazard === 'overall') return ['The score counts lost days a year from all hazards.', ...indexSteps(t)]
+  if (r.hazard === 'overall') return ['The score counts modeled lost days a year from all hazards.', ...indexSteps(t)]
   return [
-    `The score counts lost days a year from ${HAZARD_LABEL[r.hazard].toLowerCase()} alone.`,
+    `The score counts modeled lost days a year from ${HAZARD_LABEL[r.hazard].toLowerCase()} alone.`,
     `Colors show its band: medium from ${fmt(t.family_medium_from_days)} lost days a year, high from ${fmt(t.family_high_from_days)}.`,
   ]
 }

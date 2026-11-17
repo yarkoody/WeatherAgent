@@ -11,7 +11,7 @@ import { DebugProvider } from '../lib/debug'
 import * as explain from '../lib/explain'
 import { FAMILIES } from '../lib/format'
 import { normalizeHub } from '../lib/normalize'
-import type { HubScore, ScoreRow, ToolName, WhatIfResult } from '../lib/types'
+import type { HubScore, ScoreRow, ToolName, WeatherStat, WhatIfResult } from '../lib/types'
 import scoresJson from '../mocks/scores.json'
 import { AlertBanner } from '../widgets/AlertBanner'
 import { ComparisonCards } from '../widgets/ComparisonCards'
@@ -183,4 +183,34 @@ describe('real get_hub_risk with any one field missing or null: no crash, no "un
       expect(failures).toEqual([])
     }, 60_000)
   }
+})
+
+describe('real weather_stat: the explanation matches the metric unit', () => {
+  for (const c of of('weather_stat')) {
+    const s = c.output as unknown as WeatherStat
+    it(`${s.hub_id} ${s.metric}`, () => {
+      const steps = explain.weatherStatSteps(s)
+      const detail = explain.weatherStatDetail(s)
+      const text = [...steps, ...detail].join(' ')
+      expect(text).not.toMatch(/undefined|NaN/)
+      if (s.unit === 'mm' || s.unit === 'cm') {
+        // A total is a sum over the year, never "N of the 365 days".
+        expect(text).not.toMatch(/ of the \d+ days/)
+        expect(steps[0]).toBe(`Added up over the ${s.denominator} days of ${s.year}: ${s.value} ${s.unit}.`)
+      } else {
+        expect(steps[0]).toContain(`${s.numerator} of the ${s.denominator} days in ${s.year} met the threshold`)
+        if (s.unit === '%') expect(steps[0]).toContain(`${s.value}%`)
+      }
+      // The headline keeps the tool's precision.
+      render(<WeatherStatRing data={s} />)
+      const shown = s.unit === '%' ? `${s.value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%` : s.value.toLocaleString('en-US', { maximumFractionDigits: 1 })
+      expect(screen.getAllByText(shown, { exact: false }).length).toBeGreaterThan(0)
+    })
+  }
+
+  it('a 10.1% share shows as 10.1%, not 10%', () => {
+    const s = of('weather_stat')[0].output as unknown as WeatherStat
+    render(<WeatherStatRing data={{ ...s, unit: '%', value: 10.1, numerator: 37, denominator: 366 }} />)
+    expect(screen.getByText('10.1%')).toBeInTheDocument()
+  })
 })

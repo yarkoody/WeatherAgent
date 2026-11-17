@@ -66,9 +66,9 @@ export function HistoryCharts({ data }: { data: HubHistory }) {
       </div>
 
       <div>
-        <p className="text-sm font-medium">Seasonality: average lost days by month</p>
+        <p className="text-sm font-medium">Seasonality: average threshold days by month</p>
         <div className="mt-2 overflow-x-auto">
-          <table aria-label="Average disruption days by month" className="w-full min-w-[520px] border-separate border-spacing-0.5 text-[0.7rem]">
+          <table aria-label="Average disruption-threshold days by month" className="w-full min-w-[520px] border-separate border-spacing-0.5 text-[0.7rem]">
             <thead>
               <tr>
                 <th scope="col" className="w-24 text-left font-normal text-muted-foreground">
@@ -127,11 +127,11 @@ export function HistoryWidget({ data }: { data: HubHistory }) {
       label={`${name} observed history`}
       title={
         <span className="flex items-center gap-1">
-          {name}: observed lost days
+          {name}: observed disruption-threshold days
           <InfoTip subject="observed history" steps={historyTip(data)} />
         </span>
       }
-      note="Observed at the hub point; this is history, not the scored expectation."
+      note="Days when observed weather at the hub point crossed a disruption threshold. Not confirmed closures, and not the modeled estimate."
     >
       <HistoryCharts data={data} />
     </WidgetFrame>
