@@ -55,6 +55,7 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
           placeholder={dictation.listening ? 'Listening…' : 'Ask about a hub, a hazard or a ranking'}
           id={COMPOSER_INPUT_ID}
           aria-label="Ask about hub weather risk"
+          dir="auto"
           className="min-h-14 text-base"
         />
         <InputGroupAddon align="block-end" className="pt-1">

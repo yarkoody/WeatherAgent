@@ -22,6 +22,7 @@ import { chatFetch, describeChatError } from '@/lib/chatErrors'
 import { compactHistory } from '@/lib/chats'
 import { NoMotion, useReducedMotion } from '@/lib/motion'
 import { loadMessages, saveMessages } from '@/lib/session'
+import { textDir } from '@/lib/textDir'
 import { stopSpeaking } from '@/lib/voice'
 import { AssistantMessage, NoAnswer, normalizeQuestion, toolParts } from './AssistantMessage'
 import { COMPOSER_INPUT_ID, Composer } from './Composer'
@@ -165,7 +166,9 @@ function ChatThread({ sessionId }: { sessionId: string }) {
                         <Message align="end">
                           <MessageContent>
                             <Bubble align="end">
-                              <BubbleContent className="text-base whitespace-pre-wrap">{userText(m)}</BubbleContent>
+                              <BubbleContent dir={textDir(userText(m))} className="text-base whitespace-pre-wrap">
+                                {userText(m)}
+                              </BubbleContent>
                             </Bubble>
                           </MessageContent>
                         </Message>

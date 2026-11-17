@@ -4,6 +4,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDebug } from '@/lib/debug'
+import { textDir } from '@/lib/textDir'
 import type { ChatResponse } from '@/lib/types'
 import { FiguresTable } from './FiguresTable'
 import { ExportReportButton } from './PrintReport'
@@ -31,6 +32,11 @@ export function AnswerCard({ response, dataAsOf, question }: { response: ChatRes
   const debug = useDebug()
   const kind = answerKind(response)
   const failed = grounding.status === 'failed'
+  // The answer comes in the user's language: a Hebrew (or other RTL) answer reads right to left. The English labels
+  // around it, the figures and the widgets keep the page direction; a 68ch text block sits on the right edge.
+  const dir = textDir(answer.answer)
+  const uncertaintyDir = textDir(answer.uncertainty)
+  const assumptionsDir = textDir(answer.assumptions.join(' '))
 
   return (
     <article className={CARD_SHELL} data-kind={kind} aria-label="Answer">
@@ -47,7 +53,7 @@ export function AnswerCard({ response, dataAsOf, question }: { response: ChatRes
         </div>
       )}
 
-      <div className="prose-answer max-w-[68ch] text-[0.95rem] text-ink">
+      <div dir={dir} className={`prose-answer max-w-[68ch] text-[0.95rem] text-ink${dir ? ' ml-auto' : ''}`}>
         <Markdown
           remarkPlugins={[remarkGfm]}
           disallowedElements={['img']}
@@ -71,7 +77,7 @@ export function AnswerCard({ response, dataAsOf, question }: { response: ChatRes
           {answer.assumptions.length > 0 && (
             <details>
               <summary className="text-ink-soft hover:text-ink">Assumptions ({answer.assumptions.length})</summary>
-              <ul className="mt-1.5 mb-2 list-disc space-y-1 pl-5 text-ink-soft">
+              <ul dir={assumptionsDir} className="mt-1.5 mb-2 list-disc space-y-1 ps-5 text-ink-soft">
                 {answer.assumptions.map((a) => (
                   <li key={a}>{a}</li>
                 ))}
@@ -81,7 +87,9 @@ export function AnswerCard({ response, dataAsOf, question }: { response: ChatRes
           {kind !== 'out_of_scope' && answer.uncertainty && (
             <details open={kind === 'no_data' || kind === 'could_not_answer'}>
               <summary className="text-ink-soft hover:text-ink">Data limits</summary>
-              <p className="mt-1.5 mb-2 max-w-[68ch] text-ink-soft">{answer.uncertainty}</p>
+              <p dir={uncertaintyDir} className={`mt-1.5 mb-2 max-w-[68ch] text-ink-soft${uncertaintyDir ? ' ml-auto' : ''}`}>
+                {answer.uncertainty}
+              </p>
             </details>
           )}
         </div>
