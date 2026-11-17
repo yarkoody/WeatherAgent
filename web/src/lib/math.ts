@@ -29,6 +29,12 @@ function sumSign(parts: (number | null | undefined)[], total: number | null | un
   const sum = parts.reduce<number>((a, x) => a + (isNum(x) ? x : 0), 0)
   return isNum(total) && Math.abs(sum - total) < 1e-9 ? { text: '=', tex: '=' } : { text: '≈', tex: '\\approx' }
 }
+/** "=" when people × days, in millions at one decimal, gives the shown value; "≈" when it was computed before rounding. */
+function productSign(people: number, days: number | null | undefined, shown: number): { text: string; tex: string } {
+  const exact = isNum(days) && Math.abs(Math.round((people * days) / 1e5) / 10 - shown) < 1e-9
+  return exact ? { text: '=', tex: '=' } : { text: '≈', tex: '\\approx' }
+}
+const ROUNDING_NOTE = '≈ : computed from unrounded values, so the rounded numbers shown can differ slightly'
 /** "1 day", "0.5 days". */
 const perYear = (v: number) => (v === 1 ? 'day/yr' : 'days/yr')
 const days = (v: string | number) => `${v} ${Number(v) === 1 ? 'day' : 'days'}`
@@ -151,6 +157,7 @@ export function mathSections(s: HubScore): MathSection[] {
     s.priority_signals?.find((p) => /resilience/.test(p.name)),
   ]
   if (base && people && gap) {
+    const prioSign = sumSign([base.contribution, people.contribution, gap.contribution], s.priority)
     sections.push({
       title: 'Review priority',
       lines: [
@@ -168,30 +175,35 @@ export function mathSections(s: HubScore): MathSection[] {
           tex: `= ${tn(base.raw)} \\times \\left(${tn(base.weight)} + ${tn(people.weight)} \\times ${tn(people.normalized)}\\% + ${tn(gap.weight)} \\times ${tn(gap.normalized)}\\%\\right)`,
         },
         {
-          text: `= ${n(base.contribution)} + ${n(people.contribution)} + ${n(gap.contribution)} = ${n(s.priority)}`,
-          tex: `= ${tn(base.contribution)} + ${tn(people.contribution)} + ${tn(gap.contribution)} = ${tn(s.priority)}`,
+          text: `= ${n(base.contribution)} + ${n(people.contribution)} + ${n(gap.contribution)} ${prioSign.text} ${n(s.priority)}`,
+          tex: `= ${tn(base.contribution)} + ${tn(people.contribution)} + ${tn(gap.contribution)} ${prioSign.tex} ${tn(s.priority)}`,
         },
+        ...(prioSign.text === '≈' ? [{ text: ROUNDING_NOTE }] : []),
       ],
     })
   }
 
-  if (isNum(s.people_served) && s.people_served > 0 && isNum(s.people_days_m))
+  if (isNum(s.people_served) && s.people_served > 0 && isNum(s.people_days_m)) {
+    const typ = productSign(s.people_served, s.exposure_days_per_year, s.people_days_m)
+    const bad = isNum(s.people_days_bad_year_m) ? productSign(s.people_served, s.bad_year_days, s.people_days_bad_year_m) : typ
     sections.push({
       title: 'People-days',
       lines: [
         {
-          text: `people-days = ${n(s.people_served)} people × ${n(s.exposure_days_per_year)} days = ${n(s.people_days_m)} million a year`,
-          tex: `${tt('people-days')} = ${tn(s.people_served)} \\times ${tn(s.exposure_days_per_year)} = ${tn(s.people_days_m)}\\ ${tt('million a year')}`,
+          text: `people-days = ${n(s.people_served)} people × ${n(s.exposure_days_per_year)} days ${typ.text} ${n(s.people_days_m)} million a year`,
+          tex: `${tt('people-days')} = ${tn(s.people_served)} \\times ${tn(s.exposure_days_per_year)} ${typ.tex} ${tn(s.people_days_m)}\\ ${tt('million a year')}`,
         },
         ...(isNum(s.people_days_bad_year_m)
           ? [
               {
-                text: `bad year: ${n(s.people_served)} × ${n(s.bad_year_days)} days = ${n(s.people_days_bad_year_m)} million`,
-                tex: `${tt('bad year')}: ${tn(s.people_served)} \\times ${tn(s.bad_year_days)} = ${tn(s.people_days_bad_year_m)}\\ ${tt('million')}`,
+                text: `bad year: ${n(s.people_served)} × ${n(s.bad_year_days)} days ${bad.text} ${n(s.people_days_bad_year_m)} million`,
+                tex: `${tt('bad year')}: ${tn(s.people_served)} \\times ${tn(s.bad_year_days)} ${bad.tex} ${tn(s.people_days_bad_year_m)}\\ ${tt('million')}`,
               },
             ]
           : []),
+        ...(typ.text === '≈' || bad.text === '≈' ? [{ text: ROUNDING_NOTE }] : []),
       ],
     })
+  }
   return sections
 }

@@ -69,3 +69,13 @@ def test_no_numbers_in_suggestions():
 def test_unknown_hub_id_uses_the_id_rather_than_failing():
     out = suggest_follow_ups(answer(hubs=["atlantis"]), ["get_hub_risk"], NAMES)
     assert out[0].startswith("What upgrades would reduce atlantis")
+
+
+def test_after_comparing_two_hubs_does_not_offer_the_same_comparison():
+    """The comparison just answered ("Compare Dallas and Houston") is never offered again as "Ask next"."""
+    out = suggest_follow_ups(
+        answer(hubs=["dallas", "houston"], ranking=["houston", "dallas"]), ["compare_hubs"], NAMES,
+        user_message="Compare the Dallas and Houston hubs on flood",
+    )
+    assert not any(s.startswith("Compare") for s in out)
+    assert "What drives Dallas's risk?" in out

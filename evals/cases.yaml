@@ -34,6 +34,8 @@
 #     text_must_match  regexes that must match answer + assumptions
 #     claims_absent    regexes no affirmative sentence may match (sentences with a negation are skipped)
 #     no_closing_question  true: the answer must not end the turn with a question
+#     movers_from_rank_changes  true: every hub named in a "moves up/down" sentence is in the rank_changes of the
+#                      turn's last what_if call (replayed through the oracle)
 #     in_scope, data_available   expected booleans (omit = not checked)
 # Every run also checks: an answer with data_available false has no figures;
 # grounding not "failed", tool rounds <= 6, and no number spelled out in words
@@ -469,5 +471,36 @@ cases:
       # Says the costs are missing, and invents none.
       text_must_match: ["(?i)(don.t have|no|not (in|include)|without|missing)[^.]{0,80}cost|cost[^.]{0,80}(not (in|include)|missing|don.t have|unavailable)"]
       claims_absent: ["\\$\\s?\\d", "(?i)\\d[\\d.,]*\\s?(million|thousand|k)?\\s?(dollars|usd)"]
+      in_scope: true
+      data_available: true
+
+  # ---------- friends' test pass: what-if movers, heat and wildfire scope ----------
+  - id: what_if_hurricane_movers
+    about: What-if on longer hurricane closures; movers come only from rank_changes, no same-rank "move"
+    turns: ["If hurricane closures lasted twice as long, how would the review priority ranking change?"]
+    expect:
+      tools_required: [what_if]
+      movers_from_rank_changes: true
+      claims_absent: ["(?i)from (rank |#|no\\. ?)?(\\d+)(st|nd|rd|th)? to (rank |#|no\\. ?)?\\2(st|nd|rd|th)?\\b"]
+      text_must_match: ["(?i)analyst[- ]supplied"]
+      in_scope: true
+      data_available: true
+
+  - id: safest_hubs_scope
+    about: Lowest-risk hubs; the answer says heat and wildfire are not modeled
+    turns: ["Which hubs are the safest, with the lowest weather risk?"]
+    expect:
+      tools_required: ["rank_hubs|compare_hubs"]
+      text_must_match: ["(?i)(?=[^.]*\\bheat)(?=[^.]*\\bwild ?fire)(?=[^.]*\\b(model|cover|includ|scor|account))[^.]*(\\bnot\\b|n't\\b|\\bexclud|\\boutside\\b|\\bonly\\b)"]
+      in_scope: true
+      data_available: true
+
+  - id: phoenix_low_scope
+    about: Explains Phoenix's low score; states the code band and that heat and wildfire are not modeled
+    turns: ["Why is Phoenix so low risk?"]
+    expect:
+      tools_required: ["get_hub_risk|compare_hubs"]
+      states_band: {hub_id: phoenix, kind: exposure}
+      text_must_match: ["(?i)(?=[^.]*\\bheat)(?=[^.]*\\bwild ?fire)(?=[^.]*\\b(model|cover|includ|scor|account))[^.]*(\\bnot\\b|n't\\b|\\bexclud|\\boutside\\b|\\bonly\\b)"]
       in_scope: true
       data_available: true

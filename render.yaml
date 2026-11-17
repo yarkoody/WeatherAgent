@@ -19,6 +19,8 @@ services:
         value: "10"
       - key: DAILY_REQUEST_CAP
         value: "300"
+      - key: READ_RATE_LIMIT_PER_MIN
+        value: "120"
       # Render sits behind Cloudflare, which sets this header to the real client IP.
       - key: CLIENT_IP_HEADER
         value: cf-connecting-ip

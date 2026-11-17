@@ -51,7 +51,9 @@ def suggest_follow_ups(
         top, second = name(answer.ranking[0]), name(answer.ranking[1])
         candidates = [
             f"Why is {top} ranked first?",
-            f"Compare {top} and {second}",
+            # after a comparison, "Compare A and B" would repeat the question just answered
+            f"What drives {_possessive(second)} risk?" if "compare_hubs" in tool_names and len(answer.ranking) == 2
+            else f"Compare {top} and {second}",
             "Show the typical-year ranking" if used_bad_year else "Show the bad-year ranking",
         ]
     elif len(answer.hubs) == 1:
