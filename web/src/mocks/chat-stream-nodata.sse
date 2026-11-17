@@ -1,0 +1,24 @@
+data: {"type": "start", "messageId": "msg_0daaf871de8c"}
+
+data: {"type": "start-step"}
+
+data: {"toolCallId": "call_c864cd5b06ce", "toolName": "weather_stat", "type": "tool-input-start"}
+
+data: {"toolCallId": "call_c864cd5b06ce", "inputTextDelta": "{\"hub_id\": \"denver\", \"metric\": \"snow_days_pct\", \"year\": 2026}", "type": "tool-input-delta"}
+
+data: {"toolCallId": "call_c864cd5b06ce", "toolName": "weather_stat", "input": {"hub_id": "denver", "metric": "snow_days_pct", "year": 2026}, "type": "tool-input-available"}
+
+data: {"toolCallId": "call_c864cd5b06ce", "output": {"error": "the snapshot covers full years 2015-2025 only; 2026 is not available", "retryable": false, "hint": "This data is not in the snapshot: tell the analyst it is not available (data_available: false) and offer what is available."}, "type": "tool-output-available"}
+
+data: {"type": "finish-step"}
+
+data: {"type": "start-step"}
+
+data: {"type": "finish-step"}
+
+data: {"data": {"session_id": "mock-nodata", "answer": {"answer": "I don't have weather data for Denver in 2026. The snapshot covers complete years 2015 to 2025 only.", "hubs": ["denver"], "ranking": null, "figures": [], "assumptions": [], "uncertainty": "2026 is not a complete year in the snapshot.", "data_available": false, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "75245c75cca1426bbf7d667a7dc34750"}, "type": "data-answer"}
+
+data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_0daaf871de8c", "role": "assistant", "turnId": null, "partIds": ["call_c864cd5b06ce"]}, {"id": "msg_3b7f9f14ce79", "role": "tool", "turnId": null, "partIds": ["part_147da6f2a453"]}, {"id": "msg_7f2ab0a241b4", "role": "assistant", "turnId": null, "partIds": ["part_da7c91beadcc"]}]}}}
+
+data: [DONE]
+

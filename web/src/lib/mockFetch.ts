@@ -1,0 +1,93 @@
+// Mock backend for VITE_USE_MOCKS=1. It replays SSE streams recorded from the real backend
+// (app.agent.stream_turn with FakeModel and the real tools), so the UI parses the exact wire format.
+// The recorded data is loaded on first use, so it stays out of the production bundle.
+const loadMocks = () => import('./mockData')
+
+export type MockScenario = 'ranking' | 'compare' | 'weather' | 'alerts' | 'nodata' | 'outofscope' | 'failed'
+
+const IN_SCOPE =
+  /hub|risk|expos|priorit|rank|weather|snow|rain|flood|storm|hurricane|winter|wind|freez|alert|invest|chicago|minneapolis|detroit|indianapolis|kansas|columbus|dallas|houston|miami|atlanta|memphis|denver|phoenix|los angeles|newark|midwest|south|west|northeast/i
+
+/** Picks the recorded scenario that best fits the question. */
+export function pickScenario(text: string): MockScenario {
+  const t = text.toLowerCase()
+  if (!IN_SCOPE.test(t)) return 'outofscope'
+  if (/how exposed is houston|unverified/.test(t)) return 'failed' // demo of a failed grounding check
+  if (/alert|warning|right now|today/.test(t)) return 'alerts'
+  if (/compare|\bvs\.?\b|versus/.test(t)) return 'compare'
+  if (/20(2[6-9]|[3-9]\d)/.test(t)) return 'nodata'
+  if (/how many|percent|%|days did|in 20\d\d/.test(t)) return 'weather'
+  return 'ranking'
+}
+
+function sseEvents(raw: string): string[] {
+  return raw
+    .split('\n\n')
+    .map((e) => e.trim())
+    .filter(Boolean)
+    .map((e) => `${e}\n\n`)
+}
+
+const sleep = (ms: number, signal?: AbortSignal | null) =>
+  new Promise<void>((resolve, reject) => {
+    const t = setTimeout(resolve, ms)
+    signal?.addEventListener('abort', () => {
+      clearTimeout(t)
+      reject(new DOMException('Aborted', 'AbortError'))
+    })
+  })
+
+/** Delay before each event, so tool chips visibly progress like a real turn. */
+function delayFor(event: string): number {
+  if (event.includes('"tool-input-start"')) return 350
+  if (event.includes('"tool-output-available"')) return 650
+  if (event.includes('"data-answer"')) return 900
+  return 40
+}
+
+export function replayStream(raw: string, signal?: AbortSignal | null, speed = 1): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder()
+  const events = sseEvents(raw)
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        for (const event of events) {
+          if (speed > 0) await sleep(delayFor(event) / speed, signal)
+          controller.enqueue(encoder.encode(event))
+        }
+        controller.close()
+      } catch (err) {
+        controller.error(err)
+      }
+    },
+  })
+}
+
+function lastUserText(body: unknown): string {
+  const messages = (body as { messages?: { role: string; parts?: { type: string; text?: string }[] }[] })?.messages ?? []
+  const last = [...messages].reverse().find((m) => m.role === 'user')
+  return last?.parts?.filter((p) => p.type === 'text').map((p) => p.text ?? '').join(' ') ?? ''
+}
+
+export const mockFetch: typeof fetch = async (input, init) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  const path = new URL(url, 'http://mock.local').pathname
+  if (path === '/chat') {
+    const body = init?.body ? JSON.parse(String(init.body)) : {}
+    const scenario = pickScenario(lastUserText(body))
+    const { MOCK_STREAMS } = await loadMocks()
+    return new Response(replayStream(MOCK_STREAMS[scenario], init?.signal), {
+      headers: { 'Content-Type': 'text/event-stream', 'x-vercel-ai-ui-message-stream': 'v1' },
+    })
+  }
+  if (path === '/scores') {
+    await sleep(250)
+    return Response.json((await loadMocks()).scores)
+  }
+  return Response.json({ detail: `No mock for ${path}` }, { status: 404 })
+}
+
+export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === '1'
+/** fetch for every API call; the mock switch is read per call so tests can turn it on. */
+export const apiFetch: typeof fetch = (input, init) =>
+  import.meta.env.VITE_USE_MOCKS === '1' ? mockFetch(input, init) : fetch(input, init)
