@@ -1,4 +1,4 @@
-"""FastAPI app: /chat (AI SDK UI stream), /chat/json, /hubs, /scores, /alerts/check, /health.
+"""FastAPI app: /chat (AI SDK UI stream), /chat/json, /voice/session, /voice/speak, /hubs, /scores, /alerts/check, /health.
 
 Everything heavy (model, store, scoring data) is resolved on first use, so importing
 this module needs no API key and no data files.
@@ -28,7 +28,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
-from app import agent
+from app import agent, voice
 from app.schemas import ChatRequest, ChatResponse, Hub, HubHistory, HubScore, ScoreRow, SecondOpinion, WhatIfInput, WhatIfResult
 from app.store import Store, Tracer
 
@@ -81,6 +81,21 @@ async def logged_stream(chunks: AsyncIterator[str], info: dict[str, Any], *, kee
             info.get("tools", 0),
             outcome,
         )
+
+
+async def remember_answer(chunks: AsyncIterator[str], info: dict[str, Any], spoken: voice.SpokenAnswers) -> AsyncIterator[str]:
+    """Pass the /chat stream through; once the verified answer is out, keep its speech text for /voice/speak."""
+    added = False
+    async for chunk in chunks:
+        if not added and isinstance(info.get("response"), ChatResponse):
+            spoken.add(info["response"])
+            added = True
+        yield chunk
+
+
+class SpeakRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    trace_id: str
 
 
 class UIChatRequest(BaseModel):
@@ -262,6 +277,12 @@ def create_app(
     alert_token = os.environ.get("ALERT_TOKEN", "")
     webhook_url = os.environ.get("ALERT_WEBHOOK_URL", "") or None
     lazy: dict[str, Any] = {"model": model, "store": store, "tracer": tracer}
+    # Live voice: transcription sessions share the chat limiter and have their own daily cap; speech only
+    # reads answers this server verified (see app/voice.py).
+    voice_cap = voice.DailyCap(_env_int("VOICE_DAILY_SESSION_CAP", 40))
+    speak_limiter = RateLimiter(_env_int("VOICE_SPEAK_PER_MIN", 20), 10**9)
+    spoken = voice.SpokenAnswers()
+    voice_enabled = os.environ.get("VOICE_ENABLED", "1").strip() != "0"
     lock = threading.Lock()
 
     def get(name: str) -> Any:
@@ -339,7 +360,7 @@ def create_app(
             info=info,
         )
         return StreamingResponse(
-            logged_stream(stream, info, keepalive_seconds=keepalive_seconds),
+            remember_answer(logged_stream(stream, info, keepalive_seconds=keepalive_seconds), info, spoken),
             headers=ai.ui.ai_sdk.UI_MESSAGE_STREAM_HEADERS,
             media_type="text/event-stream",
         )
@@ -353,6 +374,49 @@ def create_app(
             return await agent.run_turn(text, body.session_id, model=m, store=get("store"), tracer=get("tracer"), registry=registry)
         except Exception as exc:
             raise HTTPException(503, UNAVAILABLE) from exc
+
+    def voice_key() -> str:
+        key = os.environ.get("OPENAI_API_KEY", "").strip()
+        if not voice_enabled or not key:
+            raise HTTPException(503, "Live voice is not available on this server.")
+        return key
+
+    @app.post("/voice/session")
+    async def voice_session(request: Request) -> dict[str, Any]:
+        """An ephemeral client secret for one transcription-only realtime session (the API key stays here)."""
+        key = voice_key()
+        limit(request)
+        if not voice_cap.take():
+            raise HTTPException(429, "The daily live-voice cap for this demo has been reached. Please type your question.")
+        try:
+            return await voice.create_session(key)
+        except voice.UpstreamError as exc:
+            log.warning("voice session failed: %s", exc)
+            raise HTTPException(503, "Live voice is unavailable right now. Please type your question.") from exc
+
+    @app.post("/voice/speak")
+    async def voice_speak(body: SpeakRequest, request: Request) -> StreamingResponse:
+        """Speak the verified answer of a /chat turn (by its trace id) with OpenAI TTS, as streamed MP3."""
+        key = voice_key()
+        limit(request, speak_limiter)
+        text = spoken.take(body.trace_id)
+        if text is None:
+            raise HTTPException(404, "No verified answer to speak for this turn.")
+        try:
+            client, resp = await voice.open_speech(key, text)
+        except voice.UpstreamError as exc:
+            log.warning("voice speech failed: %s", exc)
+            raise HTTPException(503, "Speech is unavailable right now.") from exc
+
+        async def audio() -> AsyncIterator[bytes]:
+            try:
+                async for chunk in resp.aiter_bytes():
+                    yield chunk
+            finally:
+                await resp.aclose()
+                await client.aclose()
+
+        return StreamingResponse(audio(), media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
 
     @app.get("/hubs")
     def hubs() -> list[Hub]:

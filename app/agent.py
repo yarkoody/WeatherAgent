@@ -619,6 +619,7 @@ async def stream_turn(
     info.setdefault("outcome", "completed")
     info["trace_id"] = holder["response"].trace_id
     info["tools"] = len(inputs_sent)
+    info["response"] = holder["response"]  # read by /chat to let live voice speak this verified answer
     if not started:
         yield format_sse(UIStartEvent())
     yield format_sse(UIDataEvent(data_type="answer", data=holder["response"].model_dump(mode="json")))
