@@ -1,0 +1,11 @@
+.env
+.venv/
+**/__pycache__/
+**/node_modules/
+web/dist/
+logs/
+data/app.db
+docs/
+tests/
+evals/
+.git/

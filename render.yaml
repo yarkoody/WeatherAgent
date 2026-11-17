@@ -1,0 +1,21 @@
+# Render Blueprint: one Docker web service on the free plan.
+services:
+  - type: web
+    name: weather-risk-agent
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false   # set in the Render dashboard, never in git
+      - key: OPENAI_MODEL
+        sync: false
+      - key: ALERT_TOKEN
+        sync: false
+      - key: ALERT_WEBHOOK_URL
+        sync: false
+      - key: RATE_LIMIT_PER_MIN
+        value: "10"
+      - key: DAILY_REQUEST_CAP
+        value: "300"

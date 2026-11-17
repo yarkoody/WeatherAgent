@@ -1,0 +1,17 @@
+# Scheduled score-change alert: fetch fresh weather for the last 36 complete months,
+# rescore, compare with the committed baseline, and post changes to the webhook.
+name: score-change-alerts
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily, 06:00 UTC
+  workflow_dispatch:
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --no-dev
+      - run: uv run python -m app.alerts
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}

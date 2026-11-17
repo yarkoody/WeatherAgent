@@ -204,3 +204,32 @@ def test_health_and_import_without_api_key(tmp_path, monkeypatch):
 
     assert TestClient(app.api.app).get("/health").json() == {"status": "ok"}
     assert client(tmp_path).get("/health").json() == {"status": "ok"}
+
+
+# ---------- /what-if (deterministic, no LLM) ----------
+
+
+def test_what_if_reranks_priority_without_a_model():
+    from fastapi.testclient import TestClient
+
+    from app.api import create_app
+
+    client = TestClient(create_app(model=object()))
+    r = client.post("/what-if", json={"family_weights": {"flood": 3.0}, "upgrade_costs": [{"hub_id": "houston", "cost_musd": 2.0}]})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["kind"] == "priority"
+    assert len(body["ranking"]) == 15
+    assert [h["rank"] for h in body["ranking"]] == list(range(1, 16))
+    assert body["per_million_ranking"][0]["hub_id"] == "houston"
+    assert "analyst-supplied" in body["note"].lower()
+
+
+def test_what_if_rejects_bad_input_with_422():
+    from fastapi.testclient import TestClient
+
+    from app.api import create_app
+
+    client = TestClient(create_app(model=object()))
+    assert client.post("/what-if", json={"upgrade_costs": [{"hub_id": "boise", "cost_musd": 2.0}]}).status_code == 422
+    assert client.post("/what-if", json={"family_weights": {"flood": -1}}).status_code == 422

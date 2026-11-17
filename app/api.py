@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
 from app import agent
-from app.schemas import ChatRequest, ChatResponse, Hub, ScoreRow
+from app.schemas import ChatRequest, ChatResponse, Hub, ScoreRow, WhatIfInput, WhatIfResult
 from app.store import Store, Tracer
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -224,6 +224,17 @@ def create_app(
     @app.get("/scores")
     def scores() -> list[ScoreRow]:
         return rows()
+
+    @app.post("/what-if")
+    def what_if(body: WhatIfInput, request: Request) -> WhatIfResult:
+        """Deterministic re-ranking with analyst-supplied weights and costs. No LLM call."""
+        limit(request)
+        from app import scoring
+
+        try:
+            return scoring.what_if(scoring.load_hubs(), scoring.load_snapshot(), body)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.post("/alerts/check")
     def alerts_check(x_alert_token: str | None = Header(default=None)) -> dict[str, Any]:
