@@ -8,6 +8,7 @@ import { textDir } from '@/lib/textDir'
 import type { ChatResponse } from '@/lib/types'
 import { FiguresTable } from './FiguresTable'
 import { ExportReportButton } from './PrintReport'
+import { SendButtons } from './SendButtons'
 import { AnswerReport } from './reports'
 import { GroundingBadge } from './GroundingBadge'
 
@@ -109,7 +110,10 @@ export function AnswerCard({ response, dataAsOf, question }: { response: ChatRes
           </details>
         )}
         {kind !== 'out_of_scope' && (
-          <ExportReportButton className="ml-auto text-muted-foreground" report={() => <AnswerReport response={response} dataAsOf={dataAsOf} question={question} />} />
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-1 gap-y-1">
+            <SendButtons response={response} dataAsOf={dataAsOf} question={question} />
+            <ExportReportButton report={() => <AnswerReport response={response} dataAsOf={dataAsOf} question={question} />} />
+          </div>
         )}
         {debug && (
           <span className="text-[0.7rem] text-muted-foreground" title="Trace id for debugging">

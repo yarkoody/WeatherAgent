@@ -123,6 +123,12 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const empty = !body.family_weights && !body.upgrade_costs?.length
     return Response.json(empty ? whatIf.baseline : whatIf.example)
   }
+  if (path === '/send/discord' || path === '/alerts/subscribe' || path === '/alerts/unsubscribe') {
+    // Mock mode never contacts Discord: it answers as the backend would after a successful post.
+    await sleep(300)
+    const status = { '/send/discord': 'sent', '/alerts/subscribe': 'subscribed', '/alerts/unsubscribe': 'unsubscribed' }[path]
+    return Response.json({ status })
+  }
   return Response.json({ detail: `No mock for ${path}` }, { status: 404 })
 }
 

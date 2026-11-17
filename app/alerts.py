@@ -295,6 +295,9 @@ def check_alerts(
             _append_jsonl(log_path, payload)
 
     sent = delivered == "webhook" or (delivered == "jsonl" and not webhook_url)
+    # Subscribers get an alert only once it counts as sent: a failed main webhook keeps the state, the next run
+    # sends the same alert again, and subscribers then get it once instead of twice.
+    subscribers = fan_out(store, text) if sent and delivered else {"sent": 0, "failed": 0, "removed": 0}
     if update_baseline:
         state["hubs"] = {}  # the new baseline is the reference again
         state["scoring_version"] = current
@@ -314,7 +317,25 @@ def check_alerts(
         "delivered": delivered,
         "baseline_created": baseline_created,
         "formula_reset": reset,
+        "subscribers": subscribers,
     }
+
+
+def fan_out(store: Store, text: str) -> dict[str, int]:
+    """Post the alert text to every subscribed Discord webhook. A webhook Discord no longer knows is removed."""
+    from app import send
+
+    counts = {"sent": 0, "failed": 0, "removed": 0}
+    for url in store.subscriptions():
+        try:
+            send.post(url, send.message(text))
+            counts["sent"] += 1
+        except (send.WebhookError, ValueError) as exc:
+            counts["failed"] += 1
+            if isinstance(exc, ValueError) or exc.status == 404:
+                store.remove_subscription(url)
+                counts["removed"] += 1
+    return counts
 
 
 # ---------- real scoring and data (Track A), imported lazily ----------
