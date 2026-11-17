@@ -20,7 +20,7 @@ def row(hub="dallas", exposure=50.0, priority=40.0, exposure_band="medium", prio
     )
 
 
-def run(tmp_path, rows, webhook_url=None, nws=None, db="app.db", **kw):
+def run(tmp_path, rows, webhook_url=None, nws=None, db="app.db", version="v1", **kw):
     return check_alerts(
         Store(tmp_path / db),
         lambda: rows,
@@ -29,6 +29,7 @@ def run(tmp_path, rows, webhook_url=None, nws=None, db="app.db", **kw):
         baseline_path=tmp_path / "score_baseline.json",
         log_path=tmp_path / "alerts.jsonl",
         state_path=tmp_path / "alert_state.json",
+        formula_version=version,
         **kw,
     )
 
@@ -266,3 +267,74 @@ def test_hurricane_probability_change_of_10_points_alerts():
     assert compare(row(hurricane_pct=60.0), row(hurricane_pct=69.9)) is None
     out = compare(row(hurricane_pct=60.0), row(hurricane_pct=70.0))
     assert out and any("hurricane 10-year probability +10.0" in r for r in out["reasons"])
+
+
+# ---------- scoring formula version ----------
+
+
+def jsonl(tmp_path):
+    return [json.loads(line) for line in (tmp_path / "alerts.jsonl").read_text().splitlines()]
+
+
+def test_formula_version_is_stored_in_baseline_and_state(tmp_path):
+    run(tmp_path, [row()])
+    assert json.loads((tmp_path / "score_baseline.json").read_text())["formula_version"] == "v1"
+    assert json.loads((tmp_path / "alert_state.json").read_text())["formula_version"] == "v1"
+
+
+def test_same_version_compares_normally(tmp_path):
+    run(tmp_path, [row()])
+    result = run(tmp_path, [row(priority=50.0)])
+    assert result["formula_reset"] is None and [c["hub_id"] for c in result["changes"]] == ["dallas"]
+
+
+def test_version_mismatch_resets_state_with_one_message(tmp_path):
+    run(tmp_path, [row(), row("miami")])
+    run(tmp_path, [row(priority=50.0), row("miami")])  # dallas alerted under v1
+    rows = [row(priority=70.0, bad_year_days=42.8), row("miami", bad_year_days=42.8)]
+    result = run(tmp_path, rows, version="v2")
+    assert result["changes"] == [] and result["formula_reset"] == {"old": "v1", "new": "v2"}
+    message = jsonl(tmp_path)[-1]
+    assert message["changes"] == []
+    assert message["text"] == "Scoring method changed (v1 -> v2); alert baseline reset, no score alerts this run."
+    state = json.loads((tmp_path / "alert_state.json").read_text())
+    assert state["formula_version"] == "v2" and state["hubs"]["dallas"]["priority"] == 70.0 and "miami" in state["hubs"]
+    # the next run under v2 compares against the reset state: nothing changed
+    after = run(tmp_path, rows, version="v2")
+    assert after["changes"] == [] and after["formula_reset"] is None and after["delivered"] is None
+
+
+def test_state_without_a_version_is_treated_as_a_mismatch(tmp_path):
+    run(tmp_path, [row()])
+    stale = {"hubs": {"dallas": row(bad_year_days=22.9).model_dump(mode="json")}, "nws_seen": {}}
+    (tmp_path / "alert_state.json").write_text(json.dumps(stale))
+    result = run(tmp_path, [row(bad_year_days=42.8)])
+    assert result["changes"] == [] and result["formula_reset"] == {"old": "unknown", "new": "v1"}
+
+
+def test_baseline_from_another_version_is_not_compared(tmp_path):
+    run(tmp_path, [row()], version="v0")  # baseline written by an older formula, no state yet
+    (tmp_path / "alert_state.json").unlink()
+    result = run(tmp_path, [row(priority=70.0)])
+    assert result["changes"] == [] and result["formula_reset"] == {"old": "v0", "new": "v1"}
+    assert run(tmp_path, [row(priority=70.0)])["changes"] == []  # no repeated reset message
+
+
+def test_nws_dedup_is_unaffected_by_a_reset(tmp_path):
+    tornado = {"hub_id": "dallas", "event": "Tornado Warning", "severity": "Extreme", "headline": "T", "expires": "2099-01-01T00:00:00Z"}
+    run(tmp_path, [row()])
+    result = run(tmp_path, [row()], version="v2", nws=[tornado])
+    assert result["formula_reset"] is not None and [a["event"] for a in result["nws"]] == ["Tornado Warning"]
+    assert "Tornado Warning" in jsonl(tmp_path)[-1]["text"]
+    assert run(tmp_path, [row()], version="v2", nws=[tornado])["nws"] == []
+
+
+def test_formula_version_tracks_config_and_method():
+    from app import scoring
+    from app.alerts import formula_version
+
+    current = formula_version()
+    assert current.startswith(scoring.SCORING_VERSION + "-")
+    changed = scoring.ScoringConfig.model_validate({**scoring.DEFAULT_CONFIG.model_dump(), "high_from": 61.0})
+    assert formula_version(changed) != current
+    assert formula_version() == current  # deterministic
