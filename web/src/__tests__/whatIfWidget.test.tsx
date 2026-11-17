@@ -39,6 +39,24 @@ describe('what_if in the chat', () => {
     expect(screen.queryByRole('table')).toBeNull()
   })
 
+  it('marks only the hubs in rank_changes as moved, with their old rank', () => {
+    const [a, b] = baseline.ranking
+    const data: WhatIfResult = {
+      ...baseline,
+      per_million_ranking: null,
+      rank_changes: [{ hub_id: b.hub_id, name: b.name, from_rank: a.rank, to_rank: b.rank }],
+    }
+    render(<WhatIfWidget data={data} />)
+    const items = within(screen.getByRole('list', { name: 'Re-ranked review priority' })).getAllByRole('listitem')
+    expect(items[1].querySelector('[data-move]')).toHaveTextContent(`▼ from ${a.rank}`)
+    expect(items[0].querySelector('[data-move]')).toBeNull()
+  })
+
+  it('says the order is unchanged when no hub moved', () => {
+    render(<WhatIfWidget data={{ ...baseline, per_million_ranking: null, rank_changes: [] }} />)
+    expect(screen.getByRole('region')).toHaveTextContent('The order is the same as with the default weights.')
+  })
+
   it('the step label names what the analyst supplied', () => {
     expect(toolLabel('what_if', { upgrade_costs: [{ hub_id: 'chicago', cost_musd: 5 }] }, true)).toBe('Re-ranked with your upgrade costs')
     expect(toolLabel('what_if', { family_weights: { winter: 0.5 } }, true)).toBe('Re-ranked with your weights')

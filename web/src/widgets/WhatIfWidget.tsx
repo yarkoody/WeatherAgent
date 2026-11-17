@@ -49,17 +49,29 @@ export function WhatIfWidget({ data }: { data: WhatIfResult }) {
       </WidgetFrame>
     )
 
+  // Who moved comes from the tool's rank_changes (computed in code), the same list the answer must use.
+  const changes = data.rank_changes
+  const from = new Map((changes ?? []).map((c) => [c.hub_id, c.from_rank]))
+  const moveNote = changes && changes.length === 0 ? ' The order is the same as with the default weights.' : ''
   return (
-    <WidgetFrame label="What-if: re-ranked review priority" title="Review priority with your weights" note={note}>
+    <WidgetFrame label="What-if: re-ranked review priority" title="Review priority with your weights" note={note + moveNote}>
       <ol className="space-y-1 text-sm tabular-nums" aria-label="Re-ranked review priority">
-        {data.ranking.slice(0, 10).map((h) => (
-          <li key={h.hub_id} data-hub={h.hub_id} className="flex items-center gap-2">
-            <span className="w-5 text-muted-foreground">{h.rank}</span>
-            <span className="flex-1 font-medium">{hubName(h.hub_id)}</span>
-            {h.band && <BandPill band={h.band} />}
-            <span className="w-12 text-right">{fmt(h.value)}</span>
-          </li>
-        ))}
+        {data.ranking.slice(0, 10).map((h) => {
+          const was = from.get(h.hub_id)
+          return (
+            <li key={h.hub_id} data-hub={h.hub_id} className="flex items-center gap-2">
+              <span className="w-5 text-muted-foreground">{h.rank}</span>
+              <span className="flex-1 font-medium">{hubName(h.hub_id)}</span>
+              {was != null && (
+                <span data-move className="text-xs text-muted-foreground" title={`Rank ${was} with the default weights`}>
+                  {was > h.rank ? '▲' : '▼'} from {was}
+                </span>
+              )}
+              {h.band && <BandPill band={h.band} />}
+              <span className="w-12 text-right">{fmt(h.value)}</span>
+            </li>
+          )
+        })}
       </ol>
     </WidgetFrame>
   )

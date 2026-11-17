@@ -33,6 +33,8 @@ The date shown as "data as of" is the date the FEMA snapshot was fetched, not th
 
 The headline number answers one question: in an average year, how many operating days does weather cost this hub? It is built per hazard family (winter, flood, hurricane, severe storm) from two signals, then summed.
 
+**Not modeled: extreme heat and wildfire.** Both are in FEMA's index but are left out on purpose. Heat rarely closes a hub for whole days: it shifts work hours and slows crews, which is a staffing cost, not lost operating days. FEMA's wildfire figure is the chance of burning anywhere in the county, mostly wildland far from a metro-core site; smoke and road closures would need other data. So Phoenix and Los Angeles rank lowest on the four modeled hazards only, and the agent says so when it names the safest hubs.
+
 ### 2.1 Modeled days from FEMA
 
 FEMA counts how many events of each sub-hazard hit the county per year. Each event is assumed to cost a fixed number of operating days. For a sub-hazard $k$ with annual frequency $\lambda_k$, adjustment factor $a_k$ (below) and days per event $d_k$, the modeled days are:
@@ -340,6 +342,7 @@ The typical-year ranking and the review priority are robust to any single assump
 
 ### 8.2 Limitations (documented, not fixed)
 
+- **Heat and wildfire are not modeled** (see section 2): the low scores of Phoenix and Los Angeles cover winter, flood, hurricane and severe storm only.
 - **Days per event are assumptions**, not fitted to loss data. They should be fitted to the company's downtime logs in production.
 - **The hurricane closure mix (80% × 4 days, 20% × 35 days) is assumed**, and the bad-year order of the coastal hubs depends on it.
 - **FEMA hurricane frequency likely includes tropical storms**, so the 10-year chances (Newark 65.7%, Chicago 8.9%, Phoenix 10.9%) read as "a hurricane-class storm reaches the county". The medium hurricane level of Memphis (21.0%) and Atlanta (31.6%), far inland, most likely reflects tropical-storm remnants.
@@ -348,7 +351,7 @@ The typical-year ranking and the review priority are robust to any single assump
 - **The hub's site inside its county is unknown:** it could be inside or outside the flood zone.
 - **Artefacts:** FEMA's cold-wave count is relative to local normals (Miami 1.28 cold waves a year); Los Angeles County includes mountains, so winter weather (6.59 events a year) gives LA a winter top driver it does not have at sea level, and this carries into its people-days.
 - **Area scaling for tornado, wind and hail may double-adjust:** FEMA already models these on a grid of roughly 930 sq mi.
-- **Level edges are hard cut-offs:** Newark's 15.02 expected days put it just inside high exposure (15 days); Chicago's review priority 59.99 displays as 60.0 and reads high. The score-change alerts use a 2-point margin for this reason.
+- **Level edges are hard cut-offs:** Newark's 15.02 expected days put it just inside high exposure (15 days); Chicago's review priority is 59.99 before rounding. Levels are set from the shown, rounded value (60.0), so the number and its level never disagree on screen, and Chicago reads high. The score-change alerts use a 2-point margin for this reason.
 - **The bad-year model assumes independent random events:** real winters cluster (a cold season brings several storms), so the bad-year days of winter hubs are likely understated.
 - **People served is a metro-population proxy** for demand near a regional hub; national or air-cargo hubs (Memphis- or Louisville-style) serve far beyond their metro. Resilience stays county-level.
 - **Three geographies meet in one score:** hazards come from the county (FEMA) and the hub point (Open-Meteo), people from the metro area, resilience from the county.

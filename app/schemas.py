@@ -210,10 +210,20 @@ class WhatIfInput(Strict):
     upgrade_costs: list[HubCost] | None = None
 
 
+class RankChange(Strict):
+    hub_id: str
+    name: str
+    from_rank: int  # review-priority rank with the default weights
+    to_rank: int  # rank with the analyst's weights
+
+
 class WhatIfResult(Strict):
     kind: ScoreKind  # always "priority": what-if re-ranks investment priority
     inputs_echo: WhatIfInput
     ranking: list[RankedHub]
+    # Computed in code, so the answer never has to work out who moved: only the hubs whose rank changed, in their
+    # new order. Empty means the weights left the order unchanged.
+    rank_changes: list[RankChange] = []
     per_million_ranking: list[PerMillionHub] | None
     note: str  # states that the inputs are analyst-supplied
     data_as_of: str

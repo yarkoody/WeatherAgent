@@ -21,14 +21,14 @@ describe('RankingWidget', () => {
     }
     const svgText = container.querySelector('svg.recharts-surface')?.textContent ?? ''
     expect(svgText).toContain(String(ranking.items[0].value))
-    // bars are colored by their own score band, so the 0-100 index lines (35/60) apply and are drawn
+    // one hazard: bars take the hazard level the tool returned (the level the answer cites), and the cut-off lines
+    // are that hazard's 2 / 5 lost days a year drawn as scores (8 and 20), not the overall 35 / 60
     expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(2)
-    const fills = [...container.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))
     const t = ranking.band_thresholds
-    ranking.items.forEach((item, i) => {
-      const band = item.value >= t.high_from ? 'high' : item.value >= t.medium_from ? 'medium' : 'low'
-      expect(fills[i], item.name).toBe(BAND_COLOR[band])
-    })
+    expect(svgText).toContain(String((t.family_medium_from_days / t.days_cap) * 100))
+    expect(svgText).not.toContain(String(t.medium_from))
+    const fills = [...container.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))
+    ranking.items.forEach((item, i) => expect(fills[i], item.name).toBe(BAND_COLOR[item.band!]))
     // bars show the number only (the level is the color, explained in the subtitle)
     expect(svgText).not.toContain('by days')
   })

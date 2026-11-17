@@ -78,7 +78,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
     [],
   )
   const initial = useMemo(() => loadMessages(sessionId), [sessionId])
-  const { messages, sendMessage, status, error, stop, regenerate } = useChat({ id: sessionId, messages: initial, transport })
+  const { messages, setMessages, sendMessage, status, error, stop, regenerate } = useChat({ id: sessionId, messages: initial, transport })
   const busy = status === 'submitted' || status === 'streaming'
   // Messages restored from history render without animation; only new results animate in.
   const restored = useMemo(() => new Set(initial.map((m) => m.id)), [initial])
@@ -98,6 +98,9 @@ function ChatThread({ sessionId }: { sessionId: string }) {
 
   // One send path for the composer, the starter questions and the "Ask next" chips.
   const send = (text: string) => {
+    // A question that got no reply at all (failed or stopped before the first chunk) is replaced by the new one,
+    // so retyping it after an error does not show it twice, here or in the saved chat.
+    if (!busy && messages.at(-1)?.role === 'user') setMessages(messages.slice(0, -1))
     void sendMessage({ text })
     // Keep focus in the composer: a clicked chip unmounts, and focus must not fall back to the page.
     document.getElementById(COMPOSER_INPUT_ID)?.focus({ preventScroll: true })

@@ -1,5 +1,7 @@
 // Ranking (rank_hubs): one definition per ranking kind (title, unit, value format, whether 0-100 bands apply).
-// Bars show the number only; on banded kinds the bar color is the score's level (explained in the subtitle).
+// Bars show the number only; on banded kinds the bar color is the level (explained in the subtitle). A one-hazard
+// ranking uses that hazard's own level from the tool (2 / 5 lost days a year; hurricane by its 10-year chance), the
+// same level the answer text cites, so chart and text never disagree.
 // A ranking with a single hub is a compact stat card, not a one-bar chart.
 import { Bar, BarChart, Cell, LabelList, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
@@ -84,13 +86,24 @@ function rankingLines(r: Ranking): string[] {
       if (r.hazard === 'overall') return [`Lost operating days: ${LOST_DAYS}`, 'The score counts those days a year from all hazards.', ...indexSteps(t)]
       return [
         `Lost operating days: ${LOST_DAYS}`,
-        `The score counts those days a year from ${HAZARD_LABEL[r.hazard].toLowerCase()} alone.`,
-        `Bar color is the score's level (medium from ${fmt(t.medium_from)}, high from ${fmt(t.high_from)}). Hover a bar for the hazard's own level by lost operating days a year (medium from ${fmt(t.family_medium_from_days)} days, high from ${fmt(t.family_high_from_days)}).`,
+        `The score counts those days a year from ${HAZARD_LABEL[r.hazard].toLowerCase()} alone: days ÷ ${fmt(t.days_cap)} × 100.`,
+        `Bar color is the ${HAZARD_LABEL[r.hazard].toLowerCase()} level. ${hazardLevelRule(r)} One hazard needs fewer days to matter than all of them together, so its levels start lower than the overall 35 and 60.`,
       ]
     default:
       return ['Hubs ranked by the value the agent asked for.']
   }
 }
+
+/** One hazard's level rule, from the tool's cut-offs: lost days a year, or the 10-year chance for hurricanes. */
+function hazardLevelRule(r: Ranking): string {
+  const t = r.band_thresholds
+  if (r.hazard === 'hurricane')
+    return `Its level is set by the chance of at least one hurricane in 10 years (medium from ${fmt(t.hurricane_medium_from_pct)}%, high from ${fmt(t.hurricane_high_from_pct)}%).`
+  return `Medium from ${fmt(t.family_medium_from_days)} lost days a year (score ${fmt(dayScore(t.family_medium_from_days, t))}), high from ${fmt(t.family_high_from_days)} (score ${fmt(dayScore(t.family_high_from_days, t))}).`
+}
+
+/** Lost days a year as a 0-100 score (days ÷ cap × 100), to draw a day cut-off on the score axis. */
+const dayScore = (days: number, t: Ranking['band_thresholds']) => (days / t.days_cap) * 100
 
 /** The 0-100 score's own band, from the tool's cut-offs (the same 35/60 lines drawn on the chart). */
 function scoreBand(value: number, t: Ranking['band_thresholds']): Band {
@@ -121,7 +134,7 @@ function subtitle(r: Ranking, spec: KindSpec): string {
   if (r.kind === 'bad_year') return `Bad year: the average of the worst 1 year in 20. ${asOf}`
   if (!spec.banded) return asOf
   if (r.kind === 'exposure' && r.hazard !== 'overall')
-    return `Bar length and color: the ${HAZARD_LABEL[r.hazard].toLowerCase()} score, 0 to 100 (medium from ${fmt(t.medium_from)}, high from ${fmt(t.high_from)}). ${asOf}`
+    return `Bar length: the ${HAZARD_LABEL[r.hazard].toLowerCase()} score, 0 to 100. Color: the ${HAZARD_LABEL[r.hazard].toLowerCase()} level. ${hazardLevelRule(r)} ${asOf}`
   return `Score 0 to 100. Medium from ${fmt(t.medium_from)}, high from ${fmt(t.high_from)}. ${asOf}`
 }
 
@@ -134,9 +147,17 @@ export function RankingWidget({ data }: { data: Ranking }) {
     ...i,
     label: shortHubName(i.name),
     text: spec.format(i.value),
-    level: spec.banded ? (hazardBands ? scoreBand(i.value, t) : (i.band ?? scoreBand(i.value, t))) : null,
-    dayBand: hazardBands ? i.band : null,
+    level: spec.banded ? (i.band ?? scoreBand(i.value, t)) : null,
   }))
+  // Cut-off lines on the score axis: 35/60 for the index; a hazard's 2/5-day cut-offs as scores; none for hurricane
+  // (its level is a 10-year chance, not a position on this axis).
+  const cuts = !spec.banded
+    ? null
+    : !hazardBands
+      ? { medium: t.medium_from, high: t.high_from }
+      : data.hazard === 'hurricane'
+        ? null
+        : { medium: dayScore(t.family_medium_from_days, t), high: dayScore(t.family_high_from_days, t) }
   const total = typeof data.total === 'number' && data.total > 0 ? data.total : null
   const title = (
     <span className="flex items-center gap-1.5">
@@ -181,21 +202,19 @@ export function RankingWidget({ data }: { data: Ranking }) {
               <ChartTooltipContent
                 hideIndicator
                 formatter={(v, _n, item) => {
-                  const p = item.payload as { level: Band | null; dayBand: Band | null }
+                  const p = item.payload as { level: Band | null }
                   const value = `${spec.format(Number(v))} ${spec.unit}`
-                  if (!p.level) return value
-                  const score = `${value} (${BAND_LABEL[p.level]})`
-                  return p.dayBand ? `${score}, ${BAND_LABEL[p.dayBand]} by lost days a year` : score
+                  return p.level ? `${value} (${BAND_LABEL[p.level]})` : value
                 }}
               />
             }
           />
-          {/* The 35/60 lines belong to the 0-100 index only. */}
-          {spec.banded && (
-            <ReferenceLine x={t.medium_from} stroke={BAND_COLOR.medium} strokeDasharray="3 3" label={{ value: fmt(t.medium_from), position: 'top', fill: BAND_LABEL_COLOR.medium, fontSize: 11 }} />
+          {/* The level cut-offs on the score axis (see `cuts`). */}
+          {cuts && (
+            <ReferenceLine x={cuts.medium} stroke={BAND_COLOR.medium} strokeDasharray="3 3" label={{ value: fmt(cuts.medium), position: 'top', fill: BAND_LABEL_COLOR.medium, fontSize: 11 }} />
           )}
-          {spec.banded && (
-            <ReferenceLine x={t.high_from} stroke={BAND_COLOR.high} strokeDasharray="3 3" label={{ value: fmt(t.high_from), position: 'top', fill: BAND_LABEL_COLOR.high, fontSize: 11 }} />
+          {cuts && (
+            <ReferenceLine x={cuts.high} stroke={BAND_COLOR.high} strokeDasharray="3 3" label={{ value: fmt(cuts.high), position: 'top', fill: BAND_LABEL_COLOR.high, fontSize: 11 }} />
           )}
           <Bar dataKey="value" radius={[0, 4, 4, 0]} isAnimationActive={!reduced} animationDuration={400} background={{ fill: 'var(--muted)', radius: 4 }}>
             {rows.map((r) => (

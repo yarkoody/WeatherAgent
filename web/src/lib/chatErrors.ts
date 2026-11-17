@@ -41,7 +41,12 @@ export function describeChatError(error: Error): ChatErrorView {
     case 422:
       return { title: 'The question could not be sent. Keep it between 1 and 2,000 characters.', detail, canRetry: false }
     case 429:
-      return { title: 'Request limit reached. Wait a minute, or come back tomorrow if the daily limit is used up.', detail, canRetry: false }
+      // The per-minute limit clears within a minute, so offer a retry; the daily cap does not.
+      return {
+        title: 'Request limit reached. Wait a minute, or come back tomorrow if the daily limit is used up.',
+        detail,
+        canRetry: !/daily/i.test(detail ?? ''),
+      }
     case 503:
       return { title: 'The analysis service is temporarily unavailable.', detail, canRetry: true }
     case undefined:

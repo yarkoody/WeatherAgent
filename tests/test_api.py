@@ -140,6 +140,7 @@ def test_rate_limit_returns_429(tmp_path, monkeypatch):
     assert c.post("/chat", json=ui_body("q1"), headers={"X-Forwarded-For": "6.6.6.2, 1.1.1.1"}).status_code == 200
     blocked = c.post("/chat/json", json={"message": "q2"}, headers={"X-Forwarded-For": "6.6.6.3, 1.1.1.1"})
     assert blocked.status_code == 429 and isinstance(blocked.json()["detail"], str)
+    assert 1 <= int(blocked.headers["retry-after"]) <= 60
     assert c.post("/chat/json", json={"message": "q2"}, headers={"X-Forwarded-For": "1.1.1.1, 2.2.2.2"}).status_code == 200
 
 
@@ -179,12 +180,24 @@ def test_unexpected_error_returns_500_with_detail(tmp_path):
     assert res.status_code == 500 and res.json() == {"detail": "Internal server error."}
 
 
+def test_read_only_routes_do_not_use_up_the_chat_limit(tmp_path, monkeypatch):
+    """Clicking around the map and the what-if sliders (no LLM) must never lock out the chat."""
+    monkeypatch.setenv("RATE_LIMIT_PER_MIN", "1")
+    c = client(tmp_path, model=ai.testing.FakeModel(script("q0")))
+    for _ in range(5):
+        assert c.get("/hubs/houston/score").status_code == 200
+        assert c.get("/hubs/denver/history").status_code == 200
+        assert c.post("/what-if", json={}).status_code == 200
+    assert c.post("/chat/json", json={"message": "q0"}).status_code == 200
+
+
 def test_daily_cap_returns_429(tmp_path, monkeypatch):
     monkeypatch.setenv("DAILY_REQUEST_CAP", "1")
     c = client(tmp_path, model=ai.testing.FakeModel(script("q0")))
     assert c.post("/chat/json", json={"message": "q0"}, headers={"X-Forwarded-For": "1.1.1.1"}).status_code == 200
     res = c.post("/chat/json", json={"message": "q1"}, headers={"X-Forwarded-For": "3.3.3.3"})
     assert res.status_code == 429 and "daily" in res.json()["detail"].lower()
+    assert 1 <= int(res.headers["retry-after"]) <= 86_400
 
 
 def test_model_unavailable_returns_503(tmp_path, monkeypatch):
@@ -465,7 +478,7 @@ def test_hub_score_unknown_or_ambiguous_name_is_404(tmp_path):
 
 
 def test_hub_score_is_rate_limited(tmp_path, monkeypatch):
-    monkeypatch.setenv("RATE_LIMIT_PER_MIN", "1")
+    monkeypatch.setenv("READ_RATE_LIMIT_PER_MIN", "1")
     c = client(tmp_path)
     assert c.get("/hubs/houston/score").status_code == 200
     assert c.get("/hubs/houston/score").status_code == 429
@@ -498,7 +511,7 @@ def test_hub_history_unknown_or_ambiguous_name_is_404(tmp_path):
 
 
 def test_hub_history_is_rate_limited(tmp_path, monkeypatch):
-    monkeypatch.setenv("RATE_LIMIT_PER_MIN", "1")
+    monkeypatch.setenv("READ_RATE_LIMIT_PER_MIN", "1")
     c = client(tmp_path)
     assert c.get("/hubs/denver/history").status_code == 200
     assert c.get("/hubs/denver/history").status_code == 429

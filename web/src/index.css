@@ -31,8 +31,8 @@
   --color-band-medium-text: #7a5612;
   --color-band-high-text: #9b2f2a;
   /* hazard family glyphs and chart series */
-  --color-hazard-winter: #6f98c2;
-  --color-hazard-flood: #2f5d8a;
+  --color-hazard-winter: #8db4dc;
+  --color-hazard-flood: #1f4f86;
   --color-hazard-hurricane: #5b4e8c;
   --color-hazard-severe_storm: #6b7a85;
 }
@@ -144,8 +144,8 @@
   --color-band-low-text: #8fd1bd;
   --color-band-medium-text: #e8c170;
   --color-band-high-text: #f2a39d;
-  --color-hazard-winter: #9cc3e6;
-  --color-hazard-flood: #6fa3d6;
+  --color-hazard-winter: #dcecf9;
+  --color-hazard-flood: #3b7dd8;
   --color-hazard-hurricane: #a99bdc;
   --color-hazard-severe_storm: #a7b4bd;
 
