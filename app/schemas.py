@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 Region = Literal["Midwest", "South", "West", "Northeast"]
 Family = Literal["winter", "flood", "hurricane", "severe_storm"]
 Hazard = Literal["overall", "winter", "flood", "hurricane", "severe_storm"]
-ScoreKind = Literal["exposure", "priority", "bad_year"]  # bad_year = 1-in-20-year disruption days (tail lens)
+ScoreKind = Literal["exposure", "priority", "bad_year", "people_impact"]  # bad_year = 1-in-20-year disruption days (tail lens)
 Band = Literal["low", "medium", "high"]
 Metric = Literal[
     "snow_days_pct",
@@ -84,6 +84,10 @@ class HubScore(Strict):
     exposure_days_per_year: float  # total expected disruption days per year (typical year)
     bad_year_days: float  # average lost days in the worst 1 in 20 years (TVaR95, exact compound-Poisson recursion)
     hurricane_10yr_probability_pct: float  # chance of at least one hurricane-class event in 10 years, 0-100
+    metro_name: str  # OMB metro area (CBSA) the hub sits in
+    people_served: int  # metro-area population (Census estimate), a proxy for the people a hub serves
+    people_days_m: float  # people-days of disruption a year, typical year, in millions = people_served x typical days / 1e6
+    people_days_bad_year_m: float  # same, in a bad year (worst 1 in 20 average)
     exposure_band: Band
     families: dict[Family, FamilyScore]
     family_weights: dict[Family, float]  # each family's share of total disruption days, in percent (0-100)
@@ -224,6 +228,10 @@ class ScoreRow(Strict):
     exposure_days_per_year: float
     bad_year_days: float
     hurricane_10yr_probability_pct: float
+    metro_name: str = ""
+    people_served: int = 0
+    people_days_m: float = 0.0
+    people_days_bad_year_m: float = 0.0
     priority: float
     priority_band: Band
     top_driver: Family
