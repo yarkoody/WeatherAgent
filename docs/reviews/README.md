@@ -66,3 +66,22 @@ Each piece of work was reviewed by an independent AI reviewer that had not seen 
 - **Per-hazard bands were miscalibrated:** 56 of 60 were "low", matching the JEV cross-check.
 - **A 3-year observed window** was used when 11 years were available.
 **Done:** formula v2. Coastal flood is scaled by the flood-zone share, the observed window is 11 years, per-hazard bands are in days, a bad-year (1-in-20) lens sits next to the typical year, priority is multiplicative, and a sensitivity analysis was added.
+
+## 7. External review (Codex) and live checks
+**Found:**
+- **Grounding tied a number to a hub, not to its metric.** "Miami's hurricane probability is 25.6%" passed, though 25.6 was Miami's priority.
+- **The UI overstated the model** ("days a hub can expect", "where upgrades help most").
+- **Alerts repeated every day** and lost their de-duplication state on a fresh runner.
+- **Unit-mixing explanations:** "430.3 mm of the 365 days".
+- **A dev proxy gap.**
+
+**Done:**
+- Metric-bound grounding: each figure cites its tool field. A test covers the 25.6 case, and the real-model eval run passed 30/30.
+- Honest wording: "modeled lost days (estimate)" and "screening priority".
+- Alerts once per change, with state kept between runs.
+- Unit-aware explanations, the full dev proxy, and a feature freeze afterwards.
+
+**Live checks after deploy found:**
+- **Missing data files in the Docker image:** "New York" resolved locally but not on Render, and the JEV column returned 404. The image now copies all data files, with a regression test.
+- **Stale lazy chunks:** after a rebuild, an open tab couldn't draw widgets. It now reloads once.
+- **A false alert from a method change:** the first real Discord alert compared old-formula numbers with new ones. Alerts now compare only within one formula version.

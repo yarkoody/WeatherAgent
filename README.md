@@ -11,7 +11,16 @@ Try:
 - "Why is the Dallas hub's weather disruption risk high?" (it corrects the premise when the data disagrees)
 - "I have $1M for resilience upgrades. Which hub should get most of it?"
 
-Add `?debug=1` to the URL to see the developer view: tool names, arguments, trace ids and grounding details.
+What the app can do:
+- **Chat with live tool progress.** Charts are drawn only from tool outputs.
+- **Suggested follow-ups** under each answer, plus a chat history saved in the browser.
+- **Two lenses:** typical year and bad year.
+- **History and seasonality:** which years and months hurt each hub.
+- **What-if sliders:** priority per $1M once you add upgrade costs.
+- **Export:** CSV of the scores table and a print-to-PDF report.
+- **Interface:** voice input and read-aloud, light and dark themes.
+
+Developer mode (Settings, or `?debug=1`) shows tool names, arguments, cited fields, trace ids and validation details.
 
 ## Run it locally (from a clean clone)
 
@@ -54,9 +63,9 @@ Browser (React, useChat) --SSE--> FastAPI --> Agent loop (<= 6 tool rounds) --> 
                                                  +--> final AgentAnswer (strict JSON schema) --> grounding check --> one verified answer
 ```
 
-- **Bounded agent, not a free-form one.** The model chooses which tools to call: rank, compare, explain, weather statistics, live alerts, what-if. The code computes every number. After 6 tool rounds the model must answer.
+- **Bounded agent, not a free-form one.** The model chooses which of eight tools to call: rank, compare, explain, weather statistics, history, live alerts, what-if, list hubs. The code computes every number. After 6 tool rounds the model must answer.
 - **Structured output both ways.** Tool arguments and the final `AgentAnswer` are strict JSON schemas generated from Pydantic models (`app/schemas.py`).
-- **Grounding.** Every number in the answer text, assumptions and uncertainty must match a tool result for the same hub, and rankings must keep the code's order. If not, the model gets one retry with the errors; after that the answer is shown as "unverified".
+- **Grounding, bound to the metric.** Each figure names the tool, the exact field and the hub it came from, for example `get_hub_risk` → `hurricane_10yr_probability_pct` → Miami. Code checks that this field holds that value. Every number in the prose must be one of those figures, and rankings must keep the code's order. Otherwise the model gets one retry with the errors, and after that the answer is shown as "unverified". An external review found that the first version only tied a number to its hub, so "Miami's hurricane probability is 25.6%" passed even though 25.6 was its priority. That's fixed, with a test.
 - **Generative UI.** Charts render from the tools' deterministic outputs, never from model text. Answer text is never streamed token by token, so an unverified number can't flash on screen.
 
 The details are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), the API is in [`docs/api-contract.md`](docs/api-contract.md), and the full design spec is in [`docs/specs/`](docs/specs/2026-11-17-weather-risk-agent-design.md).
@@ -118,15 +127,15 @@ The cases cover:
 
 One LLM-judge rubric checks that each explanation names the hub's actual top driver.
 
-**Last full run, on formula v2: 28/29 as run, 29/29 after one eval-check fix.** The one failure was the check's own regex: the agent correctly said Boston's metro has no hub, but the regex expected the exact words "no hub". Across the run:
+**Last full run (formula v2, metric-bound grounding): 30/30 cases passed.**
 
 | Metric | Result |
 |---|---|
 | Tool selection | 100% |
-| Grounding on the first try | 35/35 turns |
+| Grounding | Passed on the first try in 33/36 turns; the other 3 passed after the one retry; none failed |
 | Same ranking across 3 runs | Yes |
-| Latency per turn | 8.7 s mean, 12.6 s p95 |
-| Cost of the run | About $0.82 |
+| Latency per turn | 10.3 s mean, 17.4 s p95 |
+| Cost of the run | About $1.01 |
 
 Per-case results and the failure analysis of every run, including what earlier failures taught and changed, are in [`evals/results/latest.md`](evals/results/latest.md).
 
@@ -146,6 +155,10 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
   - A per-IP rate limit, using the client IP from the edge proxy, verified live.
   - A daily request cap and `max_output_tokens`.
   - An OpenAI budget limit.
+- **Alerts:**
+  - A daily GitHub Actions job, plus a webhook endpoint, posts score changes to Discord. Verified with a real message.
+  - The job alerts once per new change, keeping its state between runs.
+  - It compares only within one scoring formula version, so a method change resets the baseline instead of sending false alerts. The first real alert found exactly that problem.
 - **Observability:** every turn writes a JSONL trace with tool calls, latency, tokens, cost and the grounding result.
 - **No write actions:** the agent has none, so there is no approval step or human handoff. It hands the decision back to the analyst with explicit assumptions.
 
