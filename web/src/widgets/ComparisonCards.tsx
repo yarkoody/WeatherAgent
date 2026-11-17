@@ -229,9 +229,8 @@ function SortHeader({ column, sort, onSort }: { column: Column; sort: Sort; onSo
         className={`inline-flex items-end gap-1 rounded-md py-1 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none ${right ? 'text-right' : 'text-left'}`}
       >
         <span>
-          <span className={column.decides ? 'text-foreground' : ''}>{column.label}</span>
+          <span>{column.label}</span>
           {column.unit && <span className="block font-normal text-muted-foreground">{column.unit}</span>}
-          {column.decides && <span className="block font-medium text-isobar">decides</span>}
         </span>
         <Arrow className={`mb-0.5 size-3.5 shrink-0 ${active ? '' : 'opacity-40'}`} aria-hidden="true" />
       </button>

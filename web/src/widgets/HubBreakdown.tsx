@@ -2,7 +2,8 @@ import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { ReadingGuide } from '@/components/ReadingGuide'
 import { PEOPLE_DAYS_LINE, bandGapLine, hubDetail, readingGuide } from '@/lib/explain'
-import { METHODOLOGY_URL, mathSections } from '@/lib/math'
+import { mathSections } from '@/lib/math'
+import { openMethodology } from '@/lib/methodology'
 import { HazardIcon } from '@/components/HazardIcon'
 import { ExportReportButton } from '@/components/PrintReport'
 import { HubReport } from '@/components/reports'
@@ -294,29 +295,43 @@ function PeopleImpactRows({ data }: { data: HubScore }) {
   )
 }
 
-/** "See the math": closed by default; the hub's own calculation, every number from the tool output. */
+/** "See the math": closed by default; KaTeX loads when it opens. Every number comes from the tool output. */
 function SeeTheMath({ data }: { data: HubScore }) {
   const sections = mathSections(data)
+  const [katex, setKatex] = useState<KatexApi | null>(null)
+  const load = () => {
+    if (katex) return
+    void Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([k]) => setKatex(k.default as KatexApi))
+  }
   return (
-    <details data-testid="see-the-math" className="group/math mt-4 rounded-2xl bg-foreground/[0.03] px-3 py-2">
+    <details data-testid="see-the-math" className="group/math mt-4 rounded-2xl bg-foreground/[0.03] px-3 py-2" onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && load()}>
       <summary className="cursor-pointer text-sm font-medium">See the math</summary>
       <div className="mt-2 space-y-3">
         {sections.map((sec) => (
           <section key={sec.title} aria-label={sec.title}>
             <h4 className="text-xs font-semibold text-foreground">{sec.title}</h4>
-            <ul className="mt-1 space-y-0.5 font-mono text-[0.7rem] leading-relaxed text-muted-foreground tabular-nums">
+            <ul className="mt-1 space-y-1 text-[0.8rem] leading-relaxed text-muted-foreground tabular-nums">
               {sec.lines.map((l) => (
-                <li key={l} className="break-words">
-                  {l}
+                <li key={l.text} className="overflow-x-auto">
+                  {katex && l.tex ? (
+                    // KaTeX output carries MathML for screen readers; the plain line stays as the accessible fallback.
+                    <span data-math className="text-foreground/90" dangerouslySetInnerHTML={{ __html: katex.renderToString(l.tex, { throwOnError: false }) }} />
+                  ) : (
+                    <span className="font-mono text-[0.7rem]">{l.text}</span>
+                  )}
                 </li>
               ))}
             </ul>
           </section>
         ))}
-        <a href={METHODOLOGY_URL} target="_blank" rel="noreferrer" className="inline-block text-xs font-medium text-isobar underline-offset-2 hover:underline">
-          Full methodology
-        </a>
+        <button type="button" onClick={() => openMethodology()} className="text-xs font-medium text-isobar underline-offset-2 hover:underline">
+          Methodology
+        </button>
       </div>
     </details>
   )
+}
+
+interface KatexApi {
+  renderToString: (tex: string, options?: { throwOnError?: boolean }) => string
 }

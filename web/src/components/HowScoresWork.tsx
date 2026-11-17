@@ -4,6 +4,7 @@ import { ChevronDownIcon } from 'lucide-react'
 import { useState } from 'react'
 import { DataSources } from '@/components/DataSources'
 import { LOST_DAYS } from '@/lib/explain'
+import { openMethodology } from '@/lib/methodology'
 import type { Provenance } from '@/lib/provenance'
 import { FAMILY_LABEL, fmt, shortHubName } from '@/lib/format'
 import type { ScoreRow } from '@/lib/types'
@@ -18,7 +19,7 @@ function readOpen(): boolean {
   }
 }
 
-/** "Why is Minneapolis #1?": the hub with the most typical-year lost days and its top driver, from /scores. */
+/** "Why is Minneapolis #1?": the hub with the most typical-year lost days and its biggest risk, from /scores. */
 export function topHubLine(rows: ScoreRow[]): { question: string; answer: string } | null {
   const top = [...rows].sort((a, b) => b.exposure_days_per_year - a.exposure_days_per_year || a.hub_id.localeCompare(b.hub_id))[0]
   if (!top) return null
@@ -87,6 +88,9 @@ export function HowScoresWork({ rows, provenance }: { rows: ScoreRow[] | null; p
             )}
           </p>
           <DataSources provenance={provenance} className="border-t border-border/60 pt-2" />
+          <button type="button" onClick={() => openMethodology()} className="text-xs font-medium text-isobar underline-offset-2 hover:underline">
+            Methodology: how every number is computed
+          </button>
         </div>
       )}
     </section>

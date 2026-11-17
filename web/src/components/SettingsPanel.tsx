@@ -98,7 +98,7 @@ function SettingsBody({ theme, onTheme, debug, onDebug, onClearHistory }: Props)
         </div>
       </section>
 
-      <Row title="Developer mode" description="Show tool names, arguments, trace ids and validation details" id={ids.dev}>
+      <Row title="Developer mode" description="Show validation details for each answer: which tool and field each figure comes from, the tools called, and the turn's cost." id={ids.dev}>
         <Switch checked={debug} onCheckedChange={(v) => onDebug(Boolean(v))} aria-label="Developer mode" />
       </Row>
 

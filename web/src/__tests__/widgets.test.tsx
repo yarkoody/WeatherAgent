@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { BAND_COLOR, BAND_LABEL, shortHubName } from '../lib/format'
+import { BAND_COLOR, shortHubName } from '../lib/format'
 import type { ActiveAlerts, HubScore, Ranking } from '../lib/types'
 import { AlertBanner } from '../widgets/AlertBanner'
 import { HubBreakdown } from '../widgets/HubBreakdown'
@@ -29,8 +29,8 @@ describe('RankingWidget', () => {
       const band = item.value >= t.high_from ? 'high' : item.value >= t.medium_from ? 'medium' : 'low'
       expect(fills[i], item.name).toBe(BAND_COLOR[band])
     })
-    // the hazard's own band by days is the small word after each value
-    expect(svgText).toContain(`${BAND_LABEL[ranking.items[0].band!]} by days`)
+    // bars show the number only (the level is the color, explained in the subtitle)
+    expect(svgText).not.toContain('by days')
   })
 })
 

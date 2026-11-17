@@ -13,7 +13,7 @@ function joinNames(ids: unknown): string {
 
 function rankingPhrase(input: Input): string {
   const score = str(input?.score)
-  const kind = score === 'priority' ? 'review priority' : score === 'people_impact' ? 'people affected' : score === 'bad_year' ? 'bad-year lost days' : 'exposure'
+  const kind = score === 'priority' ? 'review priority' : score === 'people_impact' ? 'people-days if disrupted' : score === 'people_served' ? 'people served' : score === 'bad_year' ? 'bad-year lost days' : 'exposure'
   const hazard = str(input?.hazard) as Hazard
   const what = hazard && hazard !== 'overall' ? `${HAZARD_LABEL[hazard]?.toLowerCase() ?? hazard} ${kind}` : kind
   const region = str(input?.region)

@@ -16,6 +16,7 @@ import type { ChatResponse } from '@/lib/types'
 import { isToolError } from '@/lib/types'
 import { WIDGETS } from '@/widgets'
 import { AnswerCard, CARD_SHELL, PendingAnswer } from './AnswerCard'
+import { ValidationPanel } from './ValidationPanel'
 
 const SMALL = new Set(['weather_stat', 'get_active_alerts'])
 
@@ -160,6 +161,8 @@ export function AssistantMessage({
             <NoAnswer />
           )}
         </div>
+        {/* Developer mode: expanded validation details under each finished answer (nothing in the analyst view). */}
+        {debug && response && !streaming && <ValidationPanel response={response} tools={tools} />}
         {response && !streaming && speechSupported() && (
           <div className="-mt-1 flex items-center gap-1 px-1">
             <ReadAloud id={message.id} response={response} />

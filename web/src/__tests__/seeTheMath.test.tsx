@@ -1,7 +1,7 @@
 // "See the math" shows each hub's real calculation, and every number in it comes from the tool output.
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { METHODOLOGY_URL, mathSections } from '../lib/math'
+import { mathSections } from '../lib/math'
 import type { HubScore } from '../lib/types'
 import hubScoresJson from '../mocks/hub-scores.json'
 import { HubBreakdown } from '../widgets/HubBreakdown'
@@ -31,7 +31,7 @@ function allowed(hub: HubScore): number[] {
 
 function check(hub: HubScore) {
   const text = mathSections(hub)
-    .flatMap((s) => s.lines)
+    .flatMap((s) => s.lines.map((l) => l.text))
     .join('\n')
   const ok = allowed(hub)
   const shown = [...text.matchAll(/\d[\d,]*(?:\.\d+)?/g)].map((m) => Number(m[0].replace(/,/g, '')))
@@ -63,7 +63,7 @@ describe('See the math', () => {
   it('shows local-area and coastal scaling from the signal notes, and the hurricane formula', () => {
     const houston = realHubs.find((h) => h.hub_id === 'houston')!
     const text = mathSections(houston)
-      .flatMap((s) => s.lines)
+      .flatMap((s) => s.lines.map((l) => l.text))
       .join('\n')
     expect(text).toMatch(/inland flood: [\d.]+ events\/yr × 2 days × [\d.]+ local area \(county [\d,]+ sq mi\) = [\d.]+ days/)
     expect(text).toMatch(/coastal flood: [\d.]+ events\/yr × 2 days × [\d.]+% of the county in the coastal zone = [\d.]+ days/)
@@ -71,12 +71,28 @@ describe('See the math', () => {
     expect(text).toMatch(/chance = 1 − e\^\(−10 × [\d.]+\)/)
   })
 
-  it('in the breakdown: closed by default, monospace lines, a link to the full methodology', () => {
+  it('in the breakdown: closed by default, with a Methodology button', () => {
     render(<HubBreakdown data={realHubs[0]} />)
     const math = screen.getByTestId('see-the-math')
     expect(math).not.toHaveAttribute('open')
     fireEvent.click(within(math).getByText('See the math'))
-    expect(within(math).getAllByRole('list')[0].className).toContain('font-mono')
-    expect(within(math).getByRole('link', { name: 'Full methodology' })).toHaveAttribute('href', METHODOLOGY_URL)
+    expect(within(math).getByRole('button', { name: 'Methodology' })).toBeInTheDocument()
+  })
+})
+
+describe('See the math with KaTeX', () => {
+  it('loads KaTeX when opened and renders every formula line with the hub numbers substituted', async () => {
+    const hub = realHubs[0]
+    render(<HubBreakdown data={hub} />)
+    const math = screen.getByTestId('see-the-math') as HTMLDetailsElement
+    math.open = true
+    fireEvent(math, new Event('toggle'))
+    await waitFor(() => expect(math.querySelector('[data-math] .katex')).not.toBeNull(), { timeout: 5000 })
+    const rendered = [...math.querySelectorAll('[data-math]')]
+    const withTex = mathSections(hub).flatMap((s) => s.lines).filter((l) => l.tex)
+    expect(rendered).toHaveLength(withTex.length)
+    // The exposure formula carries the hub's own numbers.
+    expect(math.textContent).toContain(String(hub.exposure_days_per_year))
+    expect(math.textContent).toContain(String(hub.band_thresholds.days_cap))
   })
 })

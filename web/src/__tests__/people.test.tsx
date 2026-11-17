@@ -137,10 +137,10 @@ describe('hub breakdown and comparison', () => {
 describe('ranking and primer', () => {
   it('a people_impact ranking has its own title, neutral bars and the people-days note', () => {
     const people: Ranking = { ...ranking, kind: 'people_impact', hazard: 'overall', region: null, items: ranking.items.map((i) => ({ ...i, band: null })) }
-    expect(rankingTitle(people)).toBe('People affected by disruption (million people-days a year)')
-    expect(rankingTitle({ ...people, region: 'Midwest' })).toBe('People affected by disruption in the Midwest (million people-days a year)')
+    expect(rankingTitle(people)).toBe('People-days if disrupted (million a year)')
+    expect(rankingTitle({ ...people, region: 'Midwest' })).toBe('People-days if disrupted in the Midwest (million a year)')
     const { container } = render(<RankingWidget data={people} />)
-    expect(screen.getByRole('heading')).toHaveTextContent('People affected by disruption (million people-days a year)')
+    expect(screen.getByRole('heading')).toHaveTextContent('People-days if disrupted (million a year)')
     expect(container.textContent).toContain(PEOPLE_DAYS_LINE)
     expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(0)
     const fills = [...container.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))
@@ -173,6 +173,59 @@ describe('wording from the independent review', () => {
     for (const h of cmp.hubs) {
       const row = screen.getByRole('rowheader', { name: hubName(h.hub_id) }).closest('tr')!
       expect(row.querySelector('td[data-column="priority"] [data-sub]')).toHaveTextContent(`bad year ${fmt(h.bad_year_days)} days`)
+    }
+  })
+})
+
+describe('ranking kinds', () => {
+  const base = { ...ranking, hazard: 'overall' as const, region: null, items: ranking.items.map((i) => ({ ...i, band: null })) }
+
+  it('people_served: its own title, compact people values, no 35/60 lines, neutral bars', () => {
+    const served: Ranking = { ...base, kind: 'people_served', items: base.items.map((i, k) => ({ ...i, value: [20_100_000, 9_434_123, 4_300_000][k] ?? 1_000_000 })) }
+    expect(rankingTitle(served)).toBe('People served (metro estimate)')
+    const { container } = render(<RankingWidget data={served} />)
+    expect(screen.getByRole('heading')).toHaveTextContent('People served (metro estimate)')
+    expect(screen.getByRole('heading')).not.toHaveTextContent(/Exposure/)
+    expect(container.querySelector('svg.recharts-surface')!.textContent).toContain('20.1M')
+    expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(0)
+  })
+
+  it('an unknown kind never falls back to "Exposure" or band lines', () => {
+    const odd = { ...base, kind: 'something_new' as Ranking['kind'] }
+    const { container } = render(<RankingWidget data={odd} />)
+    expect(screen.getByRole('heading')).toHaveTextContent('Hub ranking')
+    expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(0)
+  })
+
+  it('a ranking with one hub is a compact stat card (hub, value, unit), not a one-bar chart', () => {
+    const one: Ranking = { ...base, kind: 'people_served', region: 'Northeast', total: 1, items: [{ ...base.items[0], name: 'Newark Hub', hub_id: 'newark', value: 20_100_000 }] }
+    const { container } = render(<RankingWidget data={one} />)
+    const stat = screen.getByTestId('ranking-stat')
+    expect(stat).toHaveTextContent('Newark')
+    expect(stat).toHaveTextContent('20.1M')
+    expect(stat).toHaveTextContent('people (metro estimate)')
+    expect(container.querySelector('svg.recharts-surface')).toBeNull()
+  })
+
+  it('banded rankings show a level chip on the single-hub card', () => {
+    const one: Ranking = { ...ranking, total: 1, items: [ranking.items[0]] }
+    render(<RankingWidget data={one} />)
+    expect(within(screen.getByTestId('ranking-stat')).getByText(/High|Medium|Low/)).toBeInTheDocument()
+  })
+})
+
+describe('banned wording', () => {
+  it('no UI source says "feel the disruption" or "top driver"', async () => {
+    const { readdirSync, readFileSync, statSync } = await import('node:fs')
+    const { join, resolve } = await import('node:path')
+    const walk = (dir: string): string[] =>
+      readdirSync(dir).flatMap((f) => {
+        const p = join(dir, f)
+        return statSync(p).isDirectory() ? (f === '__tests__' || f === 'mocks' ? [] : walk(p)) : /\.(tsx?|css)$/.test(f) ? [p] : []
+      })
+    for (const file of walk(resolve(process.cwd(), 'src'))) {
+      const text = readFileSync(file, 'utf8')
+      expect(text, file).not.toMatch(/feel the disruption|top driver|Top driver/)
     }
   })
 })

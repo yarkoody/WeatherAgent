@@ -3,7 +3,7 @@
 export type Region = 'Midwest' | 'South' | 'West' | 'Northeast'
 export type Family = 'winter' | 'flood' | 'hurricane' | 'severe_storm'
 export type Hazard = 'overall' | Family
-export type ScoreKind = 'exposure' | 'priority' | 'bad_year' | 'people_impact' // bad_year = 1-in-20-year days; people_impact = million people-days a year
+export type ScoreKind = 'exposure' | 'priority' | 'bad_year' | 'people_impact' | 'people_served' // bad_year = 1-in-20-year days; people_impact = million people-days a year
 export type Band = 'low' | 'medium' | 'high'
 export type Metric =
   | 'snow_days_pct'
@@ -218,6 +218,17 @@ export interface ChatResponse {
   trace_id: string
   /** Suggested next questions (0-3), built by code from the turn. Missing in answers saved before this field. */
   follow_ups?: string[]
+  /** Per-turn cost and timing (developer mode). Missing in answers saved before this field. */
+  usage?: TurnUsage | null
+}
+
+/** Per-turn cost and timing, shown in developer mode. */
+export interface TurnUsage {
+  latency_ms: number
+  input_tokens: number
+  output_tokens: number
+  cost_usd: number | null // null when the model's price is unknown
+  tool_calls: number
 }
 
 export const TOOL_NAMES = [

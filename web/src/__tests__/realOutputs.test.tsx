@@ -250,10 +250,10 @@ describe('cards: one "How to read this" per widget, no (i) per field, units and 
     expect(dialog).toHaveTextContent(`Medium from ${t.hurricane_medium_from_pct}%, high from ${t.hurricane_high_from_pct}%`)
   })
 
-  it('hazard rankings color bars by score band and name the day band after each value', () => {
+  it('hazard rankings color bars by score band; bars show the number only', () => {
     const c = of('rank_hubs').find((x) => x.input.hazard === 'winter')!
     const { container } = render(<RankingWidget data={c.output as never} />)
     expect(container.textContent).toMatch(/Bar length and color: the winter score, 0 to 100 \(medium from 35, high from 60\)/)
-    expect(container.textContent).toMatch(/The word after each value is the hazard's own level by lost operating days a year/)
+    expect(container.textContent).not.toMatch(/by days/)
   })
 })

@@ -318,8 +318,8 @@ describe('comparison table: hubs as rows, sortable measures, a verdict', () => {
       `More exposed: Dallas (exposure score ${fmt(dallas.exposure)} vs ${fmt(houston.exposure)}).`,
     )
     expect(screen.getByTestId('compare-verdict')).toHaveTextContent(`Higher review priority: Dallas (priority ${fmt(dallas.priority)} vs ${fmt(houston.priority)}).`)
-    const deciding = [...document.querySelectorAll('th[data-decides]')].map((th) => th.textContent)
-    expect(deciding).toEqual([expect.stringContaining('Exposure score'), expect.stringContaining('Review priority')])
+    // The summary lines name what decides; the headers no longer carry a "decides" word.
+    expect(screen.getByRole('table').textContent).not.toMatch(/decides/)
     expect(screen.getByTestId('compare-caption')).toHaveTextContent('Highlighted = the highest, riskiest value in each column.')
     expect(verdict([{ ...houston, exposure: 50 }, { ...dallas, exposure: 50 }])[0]).toBe('More exposed: a tie on exposure score (50).')
   })

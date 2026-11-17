@@ -429,3 +429,43 @@
     display: none;
   }
 }
+
+/* Methodology document: readable headings, tables and display math in the side sheet. */
+.methodology h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+.methodology h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.methodology h3 {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.methodology .katex-display {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.methodology code {
+  font-size: 0.85em;
+}
+.methodology pre {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+  padding: 0.75rem;
+}
+.methodology table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}

@@ -91,6 +91,10 @@ export const mockFetch: typeof fetch = async (input, init) => {
       headers: { 'Content-Type': 'text/event-stream', 'x-vercel-ai-ui-message-stream': 'v1' },
     })
   }
+  if (path === '/methodology.md') {
+    await sleep(150)
+    return new Response((await loadMocks()).methodology, { headers: { 'Content-Type': 'text/markdown; charset=utf-8' } })
+  }
   if (path === '/hubs') {
     await sleep(150)
     return Response.json((await loadMocks()).hubs)

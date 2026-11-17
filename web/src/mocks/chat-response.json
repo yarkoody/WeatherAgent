@@ -62,10 +62,17 @@
     "status": "pass",
     "errors": []
   },
-  "trace_id": "b4adca9e33854940adf8032e98c3f218",
+  "trace_id": "679f63dab90043d2897aae38e89d087e",
   "follow_ups": [
     "Why is Minneapolis ranked first?",
     "Compare Minneapolis and Chicago",
     "Show the bad-year ranking"
-  ]
+  ],
+  "usage": {
+    "latency_ms": 10.1,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": null,
+    "tool_calls": 2
+  }
 }
