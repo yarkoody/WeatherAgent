@@ -8,6 +8,15 @@ The app has two tabs. **Ask** is the chat. **Scores** is the full table and map,
 
 Type a question, or press the mic and speak (Chrome and Edge). Enter sends, even while you dictate. While the agent works, "Analysis steps" shows each tool it calls. The answer arrives once, after every number in it has been checked against the scoring data. Below the answer, charts and tables are drawn straight from the tool outputs, never from the model's text.
 
+### Live voice (Chrome and Edge)
+
+Press **Live** next to the mic to talk hands-free. Allow the microphone when the browser asks. The text box turns into a voice bar with a colored dot, the state, a waveform of the sound, the time left, a mute button and an end button (×):
+- **Listening** (blue): ask your question. The words it hears appear as a dashed question in the chat, and it sends the question when you pause.
+- **Checking the figures** (violet): the agent runs its tools and checks every figure, as for a typed question.
+- **Speaking** (teal): it reads the checked answer aloud. Start talking to interrupt it with a new question, or tap the dot to skip the rest.
+
+Press × to stop. A session ends by itself after 10 minutes. An answer whose numbers couldn't be verified isn't read aloud; the voice says so, and the answer is on screen. In other browsers the Live button explains that it needs Chrome or Edge.
+
 ### What to ask
 
 **Rank hubs**
@@ -41,6 +50,11 @@ Type a question, or press the mic and speak (Chrome and Edge). Enter sends, even
 **Live alerts**
 - `Are there any active weather alerts for Chicago?` checks the National Weather Service now. Alerts are operational notices and never change a score.
 
+**Current news (web search)**
+- `Is there news this week of a storm or fog closing the Port of Houston?` searches the web. The answer starts with "From the web:", and the sources are listed as links labeled "From the web, not from our scoring data".
+- `Search the web for how much rain Houston got in its last major flood, and compare it with its flood exposure.` keeps the two apart: the web figure links to its source, and the exposure comes from the scoring data.
+- Scores, rankings, history and NWS alerts never come from the web. Ask `What is Houston's hurricane exposure?` and it uses the data tools only.
+
 **About the system**
 - `How is the score calculated?` and `How accurate is this system?` answer from what the system actually does, without invented accuracy rates.
 
@@ -59,7 +73,7 @@ Type a question, or press the mic and speak (Chrome and Edge). Enter sends, even
 - **Hurricane** is shown as the chance of at least one in 10 years, the life of an investment.
 - **One-hazard charts** (for example a winter ranking) color each bar by that hazard's own level, the one the answer cites: medium from 2 lost days a year and high from 5 (drawn at scores 8 and 20). Hurricane bars are colored by the 10-year chance.
 - **People served** is the metro-area population (Census 2025), a proxy. **People-days** = people served × lost days.
-- **"Figures checked"** means every number in the answer matched the exact tool field it cites. **"Unverified"** means a number didn't match even after one retry. Read those answers with care.
+- **"Figures checked"** means every number in the answer matched the exact tool field it cites. A figure tagged **From the web** was checked against the web result it links to, not against our data. **"Unverified"** means a number didn't match even after one retry. Read those answers with care.
 - **Figures behind this answer**, **Assumptions** and **Data limits** open under each answer.
 - **See the math** (in each hub breakdown) shows that hub's own calculation step by step: each hazard's FEMA events × days per event, the 60/40 blend with observed days, the bad-year split, and the review priority formula. "≈" marks a line whose parts were rounded separately.
 - **Methodology** (sidebar) opens the full method document inside the app.

@@ -25,6 +25,8 @@ What the app can do:
 - **Export:** CSV of the scores table and a print-to-PDF report.
 - **Score-change alerts to your own Discord channel:** set up under **Send & alerts** in the sidebar (Slack is not supported yet).
 - **Interface:** voice input and read-aloud, light and dark themes.
+- **Live voice (Chrome and Edge):** a hands-free conversation. You talk, the agent answers through the normal checked flow, and the verified answer is read aloud in a natural voice. Talk over it to interrupt. See [Live voice](#live-voice-and-web-search).
+- **Web search for current news:** "Is a storm closing the Port of Houston this week?" The agent searches the web for context the data snapshot can't have. Web content is labeled "From the web, not from our scoring data" and linked, and it never feeds a score.
 
 Developer mode (Settings, or `?debug=1`) adds a validation panel to each answer: tool names and arguments, the field each figure cites, grounding status, latency, tokens, cost and the trace id.
 
@@ -64,18 +66,50 @@ docker build -t weather-risk-agent . && docker run -p 8000:8000 --env-file .env 
 ## How it works
 
 ```
-Browser (React, useChat) --SSE--> FastAPI --> Agent loop (<= 6 tool rounds) --> 8 strict tools --> deterministic scoring --> data snapshot
+Browser (React, useChat) --SSE--> FastAPI --> Agent loop (<= 6 tool rounds) --> 9 strict tools --> deterministic scoring --> data snapshot
+                                                                                   `-> web_search (current news, never scores)
                                                  |                                                         (FEMA NRI + Open-Meteo + Census metro population, in git)
                                                  +--> final AgentAnswer (strict JSON schema) --> grounding check --> one verified answer
 ```
 
-- **Bounded agent, not a free-form one.** The model chooses which of eight tools to call: rank, compare, explain, weather statistics, history, live alerts, what-if, list hubs. The code computes every number. After 6 tool rounds the model must answer.
+- **Bounded agent, not a free-form one.** The model chooses which of nine tools to call: rank, compare, explain, weather statistics, history, live alerts, what-if, list hubs, and web search (current news only). The code computes every number. After 6 tool rounds the model must answer.
 - **Structured output both ways.** Tool arguments and the final `AgentAnswer` are strict JSON schemas generated from Pydantic models (`app/schemas.py`).
 - **Grounding, bound to the metric.** Each figure names the tool, the exact field and the hub it came from, for example `get_hub_risk` → `hurricane_10yr_probability_pct` → Miami. Code checks that this field holds that value. Every number in the prose must be one of those figures, and rankings must keep the code's order. Otherwise the model gets one retry with the errors, and after that the answer is shown as "unverified". An external review found that the first version only tied a number to its hub, so "Miami's hurricane probability is 25.6%" passed even though 25.6 was its priority. That's fixed, with a test.
 - **Generative UI.** Charts render from the tools' deterministic outputs, never from model text. Answer text is never streamed token by token, so an unverified number can't flash on screen.
 - **Partial answers stay honest.** When part of a question can be answered (which upgrades fit a hub's risks) and part can't (what they cost), the agent answers the first part and names the missing data. A question it can't answer at all (an unknown hub, fire risk) is marked "no data", with no numbers.
 
 The details are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), the API is in [`docs/api-contract.md`](docs/api-contract.md), and the full design spec is in [`docs/specs/`](docs/specs/2026-11-17-weather-risk-agent-design.md).
+
+## Live voice and web search
+
+Both are optional additions. Neither changes how numbers are checked.
+
+**Web search** (`app/websearch.py`). The `web_search` tool calls OpenAI's hosted web search through the Responses API and returns up to 5 results, each with a title, URL, short snippet and published date. A result is kept only if its URL is one the search actually opened or cited, so the search model can't invent a source. The prompt allows it only for current, qualitative context (closures, storms, recent events at a hub city), never for scores, rankings or anything the eight data tools answer. A number taken from the web must be a figure with `source_tool: "web_search"` and `source_field` set to the result's URL, and grounding checks that the number appears in that result's title or snippet. A number from another result, or one the result doesn't contain, fails grounding like any other mis-cited figure. The UI shows web sources as links, labeled "From the web, not from our scoring data", and marks web figures the same way. The snippet is the search model's summary of the page, so grounding proves a web number came from that search result, not that the page itself says it. That's why web content is labeled and linked rather than presented as data.
+
+The Vercel AI SDK for Python (0.9.0) does have OpenAI's provider-defined `web_search` tool, but it sends OpenAI models through Chat Completions, which can't run provider-executed tools. So `web_search` is a normal server-side tool that wraps the Responses API. A side benefit: its output is plain data in the tool loop, so grounding and the evals handle it like any other tool.
+
+**Live voice** (`app/voice.py`, `web/src/lib/liveVoice.ts`). Press **Live** next to the mic:
+1. **Listening.** The browser asks `POST /voice/session` for a short-lived client secret (60 seconds, enough to connect) and streams the microphone over WebRTC to an OpenAI realtime **transcription-only** session (`gpt-4o-transcribe`, server-side voice activity detection). The API key never reaches the browser.
+2. **Answering.** Each finished utterance is sent to `/chat` like a typed question, so tools, grounding and the retry all run.
+3. **Speaking.** The browser plays `GET /voice/speak?trace_id=...`. The server reads aloud the answer it verified for that turn, with OpenAI TTS (`gpt-4o-mini-tts`, voice `marin`). The client can't choose the text. An answer that failed grounding isn't read out: the voice says it couldn't verify the numbers and that the answer is on screen. Then it listens again.
+4. **Interrupting.** Talking while it speaks lowers the voice at once. If the transcript is a new question rather than the speaker's own echo, the reply stops and the new question is asked. Tapping the orb skips the rest of the answer.
+
+While Live is on, the composer becomes a voice dock: an orb whose color and motion show the state (blue listening, violet checking, teal speaking), a waveform drawn from the real microphone or answer audio (Web Audio `AnalyserNode`), the time left, mute and end. The words heard so far show as a dashed question in the chat until they are sent. Reduced motion keeps the colors and labels and drops the animation.
+
+**Why not a speech-to-speech realtime model?** It would be faster and more natural, but the model would answer by voice directly, speaking numbers no tool returned and no grounding check saw. The core rule here is that nothing unverified reaches the user, and audio can't be taken back once played. So the realtime API only transcribes, and the speech is generated from the verified text. The cost is latency: a spoken answer takes as long as a typed one (10-20 s) plus about a second before the voice starts.
+
+**Protection.** `/voice/session` uses the chat rate limit (10 a minute per IP) and has a daily cap of 40 sessions (`VOICE_DAILY_SESSION_CAP`). Each session ends after 10 minutes (`VOICE_SESSION_SECONDS`). The browser enforces this, and the ephemeral secret only allows a session to start within 60 seconds. `/voice/speak` only reads an answer this server just verified, at most twice, so its cost is bounded by chat turns. Set `VOICE_ENABLED=0` to turn live voice off. Live voice needs Chrome or Edge and a microphone; other browsers show a message instead of the button.
+
+**Costs** (OpenAI list prices, November 2026):
+
+| Part | Price | Per minute of live conversation |
+|---|---|---|
+| Transcription, `gpt-4o-transcribe` | $0.006 per minute of audio | $0.006 (the microphone streams for the whole session) |
+| Speech, `gpt-4o-mini-tts` | $12 per 1M audio output tokens, about $0.015 per minute of speech | about $0.008, if the agent speaks half the time |
+| Chat turns, `gpt-6.1-sol` | about $0.01-0.04 per question | about $0.04 at 2 questions a minute |
+| Web search, when used | $10 per 1,000 calls plus about 21K input tokens, about $0.05 per search | only for news questions |
+
+So live voice adds about **$0.014 a minute** on top of the chat itself, and a whole live conversation costs about **$0.05 a minute**, mostly the chat model. The worst case under the caps is 40 ten-minute sessions a day: about $2.40 of transcription. OpenAI's TTS models are due to shut down on 2027-01-06. `VOICE_TTS_MODEL` switches the model without a code change.
 
 ## The KPI: expected disruption days per year
 
@@ -121,6 +155,8 @@ The full method, with every formula and a worked example for Miami and Minneapol
 | Fixed caps and thresholds, not min-max across hubs | Adding a hub never changes another hub's score, and "5 days a year" means something to an operator | The caps are judgment calls, shown in a sensitivity table |
 | Snapshot in git, SQLite for state | Reproducible, runs from a clean clone, the demo doesn't depend on third-party uptime | Not multi-instance; the scale path is in ARCHITECTURE.md |
 | Answers never streamed | Grounding must run before numbers are shown | Slower first paint, mitigated by live tool-progress steps |
+| Live voice: realtime transcription in, TTS of the verified answer out, not a speech-to-speech model | Audio can't be taken back once played, so only checked text may be spoken | About a second more than a speech-to-speech reply, and the same 10-20 s per answer as typing |
+| Web search as a server-side tool over the Responses API, with numbers bound to a result URL | The Python AI SDK can't run OpenAI's provider tool on its Chat Completions path, and a plain tool result can be grounded | One extra model call per search (about $0.05 and 15 s) |
 | JEV used offline as a development check, not in the product | Scoring must be deterministic and auditable, and JEV is a learned model. In the UI, an agreement percentage didn't help an analyst decide anything | The cross-check stays in `evals/` as a calibration tool for whoever maintains the formula |
 
 ## Evaluation
@@ -174,6 +210,7 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
 - **Cost protection on the public URL:**
   - Per-IP rate limits, using the client IP from the edge proxy, verified live. `/chat` and `/chat/json` (model calls) allow 10 a minute. The no-LLM routes (`/what-if`, `/hubs/{id}/score`, `/hubs/{id}/history`) have their own limit of 120 a minute, so clicking around the map can't lock out the chat. `/hubs` and `/scores` are not limited. Every 429 carries `Retry-After`.
   - A daily cap of 300 chat requests and `max_output_tokens`.
+  - Live voice: sessions share the chat limit, with a daily cap of 40 and 10 minutes each; speech only reads answers the server verified.
   - An OpenAI budget limit.
 - **Alerts:**
   - A daily GitHub Actions job, plus a webhook endpoint, posts score changes to Discord. Verified with a real message.
@@ -212,7 +249,9 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
   - The daily GitHub Actions job runs the check in the runner with fresh weather and posts only to `ALERT_WEBHOOK_URL`. It does not reach subscribers, because they live on the server. The next step is for the job to send its alert text to a token-protected endpoint on the server, which then fans it out. We did not switch the job to call `/alerts/check`: that would score the snapshot instead of fresh weather, and keep the alert state on a disk that resets on deploy.
 - **Render's free plan:** the disk resets on deploy. Chats are kept in the browser and sent back with each request, so the server rebuilds context after a restart, but server-side traces and history are lost.
 - **Latency:** 10-20 s per answer.
-- **Voice:** uses the browser Web Speech API, so it works in Chrome and Edge only.
+- **Voice:** dictation uses the browser Web Speech API, and live voice uses WebRTC. Both work in Chrome and Edge only.
+- **Live voice was tested with synthesized speech fed into the WebRTC track,** not a real microphone in a noisy room. Echo handling relies on the browser's echo cancellation plus a check that drops transcripts made mostly of the words being spoken.
+- **Web snippets are written by the search model.** Grounding binds a web number to its search result, not to the page itself; the link lets the analyst check the page.
 
 ## What I'd ask the customer's ops team for on day one
 

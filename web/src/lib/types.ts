@@ -240,8 +240,25 @@ export const TOOL_NAMES = [
   'get_active_alerts',
   'what_if',
   'get_hub_history',
+  'web_search',
 ] as const
 export type ToolName = (typeof TOOL_NAMES)[number]
+
+/** web_search: current news from the web (OpenAI hosted search). Never scoring data. */
+export interface WebResult {
+  title: string
+  url: string
+  snippet: string
+  published: string | null // YYYY-MM-DD when the page shows a date
+}
+export interface WebSearchResult {
+  query: string
+  results: WebResult[]
+  searched_at: string
+  note: string
+}
+
+export const WEB_LABEL = 'From the web, not from our scoring data'
 
 export function isToolError(value: unknown): value is ToolError {
   return typeof value === 'object' && value !== null && 'error' in value && 'hint' in value

@@ -23,8 +23,9 @@ import { compactHistory } from '@/lib/chats'
 import { NoMotion, useReducedMotion } from '@/lib/motion'
 import { loadMessages, saveMessages } from '@/lib/session'
 import { textDir } from '@/lib/textDir'
-import { stopSpeaking } from '@/lib/voice'
-import { AssistantMessage, NoAnswer, normalizeQuestion, toolParts } from './AssistantMessage'
+import { answerSpeech, stopSpeaking } from '@/lib/voice'
+import { useLiveVoice } from '@/lib/liveVoice'
+import { AssistantMessage, NoAnswer, answerPart, normalizeQuestion, toolParts } from './AssistantMessage'
 import { COMPOSER_INPUT_ID, Composer } from './Composer'
 import { AskProvider } from '@/lib/ask'
 import { isToolUIPart } from 'ai'
@@ -106,6 +107,26 @@ function ChatThread({ sessionId }: { sessionId: string }) {
     // Keep focus in the composer: a clicked chip unmounts, and focus must not fall back to the page.
     document.getElementById(COMPOSER_INPUT_ID)?.focus({ preventScroll: true })
   }
+  // Live voice: each finished utterance is a normal question (tools + grounding); the verified answer is then spoken.
+  const live = useLiveVoice(send)
+  const liveOn = live.state !== 'off'
+  const wasBusy = useRef(busy)
+  useEffect(() => {
+    if (busy && !wasBusy.current) live.live.thinking()
+    if (!busy && wasBusy.current) {
+      const last = messages.at(-1)
+      const response = last?.role === 'assistant' ? answerPart(last) : null
+      live.live.answered(response?.trace_id ?? null, response ? answerSpeech(response) : '')
+    }
+    wasBusy.current = busy
+  }, [busy, messages, live.live])
+  // The words heard so far show as a dashed "ghost" question at the end of the thread until it is sent.
+  const ghost = live.state === 'listening' && live.interim.trim() ? live.interim.trim() : null
+  const liveTools = busy && messages.at(-1)?.role === 'assistant' ? toolParts(messages.at(-1)!).length : 0
+  // Live mode replaces the browser's read-aloud voice.
+  useEffect(() => {
+    if (liveOn) stopSpeaking()
+  }, [liveOn])
   // While the request is in flight there is no assistant message yet: show its steps placeholder.
   const thread = status === 'submitted' && messages.at(-1)?.role === 'user' ? [...messages, PENDING] : messages
   const lastId = thread.at(-1)?.id
@@ -131,7 +152,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1">
-        {thread.length === 0 ? (
+        {thread.length === 0 && !ghost ? (
           // Scrolls on its own in a short window, so the last starter question never runs under the composer.
           <div data-testid="empty-scroll" className="h-full overflow-y-auto">
           <Empty className="min-h-full px-4 pt-6 pb-8">
@@ -185,6 +206,24 @@ function ChatThread({ sessionId }: { sessionId: string }) {
                       </MessageScrollerItem>
                     ),
                   )}
+                  {ghost && (
+                    <MessageScrollerItem messageId="live-ghost">
+                      <Message align="end">
+                        <MessageContent>
+                          {/* Same shape as a sent question, but dashed and lighter: it is still being heard. */}
+                          <div
+                            data-testid="ghost-bubble"
+                            role="status"
+                            aria-label="What Live voice heard so far"
+                            dir={textDir(ghost)}
+                            className="max-w-[80%] self-end rounded-3xl border border-dashed border-voice-listen/60 bg-voice-listen/10 px-3 py-2.5 text-base leading-relaxed whitespace-pre-wrap text-foreground/80 wrap-break-word"
+                          >
+                            {ghost}
+                          </div>
+                        </MessageContent>
+                      </Message>
+                    </MessageScrollerItem>
+                  )}
                   {/* Stopped (or reloaded) before the first chunk: the question has no reply at all. */}
                   {!busy && !error && thread.at(-1)?.role === 'user' && (
                     <MessageScrollerItem messageId="no-answer">
@@ -208,7 +247,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
       </div>
       <div className="relative z-10">
         <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6">
-          <Composer busy={busy} onSend={send} onStop={stop} />
+          <Composer busy={busy} onSend={send} onStop={stop} live={live} liveTools={liveTools} />
           <p className="mt-1.5 text-center text-[0.7rem] text-muted-foreground">
             Scores come from a fixed data snapshot. Figures are checked against the scoring data they cite.
           </p>
