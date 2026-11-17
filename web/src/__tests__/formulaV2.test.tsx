@@ -22,7 +22,7 @@ const opinion = opinionJson as SecondOpinion
 describe('explanations built from tool data', () => {
   it('bad-year lines cite the typical and bad-year days', () => {
     const lines = badYearLines(hub)
-    expect(lines.join(' ')).toContain(`${hub.exposure_days_per_year} days`)
+    expect(lines.join(' ')).toContain(`${hub.exposure_days_per_year} modeled lost days`)
     expect(lines.join(' ')).toContain(`${hub.bad_year_days} days`)
     expect(LENS_EXPLAINER).toContain('worst 1 year in 20')
   })
@@ -63,7 +63,7 @@ describe('hub breakdown', () => {
     const hurricane = screen.getByRole('listitem', { name: /^Hurricane/ })
     expect(hurricane).toHaveTextContent(`${hub.hurricane_10yr_probability_pct}% chance in 10 years`)
 
-    fireEvent.click(screen.getByRole('button', { name: 'About typical and bad years' }))
+    fireEvent.click(screen.getByRole('button', { name: 'How to read this' }))
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent('worst 1 year in 20')
     fireEvent.click(within(dialog).getByRole('button', { name: 'More detail' }))
@@ -125,7 +125,7 @@ describe('scores table', () => {
       vi.fn(async (url: string) => {
         const path = new URL(url, 'http://test').pathname
         if (path === '/scores') return Response.json(scores)
-        if (path === '/second-opinion') return Response.json({ ...opinion, rank_correlation: 0.87 })
+        if (path === '/second-opinion') return Response.json({ ...opinion, rank_correlation: { winter: 0.87 } })
         return Response.json({ detail: 'not found' }, { status: 404 })
       }),
     )
@@ -146,9 +146,9 @@ describe('scores table', () => {
     const firstHub = () => within(screen.getAllByRole('row')[1]).getAllByRole('rowheader')[0]
     const top = (key: keyof ScoreRow) => [...scores].sort((a, b) => (b[key] as number) - (a[key] as number) || a.hub_id.localeCompare(b.hub_id))[0]
 
-    fireEvent.click(screen.getByRole('button', { name: 'Bad year' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Bad year' }))
     await waitFor(() => expect(firstHub()).toHaveTextContent(top('bad_year_days').name.replace(/ Hub$/, '')))
-    fireEvent.click(screen.getByRole('button', { name: 'Typical year' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Typical year' }))
     await waitFor(() => expect(firstHub()).toHaveTextContent(top('exposure_days_per_year').name.replace(/ Hub$/, '')))
 
     const miami = screen.getByRole('row', { name: /Miami/ })
@@ -161,6 +161,6 @@ describe('scores table', () => {
         <ScoresView />
       </DebugProvider>,
     )
-    expect(await screen.findByText(/Rank agreement 0\.87/)).toBeInTheDocument()
+    expect(await screen.findByRole('group', { name: 'Rank agreement by hazard' })).toHaveTextContent('Winter 0.87')
   })
 })

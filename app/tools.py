@@ -69,6 +69,11 @@ class WhatIfArgs(_Args):
         default=None, description="Analyst-supplied upgrade cost per hub in USD millions; adds a priority-per-million ranking.")
 
 
+class GetHubHistoryArgs(_Args):
+    hub_id: str = Field(description="Hub id (e.g. 'kansas_city'), hub city, nickname ('DFW') or any US city in a hub's "
+                                    "metro area ('Fort Worth', 'Portland, OR').")
+
+
 ARG_MODELS: dict[str, type[BaseModel]] = {
     "list_hubs": ListHubsArgs,
     "rank_hubs": RankHubsArgs,
@@ -77,6 +82,7 @@ ARG_MODELS: dict[str, type[BaseModel]] = {
     "weather_stat": WeatherStatArgs,
     "get_active_alerts": GetActiveAlertsArgs,
     "what_if": WhatIfArgs,
+    "get_hub_history": GetHubHistoryArgs,
 }
 
 # ---------- shared state and helpers ----------
@@ -336,8 +342,20 @@ async def what_if(family_weights: FamilyWeights | None = None, upgrade_costs: li
     return scoring.what_if(hubs, snapshot, inputs)
 
 
+@_tool
+async def get_hub_history(hub_id: str):
+    """Observed weather history at the hub point, 2015-2025: disruption days per calendar year and the average per
+    month, per hazard family, with the worst year, the peak months and the day rules used. Use it for history,
+    year-to-year variability, "worst year", "when does it peak", seasonality and staffing or preparation timing
+    questions. It is observed weather only (hurricanes are not captured by daily data), not the typical-year
+    exposure score; do not read a climate trend into 11 years.
+    A city resolved through a nickname or its OMB metro area adds resolution_notes to the result: open the answer with that note."""
+    hubs, snapshot, _ = _state()
+    return scoring.hub_history(hubs, snapshot, _resolve(hub_id))
+
+
 TOOL_FUNCTIONS: list[Callable[..., Awaitable[Any]]] = [
-    list_hubs, rank_hubs, get_hub_risk, compare_hubs, weather_stat, get_active_alerts, what_if,
+    list_hubs, rank_hubs, get_hub_risk, compare_hubs, weather_stat, get_active_alerts, what_if, get_hub_history,
 ]
 _BY_NAME = {f.__name__: f for f in TOOL_FUNCTIONS}
 

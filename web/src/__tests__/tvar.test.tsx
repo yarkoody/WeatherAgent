@@ -22,7 +22,7 @@ function withShares(shares: Record<'winter' | 'flood' | 'hurricane' | 'severe_st
 describe('bad-year wording (TVaR95)', () => {
   it('defines the bad year as the average of the worst 1 year in 20', () => {
     expect(LENS_EXPLAINER).toBe(
-      'Typical year is the expected number of lost days. Bad year is the average across the worst 1 year in 20, because averages hide rare, severe events such as hurricanes.',
+      'Both are modeled lost days (estimates). Typical year is the modeled average. Bad year is the average across the worst 1 year in 20, because averages hide rare, severe events such as hurricanes.',
     )
     expect(LENS_EXPLAINER).not.toMatch(/1\\.645|standard deviation/)
   })
@@ -30,9 +30,9 @@ describe('bad-year wording (TVaR95)', () => {
   it('names the hazard that drives most of the bad year, from the family shares', () => {
     const hub = withShares({ winter: 5, flood: 3, hurricane: 20, severe_storm: 2 })
     expect(badYearSteps(hub)).toEqual([
-      'In the worst 1 year in 20, this hub loses on average about 30 days.',
+      "In the worst 1 year in 20, the model puts this hub's lost days at about 30 on average (an estimate).",
       'Hurricanes drive most of that (20 days).',
-      `In a typical year it loses about ${hub.exposure_days_per_year} days.`,
+      `In a typical year the model puts it at about ${hub.exposure_days_per_year} lost days.`,
     ])
     expect(badYearLines(hub).join(' ')).toContain('hurricane 20')
   })
@@ -51,8 +51,8 @@ describe('bad-year wording (TVaR95)', () => {
 describe('hub breakdown: what drives the bad year', () => {
   it('shows each hazard\'s share of the bad year', () => {
     render(<HubBreakdown data={withShares({ winter: 5, flood: 3, hurricane: 20, severe_storm: 2 })} />)
-    expect(screen.getByRole('listitem', { name: /^Hurricane/ })).toHaveTextContent('20 in a bad year')
-    expect(screen.getByRole('listitem', { name: /^Winter/ })).toHaveTextContent('5 in a bad year')
+    expect(screen.getByRole('listitem', { name: /^Hurricane/ })).toHaveTextContent('20 days in a bad year')
+    expect(screen.getByRole('listitem', { name: /^Winter/ })).toHaveTextContent('5 days in a bad year')
   })
 })
 
@@ -64,6 +64,6 @@ describe('bad-year ranking without bands', () => {
     const fills = [...container.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))
     expect(fills.length).toBe(bad.items.length)
     expect(new Set(fills).size).toBe(1) // one neutral color, not band colors
-    expect(fills[0]).toBe('#4a5b68') // neutral ink, no band meaning
+    expect(fills[0]).toBe('var(--color-ink-soft)') // neutral ink token, no band meaning
   })
 })

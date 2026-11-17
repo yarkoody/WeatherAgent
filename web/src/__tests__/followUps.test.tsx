@@ -27,7 +27,7 @@ function serve({ finishLater = false } = {}) {
 const textOf = (m: UIMessage) => m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('')
 
 async function askFirst() {
-  render(<ChatView sessionId={`s-${Math.random()}`} speakAnswers={false} />)
+  render(<ChatView sessionId={`s-${Math.random()}`} />)
   fireEvent.click(screen.getByRole('button', { name: /Midwest hubs/ }))
   return screen.findByRole('group', { name: 'Ask next' })
 }
@@ -57,8 +57,24 @@ describe('Ask next', () => {
     expect(chip).toHaveFocus()
     fireEvent.click(chip)
     await waitFor(() => expect(bodies).toHaveLength(2))
-    expect(textOf(bodies[1].messages[0])).toBe(answer.follow_ups![0])
+    // the request carries the whole (compact) history; the clicked follow-up is the newest message
+    expect(textOf(bodies[1].messages.at(-1)!)).toBe(answer.follow_ups![0])
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Ask next' })).not.toBeInTheDocument())
+  })
+
+  it('a chip sends like the composer: same thread, no scroll anchoring to the top, focus stays in the composer', async () => {
+    const bodies = serve({ finishLater: true })
+    const group = await askFirst()
+    const thread = document.querySelector('[data-slot=message-scroller-content]')
+    fireEvent.click(within(group).getByRole('button', { name: answer.follow_ups![0] }))
+    await waitFor(() => expect(screen.getAllByLabelText('Answer')).toHaveLength(2))
+    expect(textOf(bodies[1].messages.at(-1)!)).toBe(answer.follow_ups![0])
+    // the thread was not remounted
+    expect(document.querySelector('[data-slot=message-scroller-content]')).toBe(thread)
+    // user messages are not scroll anchors, so a new question is not pulled to the top of the view
+    expect(document.querySelectorAll('[data-scroll-anchor="true"]')).toHaveLength(0)
+    // focus moved to the composer instead of falling back to the page
+    expect(screen.getByLabelText('Ask about hub weather risk')).toHaveFocus()
   })
 
   it('shows chips on the latest answer only', async () => {
@@ -75,8 +91,18 @@ describe('Ask next', () => {
       { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Rank hubs' }] },
       { id: 'a1', role: 'assistant', parts: [{ type: 'data-answer', data: old } as UIMessage['parts'][number]] },
     ])
-    render(<ChatView sessionId="old" speakAnswers={false} />)
+    render(<ChatView sessionId="old" />)
     expect(screen.getByLabelText('Answer')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Ask next' })).not.toBeInTheDocument()
+  })
+})
+
+describe('starter questions on narrow and short screens', () => {
+  it('chips may shrink and wrap, and the empty state scrolls on its own above the composer', async () => {
+    const { Suggestions } = await import('../components/ai-elements/suggestions')
+    const { render: r, screen: s } = await import('@testing-library/react')
+    r(<Suggestions suggestions={['Which Midwest hubs are most exposed to winter weather?']} onPick={() => {}} />)
+    const chip = s.getByRole('button', { name: /Which Midwest hubs/ })
+    for (const c of ['shrink', 'min-w-0', 'max-w-full', 'whitespace-normal']) expect(chip.className.split(' ')).toContain(c)
   })
 })

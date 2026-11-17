@@ -23,6 +23,7 @@
 #     score_figures    [{hub_id, family} | {hub_id, score}]: figures cite the code's value for that hub
 #                      (family: index, share % or days/yr; score: exposure index or days/yr, or priority)
 #     figure           {hub_id, metric, year}: the oracle weather_stat value is in figures and in the answer text
+#     history          {hub_id}: the answer names every oracle peak month and the worst year (get_hub_history)
 #     compact_figure   {hub_id, signal}: the priority signal's raw value is exact in figures and
 #                      written in compact form ("2.6M") in the answer text
 #     grounding_first_try  true: grounding must pass without the retry
@@ -345,3 +346,13 @@ cases:
     expect:
       tools_forbidden: [rank_hubs, compare_hubs, what_if]
       text_must_match: ["\\b(Oregon|OR)\\b", "\\b(Maine|ME)\\b", "\\?"]
+
+  # ---------- observed history (get_hub_history) ----------
+  - id: history_minneapolis
+    about: Seasonality and worst year from observed history; peak months and worst year equal the oracle
+    turns: ["When in the year is Minneapolis most at risk, and what was its worst year?"]
+    expect:
+      tools_required: [get_hub_history]
+      history: {hub_id: minneapolis}
+      in_scope: true
+      data_available: true

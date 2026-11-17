@@ -5,10 +5,16 @@ import { formatValue, hubName } from '@/lib/format'
 import type { Figure } from '@/lib/types'
 
 /** Hover text. Only claims a match when grounding passed (or passed on retry). */
+/** The field a figure came from, as a path in the tool result: "families.winter.days_per_year" or "priority". */
+export function fieldPath(figure: Figure): string | null {
+  if (!figure.source_field) return null
+  return figure.family ? `families.${figure.family}.${figure.source_field}` : figure.source_field
+}
+
 export function citationText(figure: Figure, verified: boolean): string {
   const where = `the ${figure.source_tool} tool${figure.hub_id ? ` for ${hubName(figure.hub_id)}` : ''}`
   return verified
-    ? `Returned by ${where}. The grounding check matched it to that tool's output before the answer was shown.`
+    ? `Returned by ${where}${fieldPath(figure) ? ` (field ${fieldPath(figure)})` : ''}. The grounding check found it in that tool's output before the answer was shown.`
     : `Cited as coming from ${where}, but the grounding check could not be matched to the tool results. Do not rely on it.`
 }
 

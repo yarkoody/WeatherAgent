@@ -1,16 +1,17 @@
 import { Cell, Pie, PieChart } from 'recharts'
 import { ChartContainer, type ChartConfig } from '@/components/ui/chart'
-import { METRIC_LABEL, fmt, hubName, pct } from '@/lib/format'
+import { METRIC_LABEL, fmt, formatDate, hubName } from '@/lib/format'
 import type { WeatherStat } from '@/lib/types'
 import { InfoTip } from '@/components/InfoTip'
+import { weatherStatDetail, weatherStatSteps } from '@/lib/explain'
 import { useCountUp, useReducedMotion } from '@/lib/motion'
 import { WidgetFrame } from './WidgetFrame'
 
 const RING_COLOR: Record<string, string> = {
-  snow_days_pct: '#7FA6CC',
-  freezing_days_pct: '#5B87B0',
-  heavy_rain_days: '#2F5D8A',
-  high_wind_days: '#7C8A94',
+  snow_days_pct: 'var(--color-hazard-winter)',
+  freezing_days_pct: 'var(--color-hazard-winter)',
+  heavy_rain_days: 'var(--color-hazard-flood)',
+  high_wind_days: 'var(--color-hazard-severe_storm)',
 }
 
 export function WeatherStatRing({ data }: { data: WeatherStat }) {
@@ -18,10 +19,11 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
   const metric = METRIC_LABEL[data.metric] ?? data.metric
   const isTotal = data.metric.startsWith('total_')
   const ring = !isTotal && data.denominator > 0 && data.numerator >= 0 && data.numerator <= data.denominator
-  const color = RING_COLOR[data.metric] ?? '#2F5D8A'
+  const color = RING_COLOR[data.metric] ?? 'var(--color-hazard-flood)'
   const reduced = useReducedMotion()
   const shown = useCountUp(data.value)
-  const headline = data.unit === '%' ? pct(shown) : fmt(shown)
+  // The tool's own precision (one decimal): 10.1% stays 10.1%, never rounded to 10%.
+  const headline = data.unit === '%' ? `${fmt(shown, 1)}%` : fmt(shown, 1)
 
   return (
     <WidgetFrame
@@ -31,11 +33,8 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
           {name} {metric} in {data.year}
           <InfoTip
             subject={metric}
-            steps={[
-              `${fmt(data.numerator)} of the ${fmt(data.denominator)} days in ${data.year} counted (${data.unit === '%' ? pct(data.value) : `${fmt(data.value)} ${data.unit}`}).`,
-              `What counts: ${data.definition}.`,
-            ]}
-            detail={[`Exact value: ${data.value} ${data.unit} (${data.numerator} of ${data.denominator}).`, `Source: ${data.source}.`]}
+            steps={weatherStatSteps(data)}
+            detail={weatherStatDetail(data)}
           />
         </span>
       }
@@ -62,12 +61,12 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
             </PieChart>
             </ChartContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-wide text-xl font-semibold">{headline}</span>
+              <span className="heading-tight text-xl font-semibold">{headline}</span>
               {data.unit !== '%' && <span className="text-[0.65rem] text-muted-foreground">{data.unit}</span>}
             </div>
           </div>
         ) : (
-          <p className="font-wide text-3xl font-semibold">
+          <p className="heading-tight text-3xl font-semibold">
             {fmt(data.value)} <span className="text-base font-normal text-muted-foreground">{data.unit}</span>
           </p>
         )}
@@ -79,7 +78,7 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
           )}
           <p className="mt-1 text-muted-foreground">{data.definition}</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            {data.source}. Data as of {data.data_as_of}.
+            {data.source}. Data as of {formatDate(data.data_as_of)}.
           </p>
         </div>
       </div>

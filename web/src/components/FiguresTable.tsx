@@ -1,4 +1,4 @@
-import { FigureCitation } from '@/components/ai-elements/inline-citation'
+import { FigureCitation, fieldPath } from '@/components/ai-elements/inline-citation'
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatValue, hubName } from '@/lib/format'
 import { useDebug } from '@/lib/debug'
@@ -31,8 +31,11 @@ export function FiguresTable({ figures, verified }: { figures: Figure[]; verifie
               {!verified && <span className="ml-1.5 text-xs font-normal text-destructive">unverified</span>}
             </TableCell>
             {debug && (
-              <TableCell>
-                <FigureCitation figure={f} verified={verified} />
+              <TableCell className="whitespace-normal">
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <FigureCitation figure={f} verified={verified} />
+                  {fieldPath(f) && <code className="font-mono text-xs text-muted-foreground">{fieldPath(f)}</code>}
+                </span>
               </TableCell>
             )}
           </TableRow>

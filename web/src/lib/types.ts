@@ -112,6 +112,33 @@ export interface WeatherStat {
   data_as_of: string
 }
 
+export interface YearDays {
+  year: number
+  days: Record<Family, number> // observed disruption days that year (hurricane is not observed: 0)
+  total: number
+}
+
+export interface MonthDays {
+  month: number // 1-12
+  days: Record<Family, number> // average observed disruption days in that month
+  total: number
+}
+
+/** Observed weather history at the hub point: variability by year and seasonality by month. */
+export interface HubHistory {
+  hub_id: string
+  name: string
+  start_year: number
+  end_year: number
+  years: YearDays[]
+  months: MonthDays[]
+  worst_year: number
+  peak_months: number[]
+  thresholds: Record<string, string>
+  note: string
+  data_as_of: string
+}
+
 export interface NwsAlert {
   event: string
   severity: string
@@ -151,6 +178,8 @@ export interface Figure {
   value: number
   unit: string
   source_tool: string
+  source_field?: string // exact field in that tool's result (optional: older answers and saved chats lack it)
+  family?: Family | null // set when the field sits inside a hazard family (families.<family>.<field>)
 }
 
 export interface AgentAnswer {
@@ -186,6 +215,7 @@ export const TOOL_NAMES = [
   'weather_stat',
   'get_active_alerts',
   'what_if',
+  'get_hub_history',
 ] as const
 export type ToolName = (typeof TOOL_NAMES)[number]
 
@@ -220,6 +250,43 @@ export interface SecondOpinion {
   total: number
   agreement_pct: number // 0-100
   note: string
-  /** Not in the contract yet: rank agreement between JEV and the formula, if the orchestrator adds it. */
-  rank_correlation?: number | null
+  /** Spearman rank agreement per hazard family (JEV score vs our family days), when the run computed it. */
+  rank_correlation?: Partial<Record<Family, number>> | null
+}
+
+// ---------- what-if (analyst-supplied weights and costs; POST /what-if) ----------
+
+export interface FamilyWeights {
+  winter?: number | null
+  flood?: number | null
+  hurricane?: number | null
+  severe_storm?: number | null
+}
+
+export interface HubCost {
+  hub_id: string
+  cost_musd: number // 0.1-1000
+}
+
+export interface WhatIfInput {
+  family_weights?: FamilyWeights | null
+  upgrade_costs?: HubCost[] | null
+}
+
+export interface PerMillionHub {
+  rank: number
+  hub_id: string
+  name: string
+  priority: number
+  cost_musd: number
+  priority_per_million: number
+}
+
+export interface WhatIfResult {
+  kind: ScoreKind
+  inputs_echo: WhatIfInput
+  ranking: RankedHub[]
+  per_million_ranking: PerMillionHub[] | null
+  note: string
+  data_as_of: string
 }

@@ -49,6 +49,48 @@ def last_user_text(messages: list[dict[str, Any]]) -> str | None:
     return None
 
 
+def _text_of(message: dict[str, Any]) -> str:
+    parts = message.get("parts")
+    if not isinstance(parts, list):
+        return ""
+    return "".join(p.get("text", "") for p in parts if isinstance(p, dict) and p.get("type") == "text" and isinstance(p.get("text"), str))
+
+
+def _answer_of(message: dict[str, Any]) -> str:
+    """The answer text of an assistant UIMessage's data-answer part ("" if there is none)."""
+    parts = message.get("parts")
+    for part in parts if isinstance(parts, list) else []:
+        if isinstance(part, dict) and part.get("type") == "data-answer" and isinstance(part.get("data"), dict):
+            answer = part["data"].get("answer")
+            text = answer.get("answer") if isinstance(answer, dict) else None
+            if isinstance(text, str):
+                return text
+    return ""
+
+
+def client_history(messages: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Earlier complete turns from the browser's copy of the chat, before the new user message.
+
+    Only user text and the verified answer text (data-answer) are kept; tool parts, system and
+    tool roles are dropped, and a user message without an answer is skipped. The text is
+    untrusted user content: the agent caps it and never treats it as tool data.
+    """
+    last_user = max((i for i, m in enumerate(messages) if isinstance(m, dict) and m.get("role") == "user"), default=None)
+    out: list[dict[str, str]] = []
+    pending: str | None = None
+    for message in messages[:last_user] if last_user is not None else []:
+        if not isinstance(message, dict):
+            continue
+        if message.get("role") == "user":
+            pending = _text_of(message).strip() or None
+        elif message.get("role") == "assistant" and pending is not None:
+            answer = _answer_of(message).strip()
+            if answer:
+                out += [{"role": "user", "text": pending}, {"role": "assistant", "text": answer}]
+                pending = None
+    return out
+
+
 def check_message(text: str | None) -> str:
     if text is None:
         raise HTTPException(422, "The request has no user message.")
@@ -209,7 +251,13 @@ def create_app(
         limit(request)
         m = resolve_model()
         stream = agent.stream_turn(
-            text, body.id or uuid.uuid4().hex, model=m, store=get("store"), tracer=get("tracer"), registry=registry
+            text,
+            body.id or uuid.uuid4().hex,
+            model=m,
+            store=get("store"),
+            tracer=get("tracer"),
+            registry=registry,
+            client_history=client_history(body.messages),
         )
         return StreamingResponse(stream, headers=ai.ui.ai_sdk.UI_MESSAGE_STREAM_HEADERS, media_type="text/event-stream")
 
@@ -284,6 +332,7 @@ def create_app(
             kwargs["baseline_path"] = baseline_path
         if alerts_log is not None:
             kwargs["log_path"] = alerts_log
+            kwargs["state_path"] = alerts_log.with_name("alert_state.json")
         return alerts.check_alerts(
             get("store"), rows, webhook_url, nws_fetch if nws_fetch is not None else alerts.fetch_severe_nws, **kwargs
         )

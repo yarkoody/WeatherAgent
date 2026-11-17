@@ -12,7 +12,13 @@ webhook fails).
     python -m app.alerts --update-baseline     # also replace the baseline with this run's scores
 
 The baseline is a committed file, not SQLite, because Render's disk resets on deploy and the
-scheduled job runs in GitHub Actions. It only changes on the first run or with --update-baseline.
+scheduled job runs in GitHub Actions. It is the reviewed reference and only changes on the first
+run or with --update-baseline.
+
+Alert once per new change: logs/alert_state.json keeps the scores each hub was last alerted at and
+the NWS alerts already sent. A hub is compared with that state (or the baseline if it was never
+alerted), so a persisting deviation alerts once and further drift alerts again. The scheduled job
+keeps the file between runs with actions/cache.
 """
 
 from __future__ import annotations
@@ -36,6 +42,10 @@ from app.store import Store
 ROOT = Path(__file__).resolve().parent.parent
 BASELINE_PATH = ROOT / "data" / "snapshot" / "score_baseline.json"
 LOG_PATH = ROOT / "logs" / "alerts.jsonl"
+# Last alerted state per hub and the NWS alerts already sent. Gitignored; the scheduled job keeps it
+# between runs with actions/cache, so a persisting deviation alerts once, not every day.
+STATE_PATH = ROOT / "logs" / "alert_state.json"
+NWS_SEEN_TTL = timedelta(days=7)  # how long an NWS alert without an expiry time stays "seen"
 POINTS_THRESHOLD = 5.0
 BAND_HYSTERESIS = 2.0  # a band change alerts only when the new score is this far past the cut-off
 BAD_YEAR_DAYS_THRESHOLD = 3.0
@@ -112,6 +122,32 @@ def compare(old: ScoreRow, new: ScoreRow) -> dict[str, Any] | None:
     }
 
 
+def load_state(path: Path) -> dict[str, Any]:
+    """{"hubs": {hub_id: last alerted ScoreRow}, "nws_seen": {key: forget_after_iso}}."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"hubs": {}, "nws_seen": {}}
+    return {"hubs": dict(data.get("hubs") or {}), "nws_seen": dict(data.get("nws_seen") or {})}
+
+
+def write_state(path: Path, state: dict[str, Any], updated_at: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"updated_at": updated_at, **state}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.replace(path)
+
+
+def _forget_after(alert: dict, now: datetime) -> str:
+    expires = alert.get("expires")
+    if isinstance(expires, str):
+        try:
+            return datetime.fromisoformat(expires.replace("Z", "+00:00")).astimezone(UTC).isoformat(timespec="seconds")
+        except ValueError:
+            pass
+    return (now + NWS_SEEN_TTL).isoformat(timespec="seconds")
+
+
 def _nws_key(alert: dict) -> str:
     return "|".join(str(alert.get(k)) for k in ("hub_id", "event", "headline", "expires"))
 
@@ -137,11 +173,22 @@ def check_alerts(
     *,
     baseline_path: Path = BASELINE_PATH,
     log_path: Path = LOG_PATH,
+    state_path: Path = STATE_PATH,
     update_baseline: bool = False,
 ) -> dict[str, Any]:
-    computed_at = _now()
+    """Alert once per new change.
+
+    Each hub is compared with the state it was last alerted at (or the baseline if it never was).
+    An alert moves that hub's state to the new scores, so the same deviation does not alert again,
+    while further drift does. NWS alerts are sent once and remembered until they expire. If a
+    configured webhook fails, the state is not advanced, so the next run tries again.
+    """
+    now = datetime.now(UTC)
+    computed_at = now.isoformat(timespec="seconds")
     rows = compute_rows()
     store.record_scores(rows, computed_at)
+    state = load_state(state_path)
+    alerted_hubs: dict[str, dict] = {}
 
     baseline = load_baseline(baseline_path)
     baseline_created = baseline is None
@@ -150,22 +197,30 @@ def check_alerts(
         write_baseline(baseline_path, rows, computed_at)
     else:
         for new in sorted(rows, key=lambda r: r.hub_id):
-            old = baseline.get(new.hub_id)
+            last = state["hubs"].get(new.hub_id)
+            old = ScoreRow.model_validate(last) if last else baseline.get(new.hub_id)
             change = compare(old, new) if old is not None else None
             if change is not None:
                 for _, reason, a, b in change.pop("_records"):
                     store.record_alert(new.hub_id, a, b, reason)
                 changes.append(change)
+                alerted_hubs[new.hub_id] = new.model_dump(mode="json")
         if update_baseline:
             write_baseline(baseline_path, rows, computed_at)
 
+    # Seen NWS keys, minus the ones past their forget time.
+    seen = {k: t for k, t in state["nws_seen"].items() if t > computed_at}
     nws: list[dict] = []
+    new_seen: dict[str, str] = {}
     if nws_fetch is not None:
         active = [a for a in nws_fetch() if a.get("severity") in NWS_SEVERITIES]
-        # NWS alerts carry no id here, so the key is what identifies one; report only alerts
-        # that were not active in the previous run.
-        previous = store.swap_nws_seen({_nws_key(a) for a in active})
-        nws = [a for a in active if _nws_key(a) not in previous]
+        # NWS alerts carry no id here, so the key (hub, event, headline, expires) identifies one.
+        for alert in active:
+            key = _nws_key(alert)
+            if key not in seen and key not in new_seen:
+                nws.append(alert)
+                new_seen[key] = _forget_after(alert, now)
+        new_seen = {k: t for k, t in new_seen.items() if t > computed_at}
 
     delivered = None
     if changes or nws:
@@ -180,6 +235,14 @@ def check_alerts(
                 payload["webhook_error"] = type(exc).__name__
         if delivered == "jsonl":
             _append_jsonl(log_path, payload)
+
+    sent = delivered == "webhook" or (delivered == "jsonl" and not webhook_url)
+    if update_baseline:
+        state["hubs"] = {}  # the new baseline is the reference again
+    elif sent:
+        state["hubs"].update(alerted_hubs)
+    state["nws_seen"] = {**seen, **new_seen} if sent else seen
+    write_state(state_path, state, computed_at)
     return {"changes": changes, "nws": nws, "delivered": delivered, "baseline_created": baseline_created}
 
 

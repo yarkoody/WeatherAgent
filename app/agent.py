@@ -102,6 +102,33 @@ ERROR_ANSWER = AgentAnswer(
 )
 
 
+# History restored from the browser when the server store has none (Render's disk resets).
+MAX_RESTORED_MESSAGES = 20
+MAX_RESTORED_CHARS = 12_000
+MAX_RESTORED_MESSAGE_CHARS = 2_000
+RESTORED_NOTE = (
+    "[Earlier answer restored from the browser. Its numbers are not verified tool results in this "
+    "conversation; call the tools again before citing any number.]\n\n"
+)
+
+
+def restore_history(items: list[dict] | None) -> list[ai.messages.Message]:
+    """Plain user/assistant messages from a client-supplied history, capped and starting at a user turn.
+
+    No tool calls or results are created, so restored text never enters the grounding pool.
+    """
+    clean = [
+        (item["role"], item["text"][:MAX_RESTORED_MESSAGE_CHARS])
+        for item in items or []
+        if isinstance(item, dict) and item.get("role") in ("user", "assistant") and isinstance(item.get("text"), str) and item["text"].strip()
+    ][-MAX_RESTORED_MESSAGES:]
+    while clean and sum(len(text) for _, text in clean) > MAX_RESTORED_CHARS:
+        clean.pop(0)
+    while clean and clean[0][0] != "user":
+        clean.pop(0)
+    return [ai.user_message(text) if role == "user" else ai.assistant_message(RESTORED_NOTE + text) for role, text in clean]
+
+
 def retry_message(errors: list[str]) -> str:
     return GROUNDING_RETRY_TEMPLATE.format(errors="\n".join(f"- {e}" for e in errors))
 
@@ -239,7 +266,9 @@ class WeatherAgent(ai.Agent):
                         runner.add_result(ai.tool_result(tool_call_id=part.tool_call_id, tool_name=part.tool_name, result=error))
                 elif isinstance(event, ai.events.ToolCallResult):
                     # SDK error results (e.g. unparseable arguments) are exception text, not data to cite.
-                    self.turn_tool_results.extend(p.result for p in event.results if not p.is_error)
+                    self.turn_tool_results.extend(
+                        grounding.ToolOutput(p.tool_name, p.result) for p in event.results if not p.is_error
+                    )
                 elif isinstance(event, ai.events.StreamEnd):
                     finish_reason = event.finish_reason
         usage = stream.message.usage
@@ -336,6 +365,7 @@ async def _turn_events(
     max_steps: int,
     registry: Any | None,
     holder: dict[str, Any],
+    client_history: list[dict] | None = None,
 ) -> AsyncIterator[Any]:
     session_id = session_id or uuid.uuid4().hex
     trace_id = uuid.uuid4().hex
@@ -345,7 +375,14 @@ async def _turn_events(
     tracer.event(trace_id, "user_message", session_id=session_id, text=message)
     try:
         history = [ai.messages.Message.model_validate(m) for m in store.get_messages(session_id)]
-        prior = [p.result for m in history if m.role == "tool" for p in m.tool_results if not p.is_error]
+        restored: list[ai.messages.Message] = []
+        if not history and client_history:
+            # The server is the source of truth when it has the session; otherwise use the browser's copy.
+            restored = restore_history(client_history)
+            history = restored
+            tracer.event(trace_id, "history_restored", messages=len(restored))
+        # Named, so grounding can bind each figure to the tool and field it cites.
+        prior = [grounding.ToolOutput(p.tool_name, p.result) for m in history if m.role == "tool" for p in m.tool_results if not p.is_error]
         agent = WeatherAgent(
             tools=build_tools(_registry(registry), tracer, trace_id),
             tracer=tracer,
@@ -360,7 +397,7 @@ async def _turn_events(
     except BaseException as exc:
         tracer.event(trace_id, "error", error=f"{type(exc).__name__}: {exc}"[:500])
         raise
-    store.append_messages(session_id, [m.model_dump(mode="json") for m in [user, *agent.turn_messages]])
+    store.append_messages(session_id, [m.model_dump(mode="json") for m in [*restored, user, *agent.turn_messages]])
     calls = [c for m in agent.turn_messages if m.role == "assistant" for c in m.tool_calls]
     holder["response"] = ChatResponse(
         session_id=session_id,
@@ -393,11 +430,12 @@ async def run_turn(
     tracer: Tracer,
     max_steps: int = MAX_STEPS,
     registry: Any | None = None,
+    client_history: list[dict] | None = None,
 ) -> ChatResponse:
     """Non-streaming turn (used by /chat/json and evals). Raises if the model call fails."""
     holder: dict[str, Any] = {}
     async for _ in _turn_events(
-        message, session_id, model=model, store=store, tracer=tracer, max_steps=max_steps, registry=registry, holder=holder
+        message, session_id, model=model, store=store, tracer=tracer, max_steps=max_steps, registry=registry, holder=holder, client_history=client_history
     ):
         pass
     return holder["response"]
@@ -419,6 +457,7 @@ async def stream_turn(
     tracer: Tracer,
     max_steps: int = MAX_STEPS,
     registry: Any | None = None,
+    client_history: list[dict] | None = None,
 ) -> AsyncIterator[str]:
     """AI SDK UI message stream (SSE strings): tool parts, one data-answer part, finish, [DONE]."""
     holder: dict[str, Any] = {}
@@ -427,7 +466,7 @@ async def stream_turn(
 
     async def events() -> AsyncIterator[Any]:
         async for event in _turn_events(
-            message, session_id, model=model, store=store, tracer=tracer, max_steps=max_steps, registry=registry, holder=holder
+            message, session_id, model=model, store=store, tracer=tracer, max_steps=max_steps, registry=registry, holder=holder, client_history=client_history
         ):
             if isinstance(event, _HIDDEN_EVENTS):
                 continue

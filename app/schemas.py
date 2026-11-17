@@ -143,6 +143,34 @@ class WeatherStat(Strict):
     data_as_of: str
 
 
+class YearDays(Strict):
+    year: int
+    days: dict[Family, float]  # observed disruption days that calendar year, per family (hurricane is not observed: 0)
+    total: float
+
+
+class MonthDays(Strict):
+    month: int  # 1-12
+    days: dict[Family, float]  # average observed disruption days in that month across the window
+    total: float
+
+
+class HubHistory(Strict):
+    """Observed weather history at the hub point (Open-Meteo, daily). Shows variability and seasonality."""
+
+    hub_id: str
+    name: str
+    start_year: int
+    end_year: int
+    years: list[YearDays]
+    months: list[MonthDays]
+    worst_year: int  # year with the most observed disruption days
+    peak_months: list[int]  # months with the highest average, most first (up to 3)
+    thresholds: dict[str, str]  # family -> plain-language disruption-day rule, e.g. "snow >= 5 cm or min temp <= -18 °C"
+    note: str  # data limits: reanalysis grid, hurricanes not captured by daily data, observed signal only
+    data_as_of: str
+
+
 class NwsAlert(Strict):
     """Live NWS alert. Free-text description and instructions are dropped on purpose (prompt-injection surface)."""
 
@@ -218,6 +246,8 @@ class Figure(Strict):
     value: float = Field(description="The number exactly as a tool returned it.")
     unit: str = Field(description="Unit, e.g. '%', 'days', 'score 0-100', 'events/year'.")
     source_tool: str = Field(description="Name of the tool call that returned this number.")
+    source_field: str = Field(description="The exact field name in that tool's result that holds this number, e.g. 'priority', 'bad_year_days', 'hurricane_10yr_probability_pct', 'days_per_year', 'value'.")
+    family: Family | None = Field(description="The hazard family the number belongs to when the field sits inside a family (e.g. families.winter.days_per_year); otherwise null.")
 
 
 class AgentAnswer(Strict):

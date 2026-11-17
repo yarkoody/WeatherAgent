@@ -44,8 +44,8 @@ describe('HubBreakdown', () => {
   it('leads with disruption days and highlights the top driver', () => {
     render(<HubBreakdown data={hubScore} />)
     expect(screen.getByText(String(hubScore.exposure_days_per_year))).toBeInTheDocument()
-    expect(screen.getByText('lost days in a typical year')).toBeInTheDocument()
-    expect(screen.getByText('Main driver')).toBeInTheDocument()
+    expect(screen.getByText('modeled lost days/yr, typical year (estimate)')).toBeInTheDocument()
+    expect(screen.getByText('Top driver')).toBeInTheDocument()
     for (const u of hubScore.upgrade_categories) expect(screen.getByText(u)).toBeInTheDocument()
   })
 })

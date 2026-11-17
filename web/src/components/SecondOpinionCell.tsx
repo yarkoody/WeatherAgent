@@ -1,5 +1,6 @@
 // One hub's JEV second opinion: a four-square strip in the fixed family order (winter, flood, hurricane,
 // severe storm) plus "3/4". Click or tap opens each family's formula band against JEV's band and score.
+import { HazardIcon } from '@/components/HazardIcon'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { FAMILIES, FAMILY_LABEL, shortHubName } from '@/lib/format'
 import type { JevHubOpinion } from '@/lib/types'
@@ -15,8 +16,8 @@ export function SecondOpinionCell({ hub }: { hub: JevHubOpinion }) {
       <PopoverTrigger
         data-disagrees={disagrees}
         aria-label={`JEV second opinion for ${name}: ${hub.agree_count} of ${hub.total} agree`}
-        className={`inline-flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30 ${
-          disagrees ? 'font-semibold text-[#9b2f2a]' : 'text-muted-foreground'
+        className={`inline-flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm whitespace-nowrap hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30 ${
+          disagrees ? 'font-semibold text-band-high-text' : 'text-muted-foreground'
         }`}
       >
         {/* The strip hides on small screens; the count stays as a compact badge. */}
@@ -57,8 +58,11 @@ export function SecondOpinionCell({ hub }: { hub: JevHubOpinion }) {
               return (
                 <tr key={f} data-agrees={o.agrees} className={`border-t ${o.agrees ? '' : 'bg-band-high-soft/60'}`}>
                   <th scope="row" className="py-1.5 pr-2 text-left font-medium">
-                    {FAMILY_LABEL[f]}
-                    {!o.agrees && <span className="ml-1.5 text-[0.7rem] font-semibold text-[#9b2f2a]">differs</span>}
+                    <span className="inline-flex items-center gap-1">
+                      <HazardIcon hazard={f} className="size-3.5" />
+                      {FAMILY_LABEL[f]}
+                    </span>
+                    {!o.agrees && <span className="ml-1.5 text-[0.7rem] font-semibold text-band-high-text">differs</span>}
                   </th>
                   <td className="py-1.5 pr-2">
                     <BandPill band={o.our_band} />

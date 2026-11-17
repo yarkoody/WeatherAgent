@@ -28,17 +28,17 @@ describe('mock transport', () => {
 describe('chat over the recorded stream (real AI SDK parser)', () => {
   it('renders progress chips, one answer card and the widgets', async () => {
     const { ChatView } = await import('../components/ChatView')
-    render(<ChatView sessionId="test-session" speakAnswers={false} />)
+    render(<ChatView sessionId="test-session" />)
     const button = screen.getByRole('button', { name: /Midwest hubs/ })
     fireEvent.click(button)
 
     await waitFor(() => expect(screen.getByLabelText('Answer')).toBeInTheDocument(), { timeout: 8000 })
     // the steps fold into one line once the answer is in
-    fireEvent.click(screen.getByRole('button', { name: /How this answer was found \(2 steps\)/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Analysis steps \(2\)/ }))
     expect(screen.getByText('Ranked hubs by winter exposure in the Midwest')).toBeInTheDocument()
     expect(screen.getByText('Checked Minneapolis risk')).toBeInTheDocument()
     expect(screen.getAllByLabelText('Answer')).toHaveLength(1)
-    expect(screen.getByText('Numbers verified')).toBeInTheDocument()
+    expect(screen.getByText('Figures checked')).toBeInTheDocument()
     expect(await screen.findByLabelText('Ranking chart')).toBeInTheDocument()
     expect(await screen.findByLabelText('Minneapolis risk breakdown')).toBeInTheDocument()
   }, 10000)

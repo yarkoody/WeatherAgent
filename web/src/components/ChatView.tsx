@@ -15,14 +15,19 @@ import {
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
+  useMessageScroller,
 } from '@/components/ui/message-scroller'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { chatFetch, describeChatError } from '@/lib/chatErrors'
-import { NoMotion } from '@/lib/motion'
+import { compactHistory } from '@/lib/chats'
+import { NoMotion, useReducedMotion } from '@/lib/motion'
 import { loadMessages, saveMessages } from '@/lib/session'
-import { answerSpeech, speak } from '@/lib/voice'
-import { AssistantMessage, NoAnswer, answerPart } from './AssistantMessage'
-import { Composer } from './Composer'
+import { stopSpeaking } from '@/lib/voice'
+import { AssistantMessage, NoAnswer } from './AssistantMessage'
+import { COMPOSER_INPUT_ID, Composer } from './Composer'
+import { AskProvider } from '@/lib/ask'
+import { isToolUIPart } from 'ai'
+import type { HubHistory } from '@/lib/types'
 
 export const SUGGESTIONS = [
   'Which Midwest hubs are most exposed to winter weather?',
@@ -37,13 +42,15 @@ function userText(m: UIMessage): string {
 
 const PENDING: UIMessage = { id: 'pending', role: 'assistant', parts: [] }
 
-/** The server keeps the history, so each request carries only the chat id and the newest user message. */
-export function lastUserMessageOnly({ id, messages }: { id: string; messages: UIMessage[] }) {
-  const last = [...messages].reverse().find((m) => m.role === 'user')
-  return { body: { id, messages: last ? [last] : [] } }
+/**
+ * Each request carries the chat id and the whole conversation, compacted to user text and the verified answer
+ * text. The server uses it only when its own history for this id is missing (for example after a redeploy).
+ */
+export function withCompactHistory({ id, messages }: { id: string; messages: UIMessage[] }) {
+  return { body: { id, messages: compactHistory(messages) } }
 }
 
-export function ChatView({ sessionId, speakAnswers, onReset }: { sessionId: string; speakAnswers: boolean; onReset?: () => void }) {
+export function ChatView({ sessionId, onReset }: { sessionId: string; onReset?: () => void }) {
   return (
     <ErrorBoundary
       fallback={() => (
@@ -60,14 +67,14 @@ export function ChatView({ sessionId, speakAnswers, onReset }: { sessionId: stri
         </Empty>
       )}
     >
-      <ChatThread sessionId={sessionId} speakAnswers={speakAnswers} />
+      <ChatThread sessionId={sessionId} />
     </ErrorBoundary>
   )
 }
 
-function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswers: boolean }) {
+function ChatThread({ sessionId }: { sessionId: string }) {
   const transport = useMemo(
-    () => new DefaultChatTransport({ api: '/chat', fetch: chatFetch, prepareSendMessagesRequest: lastUserMessageOnly }),
+    () => new DefaultChatTransport({ api: '/chat', fetch: chatFetch, prepareSendMessagesRequest: withCompactHistory }),
     [],
   )
   const initial = useMemo(() => loadMessages(sessionId), [sessionId])
@@ -76,8 +83,9 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
   // Messages restored from history render without animation; only new results animate in.
   const restored = useMemo(() => new Set(initial.map((m) => m.id)), [initial])
 
+  // Save when a question is sent (so the chat's title follows it at once) and when the turn ends.
   useEffect(() => {
-    if (status === 'ready' || status === 'error') saveMessages(sessionId, messages)
+    if (status === 'submitted' || status === 'ready' || status === 'error') saveMessages(sessionId, messages)
   }, [status, messages, sessionId])
 
   // "New conversation" unmounts this thread: abort a request still in flight.
@@ -85,51 +93,67 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
   stopRef.current = stop
   useEffect(() => () => void stopRef.current(), [])
 
-  // Read each new answer aloud once (never the restored history).
-  const spoken = useRef<string | null>(initial.at(-1)?.id ?? null)
-  useEffect(() => {
-    const last = messages.at(-1)
-    if (status !== 'ready' || !last || last.role !== 'assistant' || spoken.current === last.id) return
-    spoken.current = last.id
-    const r = answerPart(last)
-    if (speakAnswers && r) speak(answerSpeech(r))
-  }, [messages, status, speakAnswers])
+  // Leaving this chat stops any answer being read aloud.
+  useEffect(() => () => stopSpeaking(), [])
 
-  const send = (text: string) => sendMessage({ text })
+  // One send path for the composer, the starter questions and the "Ask next" chips.
+  const send = (text: string) => {
+    void sendMessage({ text })
+    // Keep focus in the composer: a clicked chip unmounts, and focus must not fall back to the page.
+    document.getElementById(COMPOSER_INPUT_ID)?.focus({ preventScroll: true })
+  }
   // While the request is in flight there is no assistant message yet: show its steps placeholder.
   const thread = status === 'submitted' && messages.at(-1)?.role === 'user' ? [...messages, PENDING] : messages
   const lastId = thread.at(-1)?.id
+  // Observed histories the agent fetched in this chat, for the breakdown's History tab.
+  const histories = useMemo(() => {
+    const out: Record<string, HubHistory> = {}
+    for (const m of messages)
+      for (const p of m.parts)
+        if (isToolUIPart(p) && p.type === 'tool-get_hub_history' && p.state === 'output-available' && (p.output as HubHistory)?.hub_id)
+          out[(p.output as HubHistory).hub_id] = p.output as HubHistory
+    return out
+  }, [messages])
+  const questionBefore = (i: number) => {
+    for (let j = i - 1; j >= 0; j--) if (thread[j].role === 'user') return userText(thread[j])
+    return undefined
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1">
         {thread.length === 0 ? (
-          <Empty className="h-full px-4">
+          // Scrolls on its own in a short window, so the last starter question never runs under the composer.
+          <div data-testid="empty-scroll" className="h-full overflow-y-auto">
+          <Empty className="min-h-full px-4 pt-6 pb-8">
             <EmptyHeader className="max-w-xl">
               <EmptyMedia variant="icon">
                 <CloudLightningIcon />
               </EmptyMedia>
-              <EmptyTitle className="font-wide text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+              <EmptyTitle className="heading-tight text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
                 Where will weather hit your network hardest?
               </EmptyTitle>
               <EmptyDescription>
-                Ask about disruption exposure and investment priority for 15 US logistics hubs. Answers cite their numbers, and charts are
-                drawn straight from the scoring data.
+                Ask about modeled disruption exposure and screening priority for 15 US logistics hubs. Figures in an answer are checked against the scoring data they cite, and charts are
+                drawn from it directly.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent className="max-w-2xl">
               <Suggestions suggestions={SUGGESTIONS} onPick={send} />
             </EmptyContent>
           </Empty>
+          </div>
         ) : (
-          <MessageScrollerProvider autoScroll>
+          <AskProvider ask={send} histories={histories}>
+          <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+            <FollowLatest count={thread.length} lastIsUser={thread.at(-1)?.role === 'user'} />
             <MessageScroller>
               {/* Gutter on both edges keeps the centered column symmetric when a scrollbar shows. */}
               <MessageScrollerViewport className="[scrollbar-gutter:stable_both-edges]">
                 <MessageScrollerContent aria-busy={busy} className="mx-auto w-full max-w-3xl gap-7 px-4 py-6 sm:px-6">
-                  {thread.map((m) =>
+                  {thread.map((m, i) =>
                     m.role === 'user' ? (
-                      <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor>
+                      <MessageScrollerItem key={m.id} messageId={m.id}>
                         <Message align="end">
                           <MessageContent>
                             <Bubble align="end">
@@ -142,10 +166,10 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
                       <MessageScrollerItem key={m.id} messageId={m.id}>
                         {restored.has(m.id) ? (
                           <NoMotion>
-                            <AssistantMessage message={m} streaming={false} latest={!busy && m.id === lastId} onFollowUp={send} />
+                            <AssistantMessage message={m} streaming={false} latest={!busy && m.id === lastId} onFollowUp={send} question={questionBefore(i)} />
                           </NoMotion>
                         ) : (
-                          <AssistantMessage message={m} streaming={busy && m.id === lastId} latest={!busy && m.id === lastId} onFollowUp={send} />
+                          <AssistantMessage message={m} streaming={busy && m.id === lastId} latest={!busy && m.id === lastId} onFollowUp={send} question={questionBefore(i)} />
                         )}
                       </MessageScrollerItem>
                     ),
@@ -166,13 +190,14 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
               <MessageScrollerButton />
             </MessageScroller>
           </MessageScrollerProvider>
+          </AskProvider>
         )}
       </div>
-      <div className="border-t bg-background/95 backdrop-blur">
+      <div className="relative z-10">
         <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6">
           <Composer busy={busy} onSend={send} onStop={stop} />
           <p className="mt-1.5 text-center text-[0.7rem] text-muted-foreground">
-            Scores come from a fixed data snapshot. Every number in an answer is checked against tool results.
+            Scores come from a fixed data snapshot. Figures are checked against the scoring data they cite.
           </p>
         </div>
       </div>
@@ -183,7 +208,7 @@ function ChatThread({ sessionId, speakAnswers }: { sessionId: string; speakAnswe
 function ChatError({ error, onRetry }: { error: Error; onRetry: () => void }) {
   const view = describeChatError(error)
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-band-high-soft px-5 py-3.5 text-sm text-[#7d2622]" role="alert">
+    <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-band-high-soft px-5 py-3.5 text-sm text-band-high-text" role="alert">
       <div className="min-w-0 flex-1">
         <p>{view.title}</p>
         {view.detail && <p className="mt-0.5 text-xs opacity-80">{view.detail}</p>}
@@ -195,4 +220,19 @@ function ChatError({ error, onRetry }: { error: Error; onRetry: () => void }) {
       )}
     </div>
   )
+}
+
+/**
+ * When a question is sent (from the composer or a chip), scroll the thread to the newest message, so the question
+ * shows at the bottom and the reply streams in under it. Smooth unless the user asked for reduced motion.
+ */
+function FollowLatest({ count, lastIsUser }: { count: number; lastIsUser: boolean }) {
+  const { scrollToEnd } = useMessageScroller()
+  const reduced = useReducedMotion()
+  const seen = useRef(count)
+  useEffect(() => {
+    if (count > seen.current && lastIsUser) scrollToEnd({ behavior: reduced ? 'auto' : 'smooth' })
+    seen.current = count
+  }, [count, lastIsUser, reduced, scrollToEnd])
+  return null
 }

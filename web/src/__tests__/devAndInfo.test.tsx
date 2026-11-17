@@ -42,7 +42,7 @@ describe('analyst view (default)', () => {
   it('answer card shows label, hub, value and the badge, but no tool names or trace id', () => {
     asUser(<AnswerCard response={failed} />)
     expect(screen.queryByRole('table')).not.toBeInTheDocument() // folded by default
-    fireEvent.click(screen.getByRole('button', { name: /Numbers behind this answer/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Figures behind this answer/ }))
     const table = screen.getByRole('table')
     expect(within(table).queryByText('Source')).not.toBeInTheDocument()
     for (const f of response.answer.figures) expect(screen.queryByText(f.source_tool)).not.toBeInTheDocument()
@@ -54,7 +54,7 @@ describe('analyst view (default)', () => {
 
   it('tool steps are plain language, without tool names or expandable arguments', () => {
     asUser(<ToolSteps tools={[tool]} thinking={false} streaming={false} />)
-    expect(screen.getByText('Ranked hubs by investment priority')).toBeInTheDocument()
+    expect(screen.getByText('Ranked hubs by screening priority')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByText('rank_hubs')).not.toBeInTheDocument()
   })
@@ -65,13 +65,13 @@ describe('developer view', () => {
     asDev(<AnswerCard response={failed} />)
     expect(screen.getByText('Source')).toBeInTheDocument()
     expect(screen.getAllByText(response.answer.figures[0].source_tool).length).toBeGreaterThan(0)
-    expect(screen.getByText(/trace mock-tra/)).toBeInTheDocument()
+    expect(screen.getByText(`trace ${failed.trace_id.slice(0, 8)}`)).toBeInTheDocument()
     expect(screen.getByText('43 is not in figures')).toBeInTheDocument()
   })
 
   it('tool steps expand to the tool name and arguments', () => {
     asDev(<ToolSteps tools={[tool]} thinking={false} streaming={false} />)
-    fireEvent.click(screen.getByRole('button', { name: /Ranked hubs by investment priority/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Ranked hubs by screening priority/ }))
     expect(screen.getByText('rank_hubs')).toBeInTheDocument()
     expect(screen.getByText('top_n')).toBeInTheDocument()
   })
@@ -94,20 +94,18 @@ describe('How is this calculated?', () => {
     expect(priorityLines(hub)[1]).toContain(`÷ cap ${hub.priority_signals[1].cap}`)
   })
 
-  it('the winter (i) button opens the calculation and is keyboard reachable', async () => {
+  it('one "How to read this" button per breakdown: keyboard reachable, legend first, the hub calculation on request', async () => {
     asUser(<HubBreakdown data={hub} />)
-    const button = screen.getByRole('button', { name: 'How is the Winter band calculated?' })
+    expect(screen.queryByRole('button', { name: 'How is the Winter band calculated?' })).not.toBeInTheDocument() // no per-field tips
+    const button = screen.getByRole('button', { name: 'How to read this' })
     button.focus()
     expect(button).toHaveFocus()
     fireEvent.click(button)
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('FEMA expects about 16.6 winter weather')
+    // v2: a family is banded by its own days, not by the overall index
+    expect(dialog).toHaveTextContent(`Medium from ${hub.band_thresholds.family_medium_from_days} days, high from ${hub.band_thresholds.family_high_from_days} days`)
     expect(dialog).not.toHaveTextContent(`${hub.families.winter.signals[0].raw} events/year`)
     fireEvent.click(within(dialog).getByRole('button', { name: 'More detail' }))
     expect(dialog).toHaveTextContent(`${hub.families.winter.signals[0].raw} events/year`)
-    // v2: a family is banded by its own days (medium from 2, high from 5), not by the overall index
-    expect(dialog).toHaveTextContent(
-      `medium from ${hub.band_thresholds.family_medium_from_days} days a year and high from ${hub.band_thresholds.family_high_from_days}`,
-    )
   })
 })
