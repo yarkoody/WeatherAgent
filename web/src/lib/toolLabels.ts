@@ -39,8 +39,13 @@ export function toolLabel(name: string, input: Input, done: boolean): string {
     }
     case 'get_active_alerts':
       return done ? `Checked live NWS alerts for ${hub}` : `Checking live NWS alerts for ${hub}`
-    case 'what_if':
-      return done ? 'Re-ranked with your weights' : 'Re-ranking with your weights'
+    case 'what_if': {
+      // Say what the analyst actually supplied: costs, weights or both.
+      const costs = Array.isArray(input?.upgrade_costs) && input.upgrade_costs.length > 0
+      const weights = Boolean(input?.family_weights && Object.values(input.family_weights as object).some((w) => w != null))
+      const what = costs && weights ? 'your weights and costs' : costs ? 'your upgrade costs' : 'your weights'
+      return done ? `Re-ranked with ${what}` : `Re-ranking with ${what}`
+    }
     default:
       return done ? `Ran ${name}` : `Running ${name}`
   }

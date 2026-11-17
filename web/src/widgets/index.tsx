@@ -15,5 +15,6 @@ export const WIDGETS: Partial<Record<ToolName, Widget>> = {
   weather_stat: lazy(() => import('./WeatherStatRing').then((m) => ({ default: m.WeatherStatRing }))),
   get_active_alerts: lazy(() => import('./AlertBanner').then((m) => ({ default: m.AlertBanner }))),
   get_hub_history: lazy(() => import('./HistoryWidget').then((m) => ({ default: m.HistoryWidget }))),
-  // list_hubs has no widget on purpose; what_if renders on the Scores page.
+  // The what-if result in the chat; the sliders to change it live on the Scores page. list_hubs has no widget on purpose.
+  what_if: lazy(() => import('./WhatIfWidget').then((m) => ({ default: m.WhatIfWidget }))),
 }

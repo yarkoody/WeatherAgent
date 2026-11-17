@@ -296,6 +296,13 @@
   white-space: nowrap;
   text-align: left;
 }
+/* The methodology's tables hold sentences: let them wrap (with a sensible minimum) instead of one very wide line. */
+.methodology td,
+.methodology th {
+  white-space: normal;
+  min-width: 7rem;
+  vertical-align: top;
+}
 .prose-answer th {
   font-weight: 500;
   color: var(--muted-foreground);

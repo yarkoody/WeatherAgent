@@ -48,7 +48,7 @@ describe('See the math', () => {
       expect(text).toContain(`= ${hub.exposure_days_per_year} days/yr`)
       expect(text).toContain(`exposure score = ${hub.exposure_days_per_year} ÷ ${hub.band_thresholds.days_cap} × 100 = ${hub.exposure} (capped at 100)`)
       expect(text).toContain('average of the worst 1 year in 20, computed exactly from the same event rates')
-      expect(text).toContain(`= ${hub.priority}`)
+      expect(text).toMatch(new RegExp(`[=≈] ${hub.priority}(\\n|$)`))
       // The blend is a real equation: weight × FEMA days + weight × observed days.
       expect(text).toMatch(/blend = 0\.6 × (\([\d.]+( \+ [\d.]+)+\)|[\d.]+) FEMA \+ 0\.4 × [\d.]+ observed \(2015–2025\) = [\d.]+ days\/yr/)
       expect(text).toContain(`bad year = `)
@@ -60,7 +60,7 @@ describe('See the math', () => {
   it('people-days use the people fields when present (mock data)', () => {
     for (const hub of mockHubs) {
       const text = check(hub)
-      expect(text).toContain(`= ${hub.people_days_m} million a year`)
+      expect(text).toMatch(new RegExp(`[=≈] ${hub.people_days_m} million a year`))
     }
   })
 
@@ -91,6 +91,24 @@ describe('See the math', () => {
         const parts = [...m[1].matchAll(/[\d.]+/g)].map((x) => Number(x[0]))
         const exact = Math.abs(parts.reduce((a, b) => a + b, 0) - Number(m[3])) < 1e-9
         expect(m[2], `${hub.hub_id}: ${line}`).toBe(exact ? '=' : '≈')
+      }
+    }
+  })
+
+  it('review priority and people-days use ≈ when the shown numbers do not multiply or add up exactly', () => {
+    for (const hub of [...realHubs, ...mockHubs]) {
+      const text = mathSections(hub).flatMap((s) => s.lines.map((l) => l.text))
+      const sum = text.find((l) => /^= [\d.]+ \+ [\d.]+ \+ [\d.]+ [=≈]/.test(l))
+      if (sum) {
+        const m = /^= ([\d.]+) \+ ([\d.]+) \+ ([\d.]+) ([=≈]) ([\d.]+)/.exec(sum)!
+        const exact = Math.abs(Number(m[1]) + Number(m[2]) + Number(m[3]) - Number(m[5])) < 1e-9
+        expect(m[4], `${hub.hub_id}: ${sum}`).toBe(exact ? '=' : '≈')
+      }
+      const pd = text.find((l) => l.startsWith('people-days = '))
+      if (pd) {
+        const m = /people-days = ([\d,]+) people × ([\d.]+) days ([=≈]) ([\d.]+) million/.exec(pd)!
+        const exact = Math.abs(Math.round((Number(m[1].replace(/,/g, '')) * Number(m[2])) / 1e5) / 10 - Number(m[4])) < 1e-9
+        expect(m[3], `${hub.hub_id}: ${pd}`).toBe(exact ? '=' : '≈')
       }
     }
   })
