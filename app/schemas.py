@@ -283,12 +283,23 @@ class ChatRequest(Strict):
     message: str = Field(min_length=1, max_length=2000)
 
 
+class TurnUsage(Strict):
+    """Per-turn cost and timing, shown in developer mode."""
+
+    latency_ms: float
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float | None  # None when the model's price is unknown
+    tool_calls: int
+
+
 class ChatResponse(Strict):
     session_id: str
     answer: AgentAnswer
     grounding: Grounding
     trace_id: str
-    follow_ups: list[str] = []  # suggested next questions, built by code from the turn (app/followups.py)
+    follow_ups: list[str] = []
+    usage: TurnUsage | None = None  # filled for every turn; the UI shows it only in developer mode  # suggested next questions, built by code from the turn (app/followups.py)
 
 
 # ---------- JEV second opinion (offline cross-check; never affects scores) ----------
