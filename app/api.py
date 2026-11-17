@@ -103,13 +103,20 @@ class RateLimiter:
             return None
 
 
-def client_ip(request: Request, hops: int = 1) -> str:
+def client_ip(request: Request, hops: int = 1, header: str = "") -> str:
     """The client IP as seen by our trusted proxy.
+
+    If `header` is set (CLIENT_IP_HEADER, e.g. "cf-connecting-ip" on Render, which sits behind
+    Cloudflare) and present, it wins: the edge proxy overwrites it, so clients cannot spoof it.
 
     Each proxy appends the address it received the request from, so the entry `hops` places
     from the right was written by the outermost trusted proxy. Entries further left are
     client-controlled and are ignored (they could be rotated to dodge the rate limit).
     """
+    if header:
+        value = (request.headers.get(header) or "").strip()
+        if value:
+            return value
     forwarded = [p.strip() for p in (request.headers.get("x-forwarded-for") or "").split(",") if p.strip()]
     if forwarded:
         return forwarded[max(len(forwarded) - max(hops, 1), 0)]
@@ -140,6 +147,7 @@ def create_app(
     load_dotenv()
     limiter = RateLimiter(_env_int("RATE_LIMIT_PER_MIN", 10), _env_int("DAILY_REQUEST_CAP", 300))
     proxy_hops = _env_int("TRUSTED_PROXY_HOPS", 1)
+    ip_header = os.environ.get("CLIENT_IP_HEADER", "").strip().lower()
     alert_token = os.environ.get("ALERT_TOKEN", "")
     webhook_url = os.environ.get("ALERT_WEBHOOK_URL", "") or None
     lazy: dict[str, Any] = {"model": model, "store": store, "tracer": tracer}
@@ -172,7 +180,7 @@ def create_app(
         return sorted(result, key=lambda r: (-r.priority, r.hub_id))
 
     def limit(request: Request) -> None:
-        refused = limiter.check(client_ip(request, proxy_hops))
+        refused = limiter.check(client_ip(request, proxy_hops, ip_header))
         if refused:
             raise HTTPException(429, refused)
 
