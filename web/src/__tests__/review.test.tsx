@@ -132,6 +132,7 @@ describe('streams that end without an answer', () => {
     serveChat({ sse: toSse(events) })
     await ask()
     await waitFor(() => expect(screen.getByLabelText('Answer')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /How this answer was found/ }))
     expect(screen.getAllByText(/no result/).length).toBe(2)
     expect(screen.queryByLabelText('Ranking chart')).not.toBeInTheDocument()
   })

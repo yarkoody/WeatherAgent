@@ -3,7 +3,7 @@
 export type Region = 'Midwest' | 'South' | 'West' | 'Northeast'
 export type Family = 'winter' | 'flood' | 'hurricane' | 'severe_storm'
 export type Hazard = 'overall' | Family
-export type ScoreKind = 'exposure' | 'priority'
+export type ScoreKind = 'exposure' | 'priority' | 'bad_year' // bad_year = 1-in-20-year disruption days
 export type Band = 'low' | 'medium' | 'high'
 export type Metric =
   | 'snow_days_pct'
@@ -40,6 +40,7 @@ export interface FamilyScore {
   family: Family
   score: number
   days_per_year: number
+  band: Band // by days (medium from 2, high from 5); hurricane by 10-year probability
   signals: Signal[]
 }
 
@@ -49,15 +50,21 @@ export interface BandThresholds {
   days_cap: number // disruption days per year that map to index 100 (25)
   medium_from_days: number // the medium cut-off in days per year (8.75)
   high_from_days: number // the high cut-off in days per year (15)
+  family_medium_from_days: number // a hazard family is "medium" from this many days per year (2)
+  family_high_from_days: number // (5)
+  hurricane_medium_from_pct: number // hurricane family band by 10-year probability (20)
+  hurricane_high_from_pct: number // (50)
 }
 
 export interface HubScore {
   hub_id: string
   exposure: number
-  exposure_days_per_year: number
+  exposure_days_per_year: number // typical year
+  bad_year_days: number // 1-in-20-year disruption days: mean + 1.645 sd
+  hurricane_10yr_probability_pct: number // chance of at least one hurricane-class event in 10 years, 0-100
   exposure_band: Band
   families: Record<Family, FamilyScore>
-  family_weights: Record<Family, number>
+  family_weights: Record<Family, number> // each family's share of total days, percent
   priority: number
   priority_band: Band
   priority_signals: Signal[]
@@ -122,6 +129,9 @@ export interface ScoreRow {
   region: Region
   exposure: number
   exposure_band: Band
+  exposure_days_per_year: number
+  bad_year_days: number
+  hurricane_10yr_probability_pct: number
   priority: number
   priority_band: Band
   top_driver: Family
@@ -206,4 +216,6 @@ export interface SecondOpinion {
   total: number
   agreement_pct: number // 0-100
   note: string
+  /** Not in the contract yet: rank agreement between JEV and the formula, if the orchestrator adds it. */
+  rank_correlation?: number | null
 }

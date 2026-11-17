@@ -1,8 +1,9 @@
 import { Cell, Pie, PieChart } from 'recharts'
 import { ChartContainer, type ChartConfig } from '@/components/ui/chart'
-import { METRIC_LABEL, fmt, hubName } from '@/lib/format'
+import { METRIC_LABEL, fmt, hubName, pct } from '@/lib/format'
 import type { WeatherStat } from '@/lib/types'
 import { InfoTip } from '@/components/InfoTip'
+import { useCountUp, useReducedMotion } from '@/lib/motion'
 import { WidgetFrame } from './WidgetFrame'
 
 const RING_COLOR: Record<string, string> = {
@@ -18,7 +19,9 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
   const isTotal = data.metric.startsWith('total_')
   const ring = !isTotal && data.denominator > 0 && data.numerator >= 0 && data.numerator <= data.denominator
   const color = RING_COLOR[data.metric] ?? '#2F5D8A'
-  const headline = data.unit === '%' ? `${fmt(data.value)}%` : fmt(data.value)
+  const reduced = useReducedMotion()
+  const shown = useCountUp(data.value)
+  const headline = data.unit === '%' ? pct(shown) : fmt(shown)
 
   return (
     <WidgetFrame
@@ -28,7 +31,11 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
           {name} {metric} in {data.year}
           <InfoTip
             subject={metric}
-            lines={[`${data.numerator} of ${data.denominator} → ${data.value} ${data.unit}`, `Definition: ${data.definition}.`, `Source: ${data.source}.`]}
+            steps={[
+              `${fmt(data.numerator)} of the ${fmt(data.denominator)} days in ${data.year} counted (${data.unit === '%' ? pct(data.value) : `${fmt(data.value)} ${data.unit}`}).`,
+              `What counts: ${data.definition}.`,
+            ]}
+            detail={[`Exact value: ${data.value} ${data.unit} (${data.numerator} of ${data.denominator}).`, `Source: ${data.source}.`]}
           />
         </span>
       }
@@ -46,7 +53,8 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
                 startAngle={90}
                 endAngle={-270}
                 stroke="none"
-                isAnimationActive={false}
+                isAnimationActive={!reduced}
+                animationDuration={400}
               >
                 <Cell fill={color} />
                 <Cell fill="var(--muted)" />

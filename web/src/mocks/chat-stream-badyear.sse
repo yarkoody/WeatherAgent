@@ -1,0 +1,24 @@
+data: {"type": "start", "messageId": "msg_16d68da5a491"}
+
+data: {"type": "start-step"}
+
+data: {"toolCallId": "call_e2f234437914", "toolName": "rank_hubs", "type": "tool-input-start"}
+
+data: {"toolCallId": "call_e2f234437914", "inputTextDelta": "{\"score\": \"bad_year\", \"top_n\": 5}", "type": "tool-input-delta"}
+
+data: {"toolCallId": "call_e2f234437914", "toolName": "rank_hubs", "input": {"score": "bad_year", "top_n": 5}, "type": "tool-input-available"}
+
+data: {"toolCallId": "call_e2f234437914", "output": {"kind": "bad_year", "hazard": "overall", "region": null, "items": [{"rank": 1, "hub_id": "minneapolis", "name": "Minneapolis Hub", "value": 33.5, "band": "high"}, {"rank": 2, "hub_id": "newark", "name": "Newark Hub", "value": 25.4, "band": "high"}, {"rank": 3, "hub_id": "chicago", "name": "Chicago Hub", "value": 25.0, "band": "high"}, {"rank": 4, "hub_id": "detroit", "name": "Detroit Hub", "value": 23.9, "band": "high"}, {"rank": 5, "hub_id": "kansas_city", "name": "Kansas City Hub", "value": 23.6, "band": "high"}], "band_thresholds": {"medium_from": 35.0, "high_from": 60.0, "days_cap": 25.0, "medium_from_days": 8.75, "high_from_days": 15.0, "family_medium_from_days": 2.0, "family_high_from_days": 5.0, "hurricane_medium_from_pct": 20.0, "hurricane_high_from_pct": 50.0}, "data_as_of": "2026-11-17"}, "type": "tool-output-available"}
+
+data: {"type": "finish-step"}
+
+data: {"type": "start-step"}
+
+data: {"type": "finish-step"}
+
+data: {"data": {"session_id": "mock-badyear", "answer": {"answer": "In a rare bad year, **Minneapolis Hub** could lose the most days (33.5), followed by **Newark Hub** (25.4) and **Chicago Hub** (25.0).", "hubs": ["minneapolis", "newark", "chicago"], "ranking": ["minneapolis", "newark", "chicago"], "figures": [{"hub_id": "minneapolis", "label": "lost days, bad year (1 in 20)", "value": 33.5, "unit": "days", "source_tool": "rank_hubs"}, {"hub_id": "newark", "label": "lost days, bad year (1 in 20)", "value": 25.4, "unit": "days", "source_tool": "rank_hubs"}, {"hub_id": "chicago", "label": "lost days, bad year (1 in 20)", "value": 25.0, "unit": "days", "source_tool": "rank_hubs"}], "assumptions": [], "uncertainty": "Scores use the committed snapshot (FEMA NRI and Open-Meteo 2015-2025).", "data_available": true, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "d21c8052aa15483687c6778fcab8c702"}, "type": "data-answer"}
+
+data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_16d68da5a491", "role": "assistant", "turnId": null, "partIds": ["call_e2f234437914"]}, {"id": "msg_0ef5ca1bc007", "role": "tool", "turnId": null, "partIds": ["part_29da8a874ef6"]}, {"id": "msg_bf4cc8a25d44", "role": "assistant", "turnId": null, "partIds": ["part_178a06a818a5"]}]}}}
+
+data: [DONE]
+
