@@ -11,7 +11,8 @@ from openai.lib._pydantic import to_strict_json_schema
 from app import data, scoring, tools
 from app.data import NWS_URL
 
-EXPECTED_NAMES = ["list_hubs", "rank_hubs", "get_hub_risk", "compare_hubs", "weather_stat", "get_active_alerts", "what_if"]
+EXPECTED_NAMES = ["list_hubs", "rank_hubs", "get_hub_risk", "compare_hubs", "weather_stat", "get_active_alerts", "what_if",
+                  "get_hub_history"]
 
 
 @pytest.fixture(autouse=True)
@@ -248,3 +249,35 @@ async def test_compare_and_what_if_collect_notes():
     out = await tools.run_tool("what_if", json.dumps({"family_weights": None, "upgrade_costs": [{"hub_id": "St. Paul", "cost_musd": 5}]}))
     assert out["per_million_ranking"][0]["hub_id"] == "minneapolis"
     assert "St. Paul" in out["resolution_notes"][0]
+
+
+
+# ---------- get_hub_history ----------
+
+
+async def test_get_hub_history_returns_years_and_months():
+    out = await tools.run_tool("get_hub_history", json.dumps({"hub_id": "Minneapolis"}))
+    assert out["hub_id"] == "minneapolis"
+    assert [y["year"] for y in out["years"]] == list(range(2015, 2026))
+    assert len(out["months"]) == 12 and 1 <= len(out["peak_months"]) <= 3
+    assert out["worst_year"] in range(2015, 2026)
+    assert out["thresholds"]["winter"].startswith("snow >= 5 cm")
+    assert "resolution_notes" not in out
+
+
+async def test_get_hub_history_resolves_metro_cities_with_a_note():
+    out = await tools.run_tool("get_hub_history", json.dumps({"hub_id": "New York"}))
+    assert out["hub_id"] == "newark" and "New York" in out["resolution_notes"][0]
+
+
+async def test_get_hub_history_errors_are_structured():
+    for name in ("Atlantis", "Boston"):
+        out = await tools.run_tool("get_hub_history", json.dumps({"hub_id": name}))
+        assert set(out) == {"error", "retryable", "hint"}
+    assert (await tools.run_tool("get_hub_history", "{}"))["error"].startswith("invalid arguments")
+
+
+def test_get_hub_history_docstring_says_when_to_use_it():
+    doc = tools.get_hub_history.__doc__.lower()
+    for word in ("worst year", "peak", "season", "staffing", "trend", "resolution_notes"):
+        assert word in doc, word

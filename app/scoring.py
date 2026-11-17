@@ -27,14 +27,14 @@ from pydantic import BaseModel, ConfigDict
 
 from app.data import DATA_DIR, OPEN_METEO_URL
 from app.schemas import (
-    Band, BandThresholds, Family, FamilyScore, Hazard, Hub, HubScore, Metric, PerMillionHub,
-    RankedHub, Ranking, Region, ScoreKind, ScoreRow, Signal, WeatherStat, WhatIfInput, WhatIfResult,
+    Band, BandThresholds, Family, FamilyScore, Hazard, Hub, HubHistory, HubScore, Metric, MonthDays, PerMillionHub,
+    RankedHub, Ranking, Region, ScoreKind, ScoreRow, Signal, WeatherStat, WhatIfInput, WhatIfResult, YearDays,
 )
 
 __all__ = [
     "DATA_DIR", "DEFAULT_CONFIG", "DataUnavailable", "FAMILIES", "ScoringConfig", "Snapshot",
     "UPGRADE_CATEGORIES", "band", "load_hubs", "load_snapshot", "normalize", "rank", "score_all",
-    "score_rows", "weather_stat", "what_if",
+    "score_rows", "weather_stat", "what_if", "hub_history", "disruption_rules",
 ]
 
 FAMILIES: tuple[Family, ...] = ("winter", "flood", "hurricane", "severe_storm")
@@ -208,18 +208,35 @@ def _observed_days(series: dict[str, list], config: ScoringConfig) -> tuple[dict
     idx = [i for i, t in enumerate(series["time"]) if config.observed_start <= t <= config.observed_end]
     years = len(idx) / 365.25 or 1.0
     nulls = {f: sum(1 for v in vars_ for i in idx if series[v][i] is None) for f, vars_ in FAMILY_VARS.items()}
+    counts = {f: 0 for f in FAMILY_VARS}
+    for i in idx:
+        for f, hit in _disruption_day(series, i, config).items():
+            counts[f] += hit
+    return {f: counts[f] / years for f in FAMILY_VARS}, nulls
 
-    def val(var: str, i: int) -> float | None:
-        return series[var][i]
 
-    winter = sum(
-        1 for i in idx
-        if (val("snowfall_sum", i) or 0) >= config.snow_cm
-        or (val("temperature_2m_min", i) is not None and val("temperature_2m_min", i) <= config.cold_c)
-    )
-    flood = sum(1 for i in idx if (val("precipitation_sum", i) or 0) >= config.heavy_rain_mm)
-    severe = sum(1 for i in idx if (val("wind_gusts_10m_max", i) or 0) >= config.gust_kmh)
-    return {"winter": winter / years, "flood": flood / years, "severe_storm": severe / years}, nulls
+def _disruption_day(series: dict[str, list], i: int, config: ScoringConfig) -> dict[str, bool]:
+    """The observed disruption-day rules, the one place they live (KPI signal and hub history both use them).
+
+    A day can count for several families, but at most once per family.
+    """
+    snow, tmin = series["snowfall_sum"][i], series["temperature_2m_min"][i]
+    rain, gust = series["precipitation_sum"][i], series["wind_gusts_10m_max"][i]
+    return {
+        "winter": (snow or 0) >= config.snow_cm or (tmin is not None and tmin <= config.cold_c),
+        "flood": (rain or 0) >= config.heavy_rain_mm,
+        "severe_storm": (gust or 0) >= config.gust_kmh,
+    }
+
+
+def disruption_rules(config: ScoringConfig = DEFAULT_CONFIG) -> dict[str, str]:
+    """Plain-language observed disruption-day rule per family, from the same config values."""
+    return {
+        "winter": f"snow >= {config.snow_cm:g} cm or min temp <= {config.cold_c:g} °C",
+        "flood": f"precipitation >= {config.heavy_rain_mm:g} mm",
+        "severe_storm": f"max gust >= {config.gust_kmh:g} km/h",
+        "hurricane": "not observable in daily weather data (see the hurricane 10-year probability)",
+    }
 
 
 OBS_LABELS = {
@@ -617,3 +634,63 @@ def what_if(hubs: list[Hub], snapshot: Snapshot, inputs: WhatIfInput,
     )
     return WhatIfResult(kind="priority", inputs_echo=inputs, ranking=ranking, per_million_ranking=per_million,
                         note=note, data_as_of=snapshot.data_as_of)
+
+
+# ---------- observed history at the hub point ----------
+
+HISTORY_NOTE = (
+    "Observed at the hub point (ERA5 reanalysis, about 25 km grid); hurricanes are not captured by daily data, "
+    "see the hurricane probability instead; observed signal only, not FEMA's long-term frequency."
+)
+
+
+def hub_history(hubs: list[Hub], snapshot: Snapshot, hub_id: str, config: ScoringConfig = DEFAULT_CONFIG) -> HubHistory:
+    """Observed disruption days per calendar year and the average per month, at the hub point.
+
+    Same day rules as the exposure KPI's observed signal (`_disruption_day`). Full calendar years of the snapshot
+    only. Deterministic: worst year ties go to the earliest year, peak months ties to the earlier month.
+    """
+    hub = next((h for h in hubs if h.id == hub_id), None)
+    series = snapshot.weather["hubs"].get(hub_id)
+    if hub is None or series is None:
+        raise DataUnavailable(f"no weather history for hub '{hub_id}'")
+    first, last = int(snapshot.weather["start"][:4]), int(snapshot.weather["end"][:4])
+    if not snapshot.weather["start"].endswith("01-01"):
+        first += 1
+    if not snapshot.weather["end"].endswith("12-31"):
+        last -= 1
+    observed = [f for f in FAMILIES if f != "hurricane"]
+    per_year = {y: {f: 0 for f in observed} for y in range(first, last + 1)}
+    per_month = {m: {f: 0 for f in observed} for m in range(1, 13)}
+    for i, t in enumerate(series["time"]):
+        year = int(t[:4])
+        if year not in per_year:
+            continue
+        for f, hit in _disruption_day(series, i, config).items():
+            if hit:
+                per_year[year][f] += 1
+                per_month[int(t[5:7])][f] += 1
+    n_years = len(per_year) or 1
+
+    def row(counts: dict[str, float]) -> tuple[dict[Family, float], float]:
+        days = {f: _r(float(counts.get(f, 0.0)), 1) for f in FAMILIES}
+        return days, _r(sum(counts.values()), 1)
+
+    years = []
+    for y, counts in per_year.items():
+        days, total = row(counts)
+        years.append(YearDays(year=y, days=days, total=total))
+    months = []
+    month_totals = {}
+    for m, counts in per_month.items():
+        avg = {f: c / n_years for f, c in counts.items()}
+        month_totals[m] = sum(avg.values())
+        days, total = row(avg)
+        months.append(MonthDays(month=m, days=days, total=total))
+    worst = max(per_year, key=lambda y: (sum(per_year[y].values()), -y))
+    peaks = [m for m in sorted(month_totals, key=lambda m: (-month_totals[m], m)) if month_totals[m] > 0][:3]
+    return HubHistory(
+        hub_id=hub.id, name=hub.name, start_year=first, end_year=last, years=years, months=months,
+        worst_year=worst, peak_months=peaks, thresholds=disruption_rules(config), note=HISTORY_NOTE,
+        data_as_of=snapshot.weather["fetched_at"][:10],
+    )

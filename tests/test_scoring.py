@@ -402,3 +402,82 @@ def test_coastal_flood_without_exposed_area_uses_the_default_share():
     coastal = _signal(scoring.score_all(HUBS, snap)["bravo"], "flood", "coastal flood")
     assert coastal.normalized == pytest.approx(2 * 2 * 0.0405)
     assert "default share 4.05%" in coastal.note
+
+
+# ---------- observed history at the hub point (hub_history) ----------
+# alpha every year: winter Jan 1-8 (8 days), heavy rain on 3 days in April, high gusts on 2 days in July.
+
+
+def test_hub_history_counts_each_calendar_year():
+    h = scoring.hub_history(HUBS, SNAPSHOT, "alpha")
+    assert (h.hub_id, h.name, h.start_year, h.end_year) == ("alpha", "Alpha Hub", 2015, 2025)
+    assert [y.year for y in h.years] == list(range(2015, 2026))
+    y = h.years[0]
+    assert y.days == {"winter": 8.0, "flood": 3.0, "hurricane": 0.0, "severe_storm": 2.0}
+    assert y.total == 13.0
+    assert h.data_as_of == "2026-11-17"
+
+
+def test_hub_history_month_averages_and_peaks():
+    h = scoring.hub_history(HUBS, SNAPSHOT, "alpha")
+    by_month = {m.month: m for m in h.months}
+    assert sorted(by_month) == list(range(1, 13))
+    assert by_month[1].days["winter"] == 8.0 and by_month[1].total == 8.0
+    assert by_month[4].days["flood"] == 3.0
+    assert by_month[7].days["severe_storm"] == 2.0
+    assert by_month[10].total == 0.0
+    assert h.peak_months == [1, 4, 7]  # most first; only months with any disruption
+
+
+def test_hub_history_worst_year_and_ties():
+    import copy
+
+    weather = copy.deepcopy(SNAPSHOT.weather)
+    s = weather["hubs"]["alpha"]
+    for day in ("2019-02-01", "2019-02-02", "2019-11-30"):
+        s["snowfall_sum"][s["time"].index(day)] = 8.0
+    snap = scoring.Snapshot(nri=SNAPSHOT.nri, weather=weather)
+    h = scoring.hub_history(HUBS, snap, "alpha")
+    assert h.worst_year == 2019
+    assert {y.year: y.total for y in h.years}[2019] == 16.0
+    assert scoring.hub_history(HUBS, SNAPSHOT, "alpha").worst_year == 2015  # all years equal: earliest
+    feb = {m.month: m for m in h.months}[2]
+    assert feb.days["winter"] == pytest.approx(2 / 11, abs=0.05)  # 2 days in 11 years, one decimal
+
+
+def test_hub_history_counts_a_day_once_per_family():
+    import copy
+
+    weather = copy.deepcopy(SNAPSHOT.weather)
+    s = weather["hubs"]["bravo"]
+    i = s["time"].index("2020-03-15")
+    s["snowfall_sum"][i], s["temperature_2m_min"][i], s["wind_gusts_10m_max"][i] = 6.0, -20.0, 90.0
+    snap = scoring.Snapshot(nri=SNAPSHOT.nri, weather=weather)
+    y2020 = {y.year: y for y in scoring.hub_history(HUBS, snap, "bravo").years}[2020]
+    assert y2020.days["winter"] == 1.0  # snow and cold on the same day: one winter day
+    assert y2020.days["severe_storm"] == 2.0  # the usual gust day + this one
+    assert y2020.total == 1.0 + 5.0 + 2.0  # the same day counts for winter and for severe storm
+
+
+def test_hub_history_thresholds_come_from_the_scoring_config():
+    h = scoring.hub_history(HUBS, SNAPSHOT, "alpha")
+    assert h.thresholds == {
+        "winter": "snow >= 5 cm or min temp <= -18 °C",
+        "flood": "precipitation >= 50 mm",
+        "severe_storm": "max gust >= 75 km/h",
+        "hurricane": "not observable in daily weather data (see the hurricane 10-year probability)",
+    }
+    cfg = ScoringConfig(snow_cm=10)
+    h10 = scoring.hub_history(HUBS, SNAPSHOT, "alpha", cfg)
+    assert h10.thresholds["winter"] == "snow >= 10 cm or min temp <= -18 °C"
+    assert h10.years[0].days["winter"] == 8.0  # snow days are 6 cm, but the cold days still count
+    # the KPI's observed signal uses the same rule: its per-year average equals the history's
+    obs = _signal(scoring.score_all(HUBS, SNAPSHOT)["alpha"], "winter", "observed").raw
+    assert obs == pytest.approx(sum(y.days["winter"] for y in h.years) / (4018 / 365.25), abs=1e-3)
+
+
+def test_hub_history_note_and_unknown_hub():
+    h = scoring.hub_history(HUBS, SNAPSHOT, "alpha")
+    assert "hurricanes are not captured" in h.note and "ERA5" in h.note
+    with pytest.raises(DataUnavailable):
+        scoring.hub_history(HUBS, SNAPSHOT, "nowhere")
