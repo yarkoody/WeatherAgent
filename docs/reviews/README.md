@@ -1,6 +1,6 @@
 # Reviews
 
-Each piece of work was reviewed by an independent AI reviewer that had not seen the build conversation, only the spec, the plan and the code. These are short summaries: what each review found and what was done. The full exchanges are in the session transcripts in [`../session/`](../session/).
+Each piece of work was reviewed by an independent AI reviewer that had not seen the build conversation, only the spec, the plan and the code. These are short summaries: what each review found and what was done. The full exchanges are in the session transcripts, which are sent with the submission email, not kept in this public repository.
 
 ## 1. Plan review (before any code)
 **Scope:** the spec, the implementation plan and the shared contracts, read before parallel work started. Checked against the installed AI SDK source.

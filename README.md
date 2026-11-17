@@ -214,7 +214,7 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
   - Live voice: sessions share the chat limit, with a daily cap of 40 and 10 minutes each; speech only reads answers the server verified.
   - An OpenAI budget limit.
 - **Alerts:**
-  - A daily GitHub Actions job (06:00 UTC), plus a webhook endpoint, posts score changes to Discord. A real alert message reached Discord from a manual run of the check.
+  - A daily GitHub Actions job (06:00 UTC), plus a webhook endpoint, posts score changes to Discord. Tested with real Discord messages: a test message, a subscription, and a real alert sent through `POST /alerts/check`.
   - It alerts on a 5-point score change, 3 bad-year days, 10 points of hurricane probability, or a level change that is at least 2 points past the cut-off. It alerts once per new change, keeping its state between runs.
   - It compares only within one scoring formula version, so a method change resets the baseline instead of sending false alerts. The first real alert found exactly that problem.
 - **Subscriber alerts (Discord):**
@@ -290,4 +290,4 @@ Each track was reviewed by an independent reviewer before it was committed. The 
 - a rolling-window bug in the alerts
 - a UI that showed failed figures as verified
 
-Once the repo was public, the remaining work landed through pull requests, each reviewed automatically by Claude's GitHub action. The product decisions were made by me: the KPI, days per event, scope, and the formula changes after an independent review. The full AI session transcripts, the orchestrating session and every side session, are in [`docs/session/`](docs/session/).
+Once the repo was public, the remaining work landed through pull requests, each reviewed automatically by Claude's GitHub action. The product decisions were made by me: the KPI, days per event, scope, and the formula changes after an independent review. The full AI session transcripts, the orchestrating session and every side session, are sent with the submission email as a zip, not kept in this public repository, because they are personal working conversations. The plan and the design spec are in the repository, linked above.

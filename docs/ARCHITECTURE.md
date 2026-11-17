@@ -84,7 +84,7 @@ data/           hubs.json, metro_cities.json, hub_nicknames.json, snapshot/ (fet
 evals/          cases.yaml, run.py, judge.py, jev_crosscheck.py, results/
 tests/          pytest; offline, with a fake model (ai.testing.FakeModel)
 docs/           this file, ASSIGNMENT_COVERAGE.md (each line of the brief and where it is met), METHODOLOGY.md (also served in the app),
-                USER_GUIDE.md, SUBMISSION.md, api-contract.md, specs/, plans/, reviews/, session/ (the AI session transcripts)
+                USER_GUIDE.md, SUBMISSION.md, api-contract.md, specs/, plans/, reviews/
 Dockerfile, render.yaml, .github/workflows/   deploy, CI, scheduled alerts
 ```
 
