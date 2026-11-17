@@ -1,0 +1,152 @@
+[
+  {
+    "id": "chicago",
+    "name": "Chicago Hub",
+    "city": "Chicago",
+    "state": "IL",
+    "region": "Midwest",
+    "lat": 41.8781,
+    "lon": -87.6298,
+    "county_fips": "17031"
+  },
+  {
+    "id": "minneapolis",
+    "name": "Minneapolis Hub",
+    "city": "Minneapolis",
+    "state": "MN",
+    "region": "Midwest",
+    "lat": 44.9778,
+    "lon": -93.265,
+    "county_fips": "27053"
+  },
+  {
+    "id": "detroit",
+    "name": "Detroit Hub",
+    "city": "Detroit",
+    "state": "MI",
+    "region": "Midwest",
+    "lat": 42.3314,
+    "lon": -83.0458,
+    "county_fips": "26163"
+  },
+  {
+    "id": "indianapolis",
+    "name": "Indianapolis Hub",
+    "city": "Indianapolis",
+    "state": "IN",
+    "region": "Midwest",
+    "lat": 39.7684,
+    "lon": -86.1581,
+    "county_fips": "18097"
+  },
+  {
+    "id": "kansas_city",
+    "name": "Kansas City Hub",
+    "city": "Kansas City",
+    "state": "MO",
+    "region": "Midwest",
+    "lat": 39.0997,
+    "lon": -94.5786,
+    "county_fips": "29095"
+  },
+  {
+    "id": "columbus",
+    "name": "Columbus Hub",
+    "city": "Columbus",
+    "state": "OH",
+    "region": "Midwest",
+    "lat": 39.9612,
+    "lon": -82.9988,
+    "county_fips": "39049"
+  },
+  {
+    "id": "dallas",
+    "name": "Dallas Hub",
+    "city": "Dallas",
+    "state": "TX",
+    "region": "South",
+    "lat": 32.7767,
+    "lon": -96.797,
+    "county_fips": "48113"
+  },
+  {
+    "id": "houston",
+    "name": "Houston Hub",
+    "city": "Houston",
+    "state": "TX",
+    "region": "South",
+    "lat": 29.7604,
+    "lon": -95.3698,
+    "county_fips": "48201"
+  },
+  {
+    "id": "miami",
+    "name": "Miami Hub",
+    "city": "Miami",
+    "state": "FL",
+    "region": "South",
+    "lat": 25.7617,
+    "lon": -80.1918,
+    "county_fips": "12086"
+  },
+  {
+    "id": "atlanta",
+    "name": "Atlanta Hub",
+    "city": "Atlanta",
+    "state": "GA",
+    "region": "South",
+    "lat": 33.749,
+    "lon": -84.388,
+    "county_fips": "13121"
+  },
+  {
+    "id": "memphis",
+    "name": "Memphis Hub",
+    "city": "Memphis",
+    "state": "TN",
+    "region": "South",
+    "lat": 35.1495,
+    "lon": -90.049,
+    "county_fips": "47157"
+  },
+  {
+    "id": "denver",
+    "name": "Denver Hub",
+    "city": "Denver",
+    "state": "CO",
+    "region": "West",
+    "lat": 39.7392,
+    "lon": -104.9903,
+    "county_fips": "08031"
+  },
+  {
+    "id": "phoenix",
+    "name": "Phoenix Hub",
+    "city": "Phoenix",
+    "state": "AZ",
+    "region": "West",
+    "lat": 33.4484,
+    "lon": -112.074,
+    "county_fips": "04013"
+  },
+  {
+    "id": "los_angeles",
+    "name": "Los Angeles Hub",
+    "city": "Los Angeles",
+    "state": "CA",
+    "region": "West",
+    "lat": 34.0522,
+    "lon": -118.2437,
+    "county_fips": "06037"
+  },
+  {
+    "id": "newark",
+    "name": "Newark Hub",
+    "city": "Newark",
+    "state": "NJ",
+    "region": "Northeast",
+    "lat": 40.7357,
+    "lon": -74.1724,
+    "county_fips": "34013"
+  }
+]

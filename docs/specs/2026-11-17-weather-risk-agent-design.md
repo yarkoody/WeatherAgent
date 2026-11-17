@@ -96,34 +96,47 @@ Data handling:
 
 ## 6. Scoring (deterministic, `scoring.py`)
 
-All weights, caps and thresholds live in one config block. **The numbers below are the starting proposal; Eden sets the final values in a weights session before scoring is implemented, and reviews every line.**
+All weights, caps and thresholds live in `ScoringConfig` (one config block). **Final values set by Eden in the weights session on 2026-11-17**, after reviewing the real per-hub values from the snapshot, the orchestrator's severity proposal (frequency alone ignores how bad each event is) and a second opinion from JEV.
 
-### 6.1 Exposure score (0-100 per hazard family, plus overall)
+### 6.1 Exposure: expected disruption days per year
 
-Two signals per family: FEMA NRI frequency (long-term, weight 0.6) and observed weather over 2023-2025 (Open-Meteo, weight 0.4). Each raw value becomes 0-100 by dividing by a fixed cap and clipping at 100. Fixed caps, not min-max across hubs, so adding or removing a hub never changes another hub's score.
+Exposure answers "how many operating days per year does weather cost this hub?" It is built per hazard family from two signals:
 
-| Family | NRI frequency (0.6), caps in events per year | Observed (0.4) |
+- **Modeled days (FEMA NRI, weight 0.6):** sum over sub-hazards of annualized event frequency × assumed days lost per event. Hurricane has no observed signal (daily grid data does not capture hurricanes), so its NRI weight is 1.0.
+- **Observed days (Open-Meteo, 2023-2025, weight 0.4):** average days per year at the hub point over a disruption threshold.
+
+| Family | NRI sub-hazards (days lost per event) | Observed disruption day |
 |---|---|---|
-| Winter | mean of winter weather (cap 15), ice storm (cap 2), cold wave (cap 5) | mean of: % of days with snowfall >= 0.1 cm (cap 25%), % of days with min temp <= -10 °C (cap 15%) |
-| Flood | max of inland flood (cap 8), coastal flood (cap 4) | days per year with precipitation >= 25 mm (cap 15) |
-| Hurricane | hurricane (cap 0.3) | none: daily grid data does not capture hurricanes well, so NRI weight becomes 1.0 |
-| Severe storm | mean of tornado (cap 1.5), strong wind (cap 6), hail (cap 9) | days per year with max gust >= 60 km/h (cap 20) |
+| Winter | winter weather 0.5, ice storm 2, cold wave 1 | snowfall >= 5 cm or min temp <= -18 °C (0 °F) |
+| Flood | inland flood 2, coastal flood 2 | precipitation >= 50 mm |
+| Hurricane | hurricane 10 | none (NRI weight 1.0) |
+| Severe storm | tornado 0.5, strong wind 0.25, hail 0.25 | max gust >= 75 km/h |
 
-Overall exposure = weighted mean of families: winter 0.3, flood 0.3, severe storm 0.2, hurricane 0.2.
-Bands: low < 35, medium 35-60, high >= 60.
+Why these days per event: most NRI winter-weather events are advisory level and slow a hub rather than close it (0.5); a hurricane landfall closes a hub for one to two weeks, and an investment decision must weigh the bad year, not only the average (10). JEV's estimates (hurricane 3, ice 3, inland flood 3, coastal 1, winter 1, cold 1, tornado 1, wind and hail 0.5, all with low confidence) were reviewed and not adopted; JEV and this model agree on the top hazard family at 11 of 15 hubs (it rates Dallas and Atlanta as severe-storm hubs). Days per event are stated assumptions, to be fitted to company downtime logs in production. FEMA's Historic Loss Ratio is not used: it measures building damage, and would make winter weather (which closes roads, not buildings) close to zero.
+
+**Large counties:** NRI counts events anywhere in the county. For local hazards (inland flood, tornado, strong wind, hail) the count is scaled by min(1, 1,000 sq mi ÷ county area), i.e. the events within roughly an 18-mile radius of the hub. Small counties are never scaled up, because a hub is hit by events just outside its county line. Example: Maricopa (Phoenix, 9,319 sq mi) inland flood 8.46 events/yr × 0.11.
+
+**Null NRI values** (the hazard does not occur in that county, e.g. coastal flood inland) count as 0 with the signal note "missing in NRI".
+
+**Exposure index (0-100)** = min(total days ÷ 25, 1) × 100, where total days is the sum of the four families. Each family score uses the same formula on its own days, so family scores add up to the exposure index (before clipping). Fixed cap, not min-max across hubs, so adding or removing a hub never changes another hub's score. Only Minneapolis (26.3 days) reaches the cap.
+
+**Bands:** low < 35, medium 35 to < 60, high >= 60 on the index, which is **under 8.75, 8.75 to 15, and 15 or more disruption days per year**. On the 2026-11-17 snapshot: 3 low, 7 medium, 5 high.
+
+Each signal in the breakdown reports `raw` (events/year or days/year), `normalized` (disruption days/year implied by that signal), `weight` (0.6, 0.4 or 1.0) and `contribution` (weighted days/year). `family_weights` in a hub score is each family's share of the hub's total days, in percent (0-100). Every `band_thresholds` also carries the cut-offs in days (`days_cap` 25, `medium_from_days` 8.75, `high_from_days` 15). Observed days per year = event days ÷ (days in the window ÷ 365.25), so a window that is not calendar-aligned is not understated; each observed signal's note states how many null values the window had. `exposure_days_per_year` (hub) and `days_per_year` (family) carry the days themselves, unclipped, rounded to 1 decimal.
 
 ### 6.2 Priority score (0-100)
 
-priority = 0.6 × overall exposure + 0.25 × people served + 0.15 × resilience gap
-- people served = county population ÷ 5,000,000, clipped at 100 (county population is a proxy; a regional hub serves more than its county).
+priority = 0.6 × exposure index + 0.25 × people served + 0.15 × resilience gap
+- people served = county population ÷ 5,000,000 × 100, clipped at 100 (county population is a proxy; a regional hub serves more than its county).
 - resilience gap = 100 − FEMA community resilience score (low resilience means disruption hurts more and recovery is slower).
+- Trade-off Eden accepted: large, low-resilience counties rank high even with low weather exposure (Los Angeles: exposure 28.9, priority 55.3). Alternatives reviewed: 0.7 / 0.2 / 0.1 and 0.8 / 0.1 / 0.1.
 
 ### 6.3 Breakdown and upgrade types
 - Every score returns its breakdown: each signal's raw value, normalized value, weight, contribution and source. The top driver is the largest weighted contribution. "Why is X high" answers are built from this.
 - A fixed table maps the top hazard family to typical upgrade categories, for example winter: winterized fleet, snow and ice removal, heated docks; flood: drainage, raised docks, flood barriers; hurricane: wind-rated roofing, backup generators, pre-positioned inventory; severe storm: roof and hail hardening, covered loading, backup power. Labeled "typical mitigation categories, not a costed plan".
 
 ### 6.4 What-if (analyst inputs)
-`what_if` recomputes the priority ranking with analyst-supplied overrides: family weights, and optional upgrade cost per hub (USD millions), in which case it also ranks by priority per million. (Signal-level weight overrides are out of scope.) Inputs are validated (ranges, known hubs) and echoed back; answers must label them "analyst-supplied".
+`what_if` recomputes the priority ranking with analyst-supplied overrides: family weights (how much one disruption day from each family counts; default equal, renormalized to sum 1), and optional upgrade cost per hub (USD millions), in which case it also ranks by priority per million. (Signal-level weight overrides are out of scope.) Inputs are validated (ranges, known hubs) and echoed back; answers must label them "analyst-supplied".
 
 Known limitations (README): NRI is county-level and modeled; Open-Meteo is reanalysis grid data, not station observations; population is a county proxy; weights are judgment calls not fitted to loss data (no loss data exists for us).
 
