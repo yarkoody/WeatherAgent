@@ -1,8 +1,10 @@
-import { BookOpenIcon, MenuIcon, PlusIcon } from 'lucide-react'
+import { BookOpenIcon, MenuIcon, PlusIcon, SendIcon } from 'lucide-react'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { lazyWithReload } from '@/lib/chunkReload'
 import { Settings } from '@/components/SettingsPanel'
 import { MethodologyHost } from '@/components/MethodologyHost'
+import { SendAlertsHost } from '@/components/SendAlertsPanel'
+import { openSendSettings } from '@/lib/send'
 import { openMethodology } from '@/lib/methodology'
 import { DebugProvider, readDebugFlag, saveDebugFlag } from '@/lib/debug'
 import { useThemePref } from '@/lib/theme'
@@ -98,6 +100,10 @@ export default function App() {
       onDeleted={onDeleted}
       footer={
         <>
+          <Button variant="ghost" className="w-full justify-start gap-2 px-2 text-sm font-normal" onClick={() => openSendSettings()}>
+            <SendIcon />
+            Send &amp; alerts
+          </Button>
           <Button variant="ghost" className="w-full justify-start gap-2 px-2 text-sm font-normal" onClick={() => openMethodology()}>
             <BookOpenIcon />
             Methodology
@@ -113,6 +119,7 @@ export default function App() {
   return (
     <DebugProvider debug={debug}>
       <MethodologyHost />
+      <SendAlertsHost />
     <TooltipProvider>
       <div className="flex h-dvh flex-col">
         <header className="glass-bar relative z-20">

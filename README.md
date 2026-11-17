@@ -23,6 +23,7 @@ What the app can do:
 - **What-if:** sliders and costs on the Scores tab, and a per-$1M table in the chat once you give upgrade costs.
 - **Show the math:** each hub's own calculation step by step (KaTeX), and the full methodology inside the app.
 - **Export:** CSV of the scores table and a print-to-PDF report.
+- **Score-change alerts to your own Discord channel:** set up under **Send & alerts** in the sidebar (Slack is not supported yet).
 - **Interface:** voice input and read-aloud, light and dark themes.
 - **Live voice (Chrome and Edge):** a hands-free conversation. You talk, the agent answers through the normal checked flow, and the verified answer is read aloud in a natural voice. Talk over it to interrupt. See [Live voice](#live-voice-and-web-search).
 - **Web search for current news:** "Is a storm closing the Port of Houston this week?" The agent searches the web for context the data snapshot can't have. Web content is labeled "From the web, not from our scoring data" and linked, and it never feeds a score.
@@ -215,6 +216,15 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
   - A daily GitHub Actions job, plus a webhook endpoint, posts score changes to Discord. Verified with a real message.
   - It alerts on a 5-point score change, 3 bad-year days, 10 points of hurricane probability, or a level change that is at least 2 points past the cut-off. It alerts once per new change, keeping its state between runs.
   - It compares only within one scoring formula version, so a method change resets the baseline instead of sending false alerts. The first real alert found exactly that problem.
+- **Subscriber alerts (Discord):**
+  - **Send & alerts** in the sidebar subscribes a Discord webhook (`POST /alerts/subscribe`, `/alerts/unsubscribe`). When `check_alerts` finds a change, it posts to `ALERT_WEBHOOK_URL` and then to every subscriber. A webhook Discord no longer knows is removed.
+  - **Discord URL check:**
+    - The server accepts only Discord webhook URLs: `https`, host exactly `discord.com` or `discordapp.com` (no port, user info or IP literal), and path `/api/webhooks/<id>/<token>` with no query.
+    - It follows no redirects, times out after 5 s, never logs the URL, and sends with mentions disabled, so a message can't ping `@everyone`.
+    - `POST /send/discord` only sends a fixed "test message" to such a URL.
+  - **Against abuse:**
+    - Subscribing posts a confirmation first, so a dead webhook is never stored.
+    - 5 requests a minute per IP, and 50 subscriptions in all.
 - **Observability:** every turn writes a JSONL trace with tool calls, latency, tokens, cost and the grounding result.
 - **No write actions:** the agent has none, so there is no approval step or human handoff. It hands the decision back to the analyst with explicit assumptions.
 
@@ -233,6 +243,10 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
 - **The hub's exact location relative to the flood zone is unknown,** so coastal flood uses the county's flood-zone share.
 - **FEMA NRI is county-level and modeled,** and Open-Meteo is reanalysis grid data, not station observations.
 - **Metro population is a proxy** for the people a hub serves. A hub serves part of its metro and places beyond it, and New York's 20.1M counts fully for Newark.
+- **Subscriber alerts are a demo, with real limits:**
+  - Subscriptions are stored in SQLite on Render's disk, which resets on every deploy, so a redeploy forgets them (the panel says so).
+  - The live server scores the committed snapshot, so its scores change only when the snapshot is refreshed and redeployed, which also clears the subscriptions. In practice a subscriber gets an alert when an operator runs `POST /alerts/check?demo_window=2015-2017` (with `X-Alert-Token`), which rescores the snapshot on other years, as `python -m app.alerts --demo-window` does, or for a severe live NWS alert at a hub.
+  - The daily GitHub Actions job runs the check in the runner with fresh weather and posts only to `ALERT_WEBHOOK_URL`. It does not reach subscribers, because they live on the server. The next step is for the job to send its alert text to a token-protected endpoint on the server, which then fans it out. We did not switch the job to call `/alerts/check`: that would score the snapshot instead of fresh weather, and keep the alert state on a disk that resets on deploy.
 - **Render's free plan:** the disk resets on deploy. Chats are kept in the browser and sent back with each request, so the server rebuilds context after a restart, but server-side traces and history are lost.
 - **Latency:** 10-20 s per answer.
 - **Voice:** dictation uses the browser Web Speech API, and live voice uses WebRTC. Both work in Chrome and Edge only.
@@ -259,6 +273,7 @@ The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crossc
 - LangGraph if the flow grows approval steps or long-running state.
 - Server-side speech-to-text for all browsers.
 - Postgres, SSO, LangSmith or Langfuse.
+- Slack as a third alert channel, and subscriber alerts from the daily job (see Limitations).
 
 ## How this was built
 

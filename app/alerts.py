@@ -4,7 +4,8 @@ Recompute scores, compare with the committed baseline `data/snapshot/score_basel
 and report every hub whose exposure or priority moved by 5 points or more, or whose band
 changed. Also reports active Severe or Extreme NWS alerts at the hubs. Delivery: a JSON
 POST to ALERT_WEBHOOK_URL, or a line in logs/alerts.jsonl when no URL is set (or the
-webhook fails).
+webhook fails). The same text then goes to every Discord webhook subscribed in the store
+(POST /alerts/subscribe); a subscriber that fails never blocks the others or the state.
 
     python -m app.alerts                       # fresh weather, rolling window as long as the scoring window
     python -m app.alerts --snapshot            # committed snapshot as is
@@ -295,6 +296,9 @@ def check_alerts(
             _append_jsonl(log_path, payload)
 
     sent = delivered == "webhook" or (delivered == "jsonl" and not webhook_url)
+    # Subscribers get an alert only once it counts as sent: a failed main webhook keeps the state, the next run
+    # sends the same alert again, and subscribers then get it once instead of twice.
+    subscribers = fan_out(store, text) if sent and delivered else dict(NO_FAN_OUT)
     if update_baseline:
         state["hubs"] = {}  # the new baseline is the reference again
         state["scoring_version"] = current
@@ -314,7 +318,28 @@ def check_alerts(
         "delivered": delivered,
         "baseline_created": baseline_created,
         "formula_reset": reset,
+        "subscribers": subscribers,
     }
+
+
+NO_FAN_OUT = {"sent": 0, "failed": 0, "removed": 0}
+
+
+def fan_out(store: Store, text: str) -> dict[str, int]:
+    """Post the alert text to every subscribed Discord webhook. A webhook Discord no longer knows is removed."""
+    from app import send
+
+    counts = dict(NO_FAN_OUT)
+    for url in store.subscriptions():
+        try:
+            send.post_discord(url, text)
+            counts["sent"] += 1
+        except (send.SendError, ValueError) as exc:
+            counts["failed"] += 1
+            if isinstance(exc, ValueError) or exc.status == 404:
+                store.remove_subscription(url)
+                counts["removed"] += 1
+    return counts
 
 
 # ---------- real scoring and data (Track A), imported lazily ----------

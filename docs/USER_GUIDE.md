@@ -78,6 +78,19 @@ Press × to stop. A session ends by itself after 10 minutes. An answer whose num
 - **See the math** (in each hub breakdown) shows that hub's own calculation step by step: each hazard's FEMA events × days per event, the 60/40 blend with observed days, the bad-year split, and the review priority formula. "≈" marks a line whose parts were rounded separately.
 - **Methodology** (sidebar) opens the full method document inside the app.
 
+## Score-change alerts (Send & alerts)
+
+Open **Send & alerts** in the sidebar (above Methodology). It posts a message to your Discord channel when a hub's exposure or review priority moves 5 points or more, or its level changes, and for severe live NWS alerts at a hub.
+
+- Paste a webhook URL from your Discord channel: channel settings, Integrations, Webhooks, New Webhook, Copy Webhook URL. Only `https://discord.com/api/webhooks/...` URLs are accepted.
+- **Send test message** checks that it works.
+- **Alert this channel when a hub's score changes** subscribes it, and a confirmation is posted to the channel. Turning it off unsubscribes. Changing the webhook turns its alerts off.
+- Treat the URL like a password: anyone who has it can post to that channel.
+- This is a demo, with limits:
+  - Scores change only when the data is refreshed, so alerts are rare.
+  - The server forgets subscriptions when it is redeployed. If alerts stop, turn the switch off and on again.
+  - Turning alerts on stores the webhook URL on the server until you turn them off.
+
 ## Scores: the table and map
 
 - **The map** colors each hub by its biggest risk, or by people impact. Click a dot, or the pin on a table row, to open that hub's breakdown and history beside the map. Zoom with the buttons, a pinch, or Ctrl/⌘ + scroll.

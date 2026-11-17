@@ -1,4 +1,4 @@
-"""FastAPI app: /chat (AI SDK UI stream), /chat/json, /voice/session, /voice/speak, /hubs, /scores, /alerts/check, /health.
+"""FastAPI app: /chat (AI SDK UI stream), /chat/json, /voice/session, /voice/speak, /hubs, /scores, /send/discord, /alerts/*, /health.
 
 Everything heavy (model, store, scoring data) is resolved on first use, so importing
 this module needs no API key and no data files.
@@ -12,6 +12,7 @@ import hmac
 import logging
 import math
 import os
+import re
 import threading
 import time
 import uuid
@@ -26,7 +27,7 @@ from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app import agent, voice
 from app.schemas import ChatRequest, ChatResponse, Hub, HubHistory, HubScore, ScoreRow, SecondOpinion, WhatIfInput, WhatIfResult
@@ -35,6 +36,12 @@ from app.store import Store, Tracer
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 MAX_MESSAGE_CHARS = 2000
+TEST_TEXT = "Test message from Hub Weather Risk. This webhook works: score-change alerts you turn on will appear here."
+SUBSCRIBED_TEXT = (
+    "This channel now gets Hub Weather Risk score-change alerts: a message when a hub's score moves 5 points or more, or its "
+    "level changes, and for severe live NWS alerts at a hub. Scores change only when the data is refreshed, and this "
+    "demo forgets subscriptions when it is redeployed."
+)
 UNAVAILABLE = "The model or an upstream service is unavailable. Please try again later."
 log = logging.getLogger("app.api")
 
@@ -99,6 +106,14 @@ class UIChatRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
     id: str | None = None
     messages: list[dict[str, Any]]
+
+
+class WebhookBody(BaseModel):
+    webhook_url: str = Field(max_length=300)
+
+
+MAX_SUBSCRIPTIONS = 50
+FULL = "This demo already has the maximum number of alert subscriptions."
 
 
 def last_user_text(messages: list[dict[str, Any]]) -> str | None:
@@ -267,6 +282,8 @@ def create_app(
     # can never lock out the chat.
     limiter = RateLimiter(_env_int("RATE_LIMIT_PER_MIN", 10), _env_int("DAILY_REQUEST_CAP", 300))
     read_limiter = RateLimiter(_env_int("READ_RATE_LIMIT_PER_MIN", 120), 10**9)
+    # Subscribing posts a confirmation and writes a row: a tight limit, so the table cannot be filled in a burst.
+    subscribe_limiter = RateLimiter(_env_int("SUBSCRIBE_RATE_LIMIT_PER_MIN", 5), _env_int("SUBSCRIBE_DAILY_CAP", 200))
     proxy_hops = _env_int("TRUSTED_PROXY_HOPS", 1)
     ip_header = os.environ.get("CLIENT_IP_HEADER", "").strip().lower()
     alert_token = os.environ.get("ALERT_TOKEN", "")
@@ -498,11 +515,74 @@ def create_app(
         tmp.replace(opinion_path)
         return result
 
+    def checked_webhook(url: str) -> str:
+        from app import send
+
+        try:
+            return send.validate_discord_webhook(url)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    def deliver(url: str, text: str) -> None:
+        from app import send
+
+        try:
+            send.post_discord(url, text)
+        except send.SendError as exc:
+            raise HTTPException(exc.status, exc.message) from exc
+
+    @app.post("/send/discord")
+    def send_discord(body: WebhookBody, request: Request) -> dict[str, str]:
+        """Post a fixed test message to a Discord webhook ("Send test message"). Discord webhook URLs only, never logged."""
+        url = checked_webhook(body.webhook_url)
+        limit(request, subscribe_limiter)
+        deliver(url, TEST_TEXT)
+        return {"status": "sent"}
+
+    @app.post("/alerts/subscribe")
+    def alerts_subscribe(body: WebhookBody, request: Request) -> dict[str, str]:
+        """Send score-change alerts to this Discord webhook too. A confirmation is posted first, so a dead URL is never stored."""
+        url = checked_webhook(body.webhook_url)
+        limit(request, subscribe_limiter)
+        store_ = get("store")
+        existing = store_.subscriptions()
+        if url in existing:
+            return {"status": "already_subscribed"}
+        if len(existing) >= MAX_SUBSCRIPTIONS:
+            raise HTTPException(409, FULL)
+        deliver(url, SUBSCRIBED_TEXT)
+        result = store_.add_subscription(url, MAX_SUBSCRIPTIONS)
+        if result == "full":
+            raise HTTPException(409, FULL)
+        return {"status": "subscribed" if result == "added" else "already_subscribed"}
+
+    @app.post("/alerts/unsubscribe")
+    def alerts_unsubscribe(body: WebhookBody, request: Request) -> dict[str, str]:
+        url = checked_webhook(body.webhook_url)
+        limit(request, subscribe_limiter)
+        return {"status": "unsubscribed" if get("store").remove_subscription(url) else "not_subscribed"}
+
     @app.post("/alerts/check")
-    def alerts_check(x_alert_token: str | None = Header(default=None)) -> dict[str, Any]:
+    def alerts_check(x_alert_token: str | None = Header(default=None), demo_window: str | None = None) -> dict[str, Any]:
+        """Run the score-change check here and post to ALERT_WEBHOOK_URL and every subscriber.
+
+        demo_window=YYYY-YYYY rescores the snapshot on those observed years (as `python -m app.alerts --demo-window`),
+        so an operator can show a real alert: the snapshot's own scores do not change between deploys.
+        """
         if not alert_token or not hmac.compare_digest((x_alert_token or "").encode(), alert_token.encode()):
             raise HTTPException(401, "Missing or wrong X-Alert-Token.")
         from app import alerts
+
+        compute = rows
+        if demo_window is not None:
+            m = re.fullmatch(r"(\d{4})-(\d{4})", demo_window)
+            if not m or not 1950 <= int(m[1]) <= int(m[2]) <= 2100:
+                raise HTTPException(422, "demo_window must look like 2015-2017.")
+
+            def compute() -> list[ScoreRow]:
+                from app import scoring
+
+                return alerts._score_rows(scoring.load_snapshot(), (f"{m[1]}-01-01", f"{m[2]}-12-31"))
 
         kwargs: dict[str, Any] = {}
         if baseline_path is not None:
@@ -511,7 +591,7 @@ def create_app(
             kwargs["log_path"] = alerts_log
             kwargs["state_path"] = alerts_log.with_name("alert_state.json")
         return alerts.check_alerts(
-            get("store"), rows, webhook_url, nws_fetch if nws_fetch is not None else alerts.fetch_severe_nws, **kwargs
+            get("store"), compute, webhook_url, nws_fetch if nws_fetch is not None else alerts.fetch_severe_nws, **kwargs
         )
 
     dist = ROOT / "web" / "dist"
