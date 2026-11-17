@@ -78,6 +78,9 @@ class Oracle:
         s = self.scores[hub_id]
         return s.exposure_band if kind == "exposure" else s.priority_band
 
+    def history(self, hub_id: str):
+        return self.scoring.hub_history(self.hubs, self.snapshot, hub_id)
+
     def signal_raw(self, hub_id: str, prefix: str) -> float:
         """Raw value of a priority signal, e.g. 'people served' (county population)."""
         return next(s.raw for s in self.scores[hub_id].priority_signals if s.name.startswith(prefix))
@@ -266,6 +269,17 @@ def check_run(run: Run, case: dict, oracle: Oracle) -> None:
         what = spec.get("family") or spec.get("score")
         add(("score_figure", ok, "" if ok else f"no figure for {spec['hub_id']} {what} matching the code values {values}"))
 
+    if "history" in expect:
+        import calendar
+
+        hist = oracle.history(expect["history"]["hub_id"])
+        missing = [calendar.month_name[mo] for mo in hist.peak_months
+                   if not re.search(rf"\b({calendar.month_name[mo]}|{calendar.month_abbr[mo]})\b", text)]
+        has_year = re.search(rf"\b{hist.worst_year}\b", text) is not None
+        ok = not missing and has_year
+        add(("history", ok, "" if ok else f"oracle peak months {hist.peak_months}, worst year {hist.worst_year}; "
+                                          f"missing months {missing}, worst year named: {has_year}"))
+
     if "compact_figure" in expect:
         from app.grounding import cites_compact
 
@@ -338,6 +352,109 @@ async def judge_run(run: Run, case: dict, oracle: Oracle, model, sem: asyncio.Se
     ok = verdict["passed"] is True
     run.checks.append(("judge_top_driver", ok,
                        "" if ok else f"expected {family} ({lens}) for {hub_id}: {verdict['reason']}"))
+
+
+
+# ---------- grounding breakdown (retries and failures: cited field vs the field that holds the number) ----------
+
+_FIG_ERR = [
+    re.compile(r"Figure '(?P<label>.+?)' \(value (?P<v>[-\d.e+]+)\) cites tool (?P<tool>\w+), but no (?P=tool) result"),
+    re.compile(r"Figure '(?P<label>.+?)' \(value (?P<v>[-\d.e+]+)\) cites (?P<tool>\w+)\.(?P<field>\w+)"
+               r"(?: \(family (?P<fam>\w+)\))? for (?P<who>hub \w+|a general figure \(hub_id null\)), but that result has no such field"),
+    re.compile(r"Figure '(?P<label>.+?)' cites (?P<tool>\w+)\.(?P<field>\w+)(?: \(family (?P<fam>\w+)\))? "
+               r"for (?P<who>hub \w+|a general figure \(hub_id null\)) as (?P<v>[-\d.e+]+), but that field is (?P<actual>.+?)\. Copy"),
+]
+_OFFLINE_TOOLS = {"list_hubs", "rank_hubs", "get_hub_risk", "compare_hubs", "weather_stat", "what_if", "get_hub_history"}
+
+
+async def _replay(events: list[dict]) -> list:
+    """Re-run a turn's deterministic tool calls offline to see which field holds a number."""
+    from app import grounding, tools
+
+    out = []
+    for e in events:
+        if e["kind"] == "tool_call" and e.get("name") in _OFFLINE_TOOLS and not e.get("error"):
+            out.append(grounding.ToolOutput(e["name"], await tools.run_tool(e["name"], json.dumps(e.get("args") or {}))))
+    return out
+
+
+def _holders(value: float, hub: str | None, outputs: list) -> list[str]:
+    from app.grounding import leaves, matches
+
+    found = []
+    for o in outputs:
+        for leaf in leaves(o.result):
+            if matches(value, leaf.value) and (hub is None or leaf.hub == hub):
+                where = f"{o.tool}.{leaf.field}" + (f" [{leaf.family}]" if leaf.family else "") + (f" @{leaf.hub}" if leaf.hub and hub is None else "")
+                if where not in found:
+                    found.append(where)
+    return found[:3]
+
+
+def _describe(error: str, outputs: list) -> tuple[str, str, str]:
+    """(kind, what the model cited, where the number really is)."""
+    for rx in _FIG_ERR:
+        m = rx.search(error)
+        if not m:
+            continue
+        g = m.groupdict()
+        hub = g.get("who", "hub ?")[4:] if (g.get("who") or "").startswith("hub ") else None
+        cited = f"{g['tool']}.{g.get('field') or '?'}" + (f" [{g['fam']}]" if g.get("fam") else "") + f" @{hub or 'null'}"
+        cited += f" = {g['v']}" if g.get("v") else ""
+        holders = _holders(float(g["v"]), hub, outputs) if g.get("v") else []
+        actual = f" (field holds {g['actual']})" if g.get("actual") else ""
+        return "figure", f"'{g['label']}': {cited}{actual}", ", ".join(holders) or "no tool field holds it"
+    if "not in figures" in error:
+        return "text number", error.split(" text ")[-1][:90], "-"
+    if "ranking" in error.lower():
+        return "ranking", error[:90], "-"
+    return "other", error[:90], "-"
+
+
+async def grounding_breakdown(runs: list[Run], traces: dict[str, list[dict]]) -> str:
+    counts = {"pass": 0, "retried": 0, "failed": 0, "error": 0}
+    rows = []
+    for r in runs:
+        for i, turn in enumerate(r.turns):
+            if turn.response is None:
+                counts["error"] += 1
+                continue
+            status = turn.response.grounding.status
+            counts[status] += 1
+            if status == "pass":
+                continue
+            events = traces.get(turn.response.trace_id, [])
+            g = next((e for e in events if e["kind"] == "grounding"), {})
+            outputs = []
+            for t in r.turns[: i + 1]:  # this turn and the earlier turns of the session (grounding sees both)
+                outputs += await _replay(traces.get(t.response.trace_id, []) if t.response else [])
+            attempts = [("first", g.get("first_errors") or [])]
+            if status == "failed":
+                attempts.append(("retry", turn.response.grounding.errors))
+            for attempt, errors in attempts:
+                for err in errors:
+                    kind, cited, holder = _describe(err, outputs)
+                    rows.append(f"| {r.case_id} t{i + 1} | {status} | {attempt} | {kind} | {cited.replace('|', '/')} | {holder} |")
+    total = sum(counts.values())
+    lines = [
+        "## Grounding breakdown",
+        "",
+        f"Turns: {total}. First try: {counts['pass']}. Passed after one retry: {counts['retried']}. "
+        f"Failed after the retry: {counts['failed']}. Turn errors: {counts['error']}.",
+        "",
+    ]
+    if rows:
+        lines += [
+            "For each retried or failed turn, every grounding error: what the model cited (tool.field [family] @hub = value) "
+            "and which field of that turn's tool results actually holds the number (tools re-run offline).",
+            "",
+            "| Case, turn | Status | Attempt | Error kind | Model cited | Field that holds the number |",
+            "|---|---|---|---|---|---|",
+            *rows,
+        ]
+    else:
+        lines.append("No grounding errors in this run.")
+    return "\n".join(lines + [""])
 
 
 # ---------- report ----------
@@ -476,6 +593,13 @@ async def main() -> None:
     tmp = Path(tempfile.mkdtemp(prefix="weather-evals-"))
     out = args.out or (tmp / "latest.md" if args.only else LATEST)
     oracle = Oracle()
+    from evals.probes import report as probe_report, run_probes_async
+
+    probe_rows = await run_probes_async()  # offline, before any model call
+    probe_section = probe_report(probe_rows)
+    if not all(r["ok"] for r in probe_rows if not r["known_limit"]):
+        print(probe_section)
+        raise SystemExit("Offline grounding probes failed: grounding accepted a mis-cited figure. Fix grounding first.")
     model = get_model()
     store, tracer = Store(tmp / "app.db"), Tracer(tmp / "traces.jsonl")
     sem = asyncio.Semaphore(max(1, args.concurrency))
@@ -498,6 +622,8 @@ async def main() -> None:
         "command": "uv run python -m evals.run" + (f" --only {args.only}" if args.only else ""),
     }
     report = build_report(cases, runs, meta)
+    breakdown = await grounding_breakdown(runs, traces)
+    report = report.replace("## Per case\n", probe_section + "\n" + breakdown + "\n## Per case\n", 1)
     print("\n" + report)
     analysis = preserved_analysis(out)
     out.parent.mkdir(parents=True, exist_ok=True)
