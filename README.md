@@ -110,7 +110,7 @@ The KPI answers the question a logistics planner asks: **how many operating days
 | Fixed caps and thresholds, not min-max across hubs | Adding a hub never changes another hub's score, and "5 days a year" means something to an operator | The caps are judgment calls, shown in a sensitivity table |
 | Snapshot in git, SQLite for state | Reproducible, runs from a clean clone, the demo doesn't depend on third-party uptime | Not multi-instance; the scale path is in ARCHITECTURE.md |
 | Answers never streamed | Grounding must run before numbers are shown | Slower first paint, mitigated by live tool-progress steps |
-| JEV as an offline second opinion only | Scoring must be deterministic and auditable. JEV is a learned model | Its findings are reported, not applied |
+| JEV used offline as a development check, not in the product | Scoring must be deterministic and auditable, and JEV is a learned model. In the UI, an agreement percentage didn't help an analyst decide anything | The cross-check stays in `evals/` as a calibration tool for whoever maintains the formula |
 
 ## Evaluation
 
@@ -140,6 +140,8 @@ One LLM-judge rubric checks that each explanation names the hub's actual top dri
 Per-case results and the failure analysis of every run, including what earlier failures taught and changed, are in [`evals/results/latest.md`](evals/results/latest.md).
 
 The second opinion: [`evals/results/jev_crosscheck.md`](evals/results/jev_crosscheck.md) compares our hazard bands with TypeSafe's JEV decision model, which rates hubs from the same raw signals. On formula v1 it agreed on only 40% of bands, while ranking hubs almost the same way (winter +0.98). That exposed miscalibrated per-hazard bands. On v2, band agreement rose to 65%. It also showed JEV's own blind spot: it rated Miami's hurricane risk at 4%, because "0.3 events a year" means little without domain scale. That is why it advises and doesn't decide.
+
+**Why JEV is not in the app.** An earlier version showed JEV's agreement on the Scores page. Testing the live app showed the column didn't help an analyst decide anything. "65% agreement" and per-hazard rank correlations need a paragraph of explanation, and the low flood and hurricane numbers read as "the model is wrong", when they really reflect JEV's lack of domain scale. Its value was to the person building the formula: it found the band miscalibration. So it stays as an offline development check (`make jev`, `evals/results/jev_crosscheck.md`), and the product shows only the formula's own explanation.
 
 ## Reliability and guardrails
 

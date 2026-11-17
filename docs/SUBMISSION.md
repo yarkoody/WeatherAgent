@@ -15,7 +15,7 @@ An AI agent for a logistics company's analysts. It answers questions about which
 ## Evidence that it works
 - **Evals:** 30 cases against the real model with an oracle: the brief's questions, follow-ups, determinism, a false premise, missing data, city resolution, history, prompt injection, and recommendations. Last run: 30/30 passed. Tool selection was 100% correct, grounding passed on the first try in 33/36 turns (the rest after one retry, none failed), turns averaged about 10 s, and the run cost about $1.01.
 - **Independent reviews:** every part was reviewed before merge. Each review's findings and fixes are summarized in `docs/reviews/`.
-- **Second opinion:** an offline cross-check against TypeSafe's JEV decision model. It never changes scores. It exposed miscalibrated hazard bands in v1, and band agreement rose from 40% to 65% in v2.
+- **Second opinion (development only):** an offline cross-check against TypeSafe's JEV decision model. It exposed miscalibrated hazard bands in v1, and band agreement rose from 40% to 65% in v2. It was removed from the UI because an agreement score didn't help an analyst decide anything.
 
 ## Key decisions
 - **A bounded agent instead of a router workflow**, because analysts ask open, combined questions. Numbers stay in code.

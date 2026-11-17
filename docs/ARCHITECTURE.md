@@ -26,7 +26,7 @@ flowchart LR
   AG --> ST
   API --> UI
   GHA[GitHub Actions, daily] -->|python -m app.alerts| ALR[app/alerts.py] -->|webhook| DIS[Discord]
-  JEV[make jev, offline] -->|TypeSafe JEV| OPN[(data/jev_second_opinion.json)] --> API
+  JEV[make jev, offline dev check] -->|TypeSafe JEV| OPN[(data/jev_second_opinion.json)]
 ```
 
 ### Components
@@ -41,7 +41,7 @@ flowchart LR
 | **Grounding** (`app/grounding.py`) | Checks that every figure matches the exact field it cites (tool, field, hub, family), that every number in the answer, its assumptions and its uncertainty is one of those figures, and that rankings keep the code's order. On failure it retries once, then marks the answer "unverified". | Agent |
 | **Store** (`app/store.py`) | SQLite tables for conversations, score history and alerts. JSONL traces record every step (LLM calls, tool calls, grounding, tokens, cost). | API, agent, alerts |
 | **Alerts** (`app/alerts.py`) | Recomputes scores and compares them with the committed baseline. Changes of 5 or more points, or a band change, go to the webhook. | GitHub Actions (daily), `POST /alerts/check` |
-| **Second opinion** (`app/second_opinion.py`) | Offline. TypeSafe's JEV rates each hub from raw signals only, and the result is saved to a file. It never changes scores. | `make jev`, `GET /second-opinion` |
+| **Second opinion** (`app/second_opinion.py`) | Offline. TypeSafe's JEV rates each hub from raw signals only, and the result is saved to a file. It never changes scores. | `make jev` (development check, not shown in the UI) |
 
 ### One chat turn
 
