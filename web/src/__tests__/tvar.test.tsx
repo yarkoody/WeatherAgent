@@ -22,7 +22,7 @@ function withShares(shares: Record<'winter' | 'flood' | 'hurricane' | 'severe_st
 describe('bad-year wording (TVaR95)', () => {
   it('defines the bad year as the average of the worst 1 year in 20', () => {
     expect(LENS_EXPLAINER).toBe(
-      'Both are modeled lost days (estimates). Typical year is the modeled average. Bad year is the average across the worst 1 year in 20, because averages hide rare, severe events such as hurricanes.',
+      'Both are lost operating days (modeled estimates). Typical year is the modeled average. Bad year is the average across the worst 1 year in 20, because averages hide rare, severe events such as hurricanes.',
     )
     expect(LENS_EXPLAINER).not.toMatch(/1\\.645|standard deviation/)
   })
@@ -60,7 +60,7 @@ describe('bad-year ranking without bands', () => {
   it('renders with band null and shows no band label', () => {
     const bad: Ranking = { ...ranking, kind: 'bad_year', hazard: 'overall', region: null, items: ranking.items.map((i) => ({ ...i, band: null })) }
     const { container } = render(<RankingWidget data={bad} />)
-    expect(screen.getByRole('heading')).toHaveTextContent('Bad-year disruption days (1 in 20)')
+    expect(screen.getByRole('heading')).toHaveTextContent('Bad-year lost operating days')
     const fills = [...container.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))
     expect(fills.length).toBe(bad.items.length)
     expect(new Set(fills).size).toBe(1) // one neutral color, not band colors

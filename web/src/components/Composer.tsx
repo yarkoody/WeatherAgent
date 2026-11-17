@@ -16,9 +16,12 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
   // Dictation appends to whatever was already typed.
   const base = useRef('')
   const dictation = useDictation((t) => setText(base.current ? `${base.current} ${t}` : t))
+  const input = useRef<HTMLTextAreaElement>(null)
   const startDictation = () => {
     base.current = text.trim()
     dictation.start()
+    // Keep the keyboard in the text box, so Enter sends (focus left on the mic button made Enter stop listening).
+    input.current?.focus()
   }
 
   const trimmed = text.trim()
@@ -27,7 +30,9 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
   function submit(e?: FormEvent) {
     e?.preventDefault()
     if (!canSend) return
-    dictation.stop()
+    // Send exactly what is in the box (interim words included), then detach the recognizer: late results are ignored.
+    dictation.finish()
+    base.current = ''
     onSend(trimmed)
     setText('')
   }
@@ -41,10 +46,11 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
 
   return (
     <form ref={formRef} onSubmit={submit} className="w-full">
-      <InputGroup className="glass rounded-2xl border-0 bg-transparent">
+      <InputGroup className="glass rounded-2xl border-(--glass-line) bg-transparent">
         <InputGroupTextarea
           value={text}
           onChange={(e) => setText(e.target.value)}
+          ref={input}
           onKeyDown={onKey}
           placeholder={dictation.listening ? 'Listening…' : 'Ask about a hub, a hazard or a ranking'}
           id={COMPOSER_INPUT_ID}
@@ -64,6 +70,13 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
                     aria-pressed={dictation.listening}
                     aria-label={dictation.listening ? 'Stop dictation' : 'Dictate your question'}
                     onClick={dictation.listening ? dictation.stop : startDictation}
+                    // Enter on the focused mic while listening sends, like in the text box; a click still only stops.
+                    onKeyDown={(e: KeyboardEvent<HTMLButtonElement>) => {
+                      if (dictation.listening && e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        formRef.current?.requestSubmit()
+                      }
+                    }}
                   />
                 }
               >

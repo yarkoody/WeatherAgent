@@ -1,14 +1,14 @@
-data: {"type": "start", "messageId": "msg_5956653255e5"}
+data: {"type": "start", "messageId": "msg_d4d60041fe2e"}
 
 data: {"type": "start-step"}
 
-data: {"toolCallId": "call_5b6824263b86", "toolName": "rank_hubs", "type": "tool-input-start"}
+data: {"toolCallId": "call_52e11cbe732b", "toolName": "rank_hubs", "type": "tool-input-start"}
 
-data: {"toolCallId": "call_5b6824263b86", "inputTextDelta": "{\"score\": \"bad_year\", \"top_n\": 5}", "type": "tool-input-delta"}
+data: {"toolCallId": "call_52e11cbe732b", "inputTextDelta": "{\"score\": \"bad_year\", \"top_n\": 5}", "type": "tool-input-delta"}
 
-data: {"toolCallId": "call_5b6824263b86", "toolName": "rank_hubs", "input": {"score": "bad_year", "top_n": 5}, "type": "tool-input-available"}
+data: {"toolCallId": "call_52e11cbe732b", "toolName": "rank_hubs", "input": {"score": "bad_year", "top_n": 5}, "type": "tool-input-available"}
 
-data: {"toolCallId": "call_5b6824263b86", "output": {"kind": "bad_year", "hazard": "overall", "region": null, "items": [{"rank": 1, "hub_id": "miami", "name": "Miami Hub", "value": 42.8, "band": null}, {"rank": 2, "hub_id": "minneapolis", "name": "Minneapolis Hub", "value": 38.7, "band": null}, {"rank": 3, "hub_id": "houston", "name": "Houston Hub", "value": 38.2, "band": null}, {"rank": 4, "hub_id": "newark", "name": "Newark Hub", "value": 35.4, "band": null}, {"rank": 5, "hub_id": "chicago", "name": "Chicago Hub", "value": 29.1, "band": null}], "band_thresholds": {"medium_from": 35.0, "high_from": 60.0, "days_cap": 25.0, "medium_from_days": 8.75, "high_from_days": 15.0, "family_medium_from_days": 2.0, "family_high_from_days": 5.0, "hurricane_medium_from_pct": 20.0, "hurricane_high_from_pct": 50.0}, "data_as_of": "2026-11-17"}, "type": "tool-output-available"}
+data: {"toolCallId": "call_52e11cbe732b", "output": {"kind": "bad_year", "hazard": "overall", "region": null, "items": [{"rank": 1, "hub_id": "miami", "name": "Miami Hub", "value": 42.8, "band": null}, {"rank": 2, "hub_id": "minneapolis", "name": "Minneapolis Hub", "value": 38.7, "band": null}, {"rank": 3, "hub_id": "houston", "name": "Houston Hub", "value": 38.2, "band": null}, {"rank": 4, "hub_id": "newark", "name": "Newark Hub", "value": 35.4, "band": null}, {"rank": 5, "hub_id": "chicago", "name": "Chicago Hub", "value": 29.1, "band": null}], "total": 15, "band_thresholds": {"medium_from": 35.0, "high_from": 60.0, "days_cap": 25.0, "medium_from_days": 8.75, "high_from_days": 15.0, "family_medium_from_days": 2.0, "family_high_from_days": 5.0, "hurricane_medium_from_pct": 20.0, "hurricane_high_from_pct": 50.0}, "data_as_of": "2026-11-17"}, "type": "tool-output-available"}
 
 data: {"type": "finish-step"}
 
@@ -16,9 +16,9 @@ data: {"type": "start-step"}
 
 data: {"type": "finish-step"}
 
-data: {"data": {"session_id": "mock-badyear", "answer": {"answer": "In a rare bad year, **Miami Hub** could lose the most days (42.8), followed by **Minneapolis Hub** (38.7) and **Houston Hub** (38.2).", "hubs": ["miami", "minneapolis", "houston"], "ranking": ["miami", "minneapolis", "houston"], "figures": [{"hub_id": "miami", "label": "lost days, bad year (1 in 20)", "value": 42.8, "unit": "days", "source_tool": "rank_hubs", "source_field": "value", "family": null}, {"hub_id": "minneapolis", "label": "lost days, bad year (1 in 20)", "value": 38.7, "unit": "days", "source_tool": "rank_hubs", "source_field": "value", "family": null}, {"hub_id": "houston", "label": "lost days, bad year (1 in 20)", "value": 38.2, "unit": "days", "source_tool": "rank_hubs", "source_field": "value", "family": null}], "assumptions": [], "uncertainty": "Scores use the committed snapshot (FEMA NRI and Open-Meteo 2015-2025).", "data_available": true, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "d256df7171244954b8735b0e6db6f707", "follow_ups": ["Why is Miami ranked first?", "Compare Miami and Minneapolis", "Show the typical-year ranking"]}, "type": "data-answer"}
+data: {"data": {"session_id": "mock-badyear", "answer": {"answer": "In a rare bad year, **Miami Hub** could lose the most days (42.8), followed by **Minneapolis Hub** (38.7) and **Houston Hub** (38.2).", "hubs": ["miami", "minneapolis", "houston"], "ranking": ["miami", "minneapolis", "houston"], "figures": [{"hub_id": "miami", "label": "lost days, bad year (1 in 20)", "value": 42.8, "unit": "days", "source_tool": "rank_hubs", "source_field": "value", "family": null}, {"hub_id": "minneapolis", "label": "lost days, bad year (1 in 20)", "value": 38.7, "unit": "days", "source_tool": "rank_hubs", "source_field": "value", "family": null}, {"hub_id": "houston", "label": "lost days, bad year (1 in 20)", "value": 38.2, "unit": "days", "source_tool": "rank_hubs", "source_field": "value", "family": null}], "assumptions": [], "uncertainty": "Scores use the committed snapshot (FEMA NRI and Open-Meteo 2015-2025).", "data_available": true, "in_scope": true}, "grounding": {"status": "pass", "errors": []}, "trace_id": "3f611a3bff364f46ad422f0f3f5239db", "follow_ups": ["Why is Miami ranked first?", "Compare Miami and Minneapolis", "Show the typical-year ranking"], "usage": {"latency_ms": 6.1, "input_tokens": 0, "output_tokens": 0, "cost_usd": null, "tool_calls": 1}}, "type": "data-answer"}
 
-data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_5956653255e5", "role": "assistant", "turnId": null, "partIds": ["call_5b6824263b86"]}, {"id": "msg_8dd8a4fe3ddf", "role": "tool", "turnId": null, "partIds": ["part_8ff0b9888248"]}, {"id": "msg_2aba97485635", "role": "assistant", "turnId": null, "partIds": ["part_4f44321dbc07"]}]}}}
+data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_d4d60041fe2e", "role": "assistant", "turnId": null, "partIds": ["call_52e11cbe732b"]}, {"id": "msg_f8e848bf82ca", "role": "tool", "turnId": null, "partIds": ["part_bdf1b3f66e35"]}, {"id": "msg_28712880e820", "role": "assistant", "turnId": null, "partIds": ["part_cb7e8159de53"]}]}}}
 
 data: [DONE]
 

@@ -1,0 +1,10 @@
+{
+  "placeholder": true,
+  "sources": [
+    { "name": "FEMA National Risk Index", "detail": "county event frequencies and community resilience" },
+    { "name": "Open-Meteo historical weather (ERA5)", "detail": "daily weather at each hub, 2015–2025" },
+    { "name": "Census population estimates", "detail": "metro-area population, vintage 2025" },
+    { "name": "OMB metro areas (CBSA)", "detail": "2023 delineation" },
+    { "name": "National Weather Service", "detail": "active alerts, live" }
+  ]
+}

@@ -412,3 +412,193 @@ async def test_figure_must_cite_the_tool_that_returned_it(store, tracer):
     )
     res = await turn(model, store, tracer)
     assert res.grounding.status == "retried" and res.answer.figures[0].source_tool == "get_hub_risk"
+
+
+# ---------- SSE keepalive ----------
+
+import asyncio  # noqa: E402
+import contextvars  # noqa: E402
+
+from app.agent import KEEPALIVE_SSE, with_keepalive  # noqa: E402
+
+DONE = "data: [DONE]\n\n"
+
+
+async def chunks_with_gaps(gaps, tail=0.0, record=None):
+    try:
+        for i, gap in enumerate(gaps):
+            await asyncio.sleep(gap)
+            yield f"data: {i}\n\n"
+        yield DONE
+        await asyncio.sleep(tail)
+    finally:
+        if record is not None:
+            record.append("closed")
+
+
+async def test_keepalive_sent_while_the_source_is_slow():
+    out = [c async for c in with_keepalive(chunks_with_gaps([0.0, 0.25, 0.0]), interval=0.05)]
+    assert out.count(KEEPALIVE_SSE) >= 2
+    assert [c for c in out if c != KEEPALIVE_SSE] == ["data: 0\n\n", "data: 1\n\n", "data: 2\n\n", DONE]
+    assert out.index(KEEPALIVE_SSE) > out.index("data: 0\n\n")  # between chunks, order intact
+
+
+async def test_no_keepalive_when_chunks_flow_or_after_done():
+    out = [c async for c in with_keepalive(chunks_with_gaps([0.0, 0.01, 0.01], tail=0.2), interval=0.1)]
+    assert KEEPALIVE_SSE not in out and out[-1] == DONE
+
+
+async def test_keepalive_source_errors_propagate():
+    async def broken():
+        yield "data: 0\n\n"
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError):
+        [c async for c in with_keepalive(broken(), interval=0.05)]
+
+
+async def test_keepalive_source_runs_in_one_task():
+    # The SDK sets and resets context variables and task groups inside the turn; they break if
+    # each chunk is awaited from a different task.
+    var = contextvars.ContextVar("v", default=None)
+
+    async def source():
+        token = var.set("in turn")
+        await asyncio.sleep(0.12)
+        yield "data: a\n\n"
+        await asyncio.sleep(0.12)
+        assert var.get() == "in turn"
+        var.reset(token)
+        yield DONE
+
+    out = [c async for c in with_keepalive(source(), interval=0.05)]
+    assert [c for c in out if c != KEEPALIVE_SSE] == ["data: a\n\n", DONE]
+
+
+async def test_closing_the_keepalive_stream_stops_the_source():
+    record: list[str] = []
+    stream = with_keepalive(chunks_with_gaps([0.0, 5.0], record=record), interval=0.05)
+    assert await stream.__anext__() == "data: 0\n\n"
+    await stream.aclose()
+    assert record == ["closed"]
+
+
+async def test_stream_turn_reports_trace_tools_and_outcome(store, tracer):
+    tc = call("get_hub_risk", hub_id="houston")
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(tc), ai.assistant_message(answer_json())])
+    info: dict = {}
+    chunks = [c async for c in stream_turn(Q, "s1", model=model, store=store, tracer=tracer, registry=fakes, info=info)]
+    answer = json.loads(next(c for c in chunks if '"data-answer"' in c)[6:])["data"]
+    assert info == {"trace_id": answer["trace_id"], "tools": 1, "outcome": "completed"}
+    bad = ai.testing.FakeModel([ai.user_message("other"), ai.assistant_message("x")])
+    info = {}
+    [c async for c in stream_turn(Q, "s2", model=bad, store=store, tracer=tracer, registry=fakes, info=info)]
+    assert info["outcome"] == "error" and info["tools"] == 0 and info["trace_id"]
+
+
+# ---------- a failure after tools ran still ends the stream properly ----------
+
+
+def stream_types(chunks):
+    return [json.loads(c[6:])["type"] for c in chunks if c.startswith("data: {")]
+
+
+def assert_failed_answer_then_end(chunks):
+    types = stream_types(chunks)
+    assert "tool-output-available" in types  # the tool round reached the client
+    assert types.count("data-answer") == 1 and types[-1] == "finish" and chunks[-1] == "data: [DONE]\n\n"
+    data = json.loads(next(c for c in chunks if '"data-answer"' in c)[6:])["data"]
+    assert data["grounding"]["status"] == "failed" and data["answer"]["data_available"] is False
+
+
+async def test_model_error_after_a_tool_round_still_sends_the_failed_answer(store, tracer):
+    # the script ends after the tool call, so the next model call raises
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(call("get_hub_risk", hub_id="houston"))])
+    info: dict = {}
+    chunks = [c async for c in stream_turn(Q, "s1", model=model, store=store, tracer=tracer, registry=fakes, info=info)]
+    assert_failed_answer_then_end(chunks)
+    assert info["outcome"] == "error" and info["tools"] == 1
+
+
+async def test_internal_cancellation_after_a_tool_round_still_sends_the_failed_answer(store, tracer, monkeypatch):
+    # e.g. an SDK task group failing with a CancelledError inside: not an Exception subclass
+    from ai.types import events as events_module
+
+    original = events_module._replay_message_events
+
+    async def replay(message):
+        if message.text == "BOOM":
+            raise BaseExceptionGroup("task group", [asyncio.CancelledError()])
+        async for event in original(message):
+            yield event
+
+    monkeypatch.setattr(events_module, "_replay_message_events", replay)
+    model = ai.testing.FakeModel(
+        [ai.user_message(Q), ai.assistant_message(call("get_hub_risk", hub_id="houston")), ai.assistant_message("BOOM")]
+    )
+    info: dict = {}
+    source = stream_turn(Q, "s1", model=model, store=store, tracer=tracer, registry=fakes, info=info)
+    chunks = [c async for c in with_keepalive(source, interval=5)]  # the production path
+    assert_failed_answer_then_end(chunks)
+    assert info["outcome"] == "error"
+
+
+async def test_system_prompt_names_the_model_and_snapshot_date(store, tracer):
+    from app.agent import system_prompt
+
+    text = system_prompt("gpt-test")
+    assert "gpt-test" in text and "$MODEL_ID" not in text and "$DATA_AS_OF" not in text
+    assert "## About this system" in text and "2026-11-17" in text
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(call("get_hub_risk", hub_id="houston")), ai.assistant_message(answer_json())])
+    await turn(model, store, tracer)
+    assert "fake-model" in model.calls[0][0].text  # the system message of the turn
+
+
+# ---------- per-turn usage (ChatResponse.usage) ----------
+
+
+def test_turn_usage_estimates_cost_from_the_price_table(monkeypatch):
+    from app import agent as agent_module
+    from app.agent import turn_usage
+
+    monkeypatch.setitem(agent_module.PRICES_PER_MTOK, "priced-model", (2.0, 10.0))
+    started = __import__("time").perf_counter()
+    usage = turn_usage("priced-model", 1_000_000, 100_000, 3, started)
+    assert usage.cost_usd == 3.0 and usage.input_tokens == 1_000_000 and usage.output_tokens == 100_000
+    assert usage.tool_calls == 3 and usage.latency_ms >= 0
+    assert turn_usage("unknown-model", 10, 10, 0, started).cost_usd is None
+
+
+async def test_run_turn_reports_usage(store, tracer):
+    tc = call("get_hub_risk", hub_id="houston")
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(tc), ai.assistant_message(answer_json())])
+    res = await turn(model, store, tracer)
+    assert res.usage is not None
+    assert res.usage.tool_calls == 1 and res.usage.latency_ms >= 0
+    assert res.usage.input_tokens == 0 and res.usage.output_tokens == 0  # FakeModel reports no tokens
+    assert res.usage.cost_usd is None  # fake-model has no price
+    end = next(t for t in traces(tracer) if t["kind"] == "turn_end")
+    assert end["latency_ms"] == res.usage.latency_ms and end["cost_usd"] == res.usage.cost_usd
+
+
+async def test_usage_counts_parallel_tool_calls(store, tracer):
+    a, b = call("get_hub_risk", hub_id="houston"), call("get_hub_risk", hub_id="dallas")
+    reply = answer_json("Houston 66, Dallas 41.7.", [("houston", "exposure", 66.0), ("dallas", "exposure", 41.7)], hubs=["houston", "dallas"])
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(a, b), ai.assistant_message(reply)])
+    assert (await turn(model, store, tracer)).usage.tool_calls == 2
+
+
+async def test_stream_turn_answer_carries_usage(store, tracer):
+    tc = call("get_hub_risk", hub_id="houston")
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(tc), ai.assistant_message(answer_json())])
+    chunks = [c async for c in stream_turn(Q, "s1", model=model, store=store, tracer=tracer, registry=fakes)]
+    data = json.loads(next(c for c in chunks if '"data-answer"' in c)[6:])["data"]
+    assert data["usage"]["tool_calls"] == 1 and data["usage"]["latency_ms"] >= 0
+
+
+async def test_failed_stream_answer_carries_usage_so_far(store, tracer):
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(call("get_hub_risk", hub_id="houston"))])
+    chunks = [c async for c in stream_turn(Q, "s1", model=model, store=store, tracer=tracer, registry=fakes)]
+    data = json.loads(next(c for c in chunks if '"data-answer"' in c)[6:])["data"]
+    assert data["grounding"]["status"] == "failed"
+    assert data["usage"]["tool_calls"] == 1 and data["usage"]["latency_ms"] >= 0

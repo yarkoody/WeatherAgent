@@ -369,3 +369,168 @@ def test_chat_rebuilds_history_when_store_is_empty(tmp_path):
     assert [(m.role, m.text) for m in model.calls[0] if m.role != "system"] == [
         ("user", "Which hub is most exposed?"), ("assistant", RESTORED_NOTE + "Miami is most exposed."), ("user", Q)
     ]
+
+
+# ---------- keepalive and per-turn logging ----------
+
+
+def slow_registry(delay):
+    import asyncio
+    from types import SimpleNamespace
+
+    async def run_tool(name, arguments_json):
+        await asyncio.sleep(delay)
+        return await fakes.run_tool(name, arguments_json)
+
+    return SimpleNamespace(TOOL_FUNCTIONS=fakes.TOOL_FUNCTIONS, ARG_MODELS=fakes.ARG_MODELS, run_tool=run_tool)
+
+
+def test_chat_sends_keepalive_during_a_slow_tool_and_keeps_the_order(tmp_path):
+    app = create_app(
+        model=ai.testing.FakeModel(script()), store=Store(tmp_path / "a.db"), tracer=Tracer(tmp_path / "t.jsonl"),
+        registry=slow_registry(0.3), keepalive_seconds=0.05,
+    )
+    res = TestClient(app).post("/chat", json=ui_body(Q))
+    assert res.status_code == 200
+    chunks = [c for c in res.text.split("\n\n") if c]
+    assert ": keepalive" in chunks
+    data = [c for c in chunks if c.startswith("data: ")]
+    assert data[-1] == "data: [DONE]"
+    types = [json.loads(c[6:])["type"] for c in data[:-1]]
+    assert types[0] == "start" and types[-2:] == ["data-answer", "finish"] and types.count("data-answer") == 1
+    assert chunks.index(": keepalive") < chunks.index("data: [DONE]")
+
+
+def test_chat_turn_is_logged_without_text_or_ip(tmp_path, caplog):
+    import logging
+
+    caplog.set_level(logging.INFO, logger="app.api")
+    res = client(tmp_path).post("/chat", json=ui_body(Q), headers={"X-Forwarded-For": "8.8.4.4"})
+    trace_id = json.loads(next(c for c in res.text.split("\n\n") if '"data-answer"' in c)[6:])["data"]["trace_id"]
+    lines = [r.getMessage() for r in caplog.records if r.name == "app.api" and "chat turn" in r.getMessage()]
+    assert len(lines) == 1
+    assert f"trace_id={trace_id}" in lines[0] and "tools=1" in lines[0] and "outcome=completed" in lines[0]
+    assert "duration_ms=" in lines[0] and Q not in lines[0] and "8.8.4.4" not in lines[0]
+
+
+async def test_client_disconnect_is_logged_and_stops_the_turn(caplog):
+    import asyncio
+    import logging
+
+    from app.api import logged_stream
+
+    closed: list[str] = []
+
+    async def turn():
+        try:
+            yield 'data: {"type": "start"}\n\n'
+            await asyncio.sleep(5)
+            yield "data: [DONE]\n\n"
+        finally:
+            closed.append("closed")
+
+    caplog.set_level(logging.INFO, logger="app.api")
+    stream = logged_stream(turn(), {"trace_id": "t-1", "tools": 0}, keepalive_seconds=1.0)
+    assert (await stream.__anext__()).startswith("data:")
+    await stream.aclose()  # what Starlette does when the client goes away
+    assert closed == ["closed"]
+    lines = [r.getMessage() for r in caplog.records if "chat turn" in r.getMessage()]
+    assert len(lines) == 1 and "trace_id=t-1" in lines[0] and "outcome=client_disconnected" in lines[0]
+
+
+# ---------- GET /hubs/{hub_id}/score (full breakdown for the map, no LLM) ----------
+
+
+def test_hub_score_returns_the_full_breakdown(tmp_path):
+    from app.schemas import HubScore
+
+    res = client(tmp_path).get("/hubs/houston/score")
+    assert res.status_code == 200
+    score = HubScore.model_validate(res.json())
+    assert score.hub_id == "houston" and set(score.families) == {"winter", "flood", "hurricane", "severe_storm"}
+    assert "x-resolution-note" not in res.headers
+
+
+def test_hub_score_resolves_a_metro_name_like_the_tools(tmp_path):
+    res = client(tmp_path).get("/hubs/new york/score")
+    assert res.status_code == 200 and res.json()["hub_id"] == "newark"
+    assert "New York-Newark-Jersey City" in res.headers["x-resolution-note"]
+
+
+def test_hub_score_unknown_or_ambiguous_name_is_404(tmp_path):
+    c = client(tmp_path)
+    for name in ("gotham", "portland"):
+        res = c.get(f"/hubs/{name}/score")
+        assert res.status_code == 404 and isinstance(res.json()["detail"], str) and name in res.json()["detail"]
+
+
+def test_hub_score_is_rate_limited(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_PER_MIN", "1")
+    c = client(tmp_path)
+    assert c.get("/hubs/houston/score").status_code == 200
+    assert c.get("/hubs/houston/score").status_code == 429
+
+
+# ---------- GET /hubs/{hub_id}/history (observed history for the Scores side panel, no LLM) ----------
+
+
+def test_hub_history_returns_the_observed_history(tmp_path):
+    from app.schemas import HubHistory
+
+    res = client(tmp_path).get("/hubs/denver/history")
+    assert res.status_code == 200
+    history = HubHistory.model_validate(res.json())
+    assert history.hub_id == "denver" and history.years and len(history.months) == 12
+    assert "x-resolution-note" not in res.headers
+
+
+def test_hub_history_resolves_a_metro_name(tmp_path):
+    res = client(tmp_path).get("/hubs/new york/history")
+    assert res.status_code == 200 and res.json()["hub_id"] == "newark"
+    assert "New York-Newark-Jersey City" in res.headers["x-resolution-note"]
+
+
+def test_hub_history_unknown_or_ambiguous_name_is_404(tmp_path):
+    c = client(tmp_path)
+    for name in ("gotham", "portland"):
+        res = c.get(f"/hubs/{name}/history")
+        assert res.status_code == 404 and name in res.json()["detail"]
+
+
+def test_hub_history_is_rate_limited(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_PER_MIN", "1")
+    c = client(tmp_path)
+    assert c.get("/hubs/denver/history").status_code == 200
+    assert c.get("/hubs/denver/history").status_code == 429
+
+
+# ---------- GET /methodology.md ----------
+
+
+def test_methodology_is_served_as_markdown(tmp_path):
+    doc = tmp_path / "METHODOLOGY.md"
+    doc.write_text("# Methodology\n\nExposure is expected disruption days.\n", encoding="utf-8")
+    res = client(tmp_path, methodology_path=doc).get("/methodology.md")
+    assert res.status_code == 200 and res.text.startswith("# Methodology")
+    assert res.headers["content-type"].startswith("text/markdown")
+
+
+def test_methodology_missing_is_404(tmp_path):
+    res = client(tmp_path, methodology_path=tmp_path / "missing.md").get("/methodology.md")
+    assert res.status_code == 404 and isinstance(res.json()["detail"], str)
+
+
+def test_methodology_route_wins_over_the_web_app(tmp_path):
+    # the API routes are declared before the static web app mount, so the doc is not the SPA index
+    doc = tmp_path / "METHODOLOGY.md"
+    doc.write_text("# M\n", encoding="utf-8")
+    assert client(tmp_path, methodology_path=doc).get("/methodology.md").text == "# M\n"
+
+
+def test_docker_image_ships_the_methodology_doc():
+    from app import api
+
+    ignore = (api.ROOT / ".dockerignore").read_text().splitlines()
+    assert "docs/" in ignore and "!docs/METHODOLOGY.md" in ignore
+    assert ignore.index("!docs/METHODOLOGY.md") > ignore.index("docs/")  # the exception must come after the rule
+    assert "COPY docs/METHODOLOGY.md docs/METHODOLOGY.md" in (api.ROOT / "Dockerfile").read_text()

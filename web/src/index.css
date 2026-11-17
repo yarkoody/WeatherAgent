@@ -87,8 +87,12 @@
   --sky-2: #e2eee8;
   --glass: rgb(255 255 255 / 0.58);
   --glass-strong: rgb(255 255 255 / 0.78);
-  --glass-rim: rgb(255 255 255 / 0.7);
-  --glass-shadow: 0 12px 32px -14px rgb(27 42 53 / 0.22);
+  /* One crisp hairline and one soft shadow with no spread: no rim highlight, no second ring. */
+  --glass-line: rgb(27 42 53 / 0.09);
+  /* Map: solid land a step darker than the glass frame, and state borders that read in both themes. */
+  --map-land: #e4eaef;
+  --map-border: #a3b1bc;
+  --glass-shadow: 0 4px 16px rgb(27 42 53 / 0.06);
   --background: #eef2f4;
   --foreground: #1b2a35;
   --card: #f8fafb;
@@ -150,8 +154,10 @@
   --sky-2: #14262a;
   --glass: rgb(26 38 49 / 0.62);
   --glass-strong: rgb(24 36 46 / 0.86);
-  --glass-rim: rgb(255 255 255 / 0.09);
-  --glass-shadow: 0 14px 34px -16px rgb(0 0 0 / 0.6);
+  --glass-line: rgb(255 255 255 / 0.08);
+  --map-land: #22313d;
+  --map-border: #50626f;
+  --glass-shadow: 0 4px 16px rgb(0 0 0 / 0.22);
   --background: #0f1820;
   --foreground: #e6edf2;
   --card: #182430;
@@ -179,14 +185,18 @@
     background: var(--glass);
     -webkit-backdrop-filter: blur(20px) saturate(1.5);
     backdrop-filter: blur(20px) saturate(1.5);
-    box-shadow:
-      inset 0 1px 0 var(--glass-rim),
-      0 0 0 1px color-mix(in oklab, var(--foreground) 6%, transparent),
-      var(--glass-shadow);
+    /* A real border follows the radius exactly; the background stops inside it, and isolation keeps the
+       backdrop blur clipped to the rounded box (no fringe bleeding past the corners in Chromium). */
+    border: 1px solid var(--glass-line);
+    background-clip: padding-box;
+    isolation: isolate;
+    box-shadow: var(--glass-shadow);
   }
   .glass-bar {
     background: var(--glass-strong);
-    box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 8%, transparent);
+    border: 0;
+    border-bottom: 1px solid var(--glass-line);
+    box-shadow: none;
   }
   /* Solid fallback where blur is unsupported or reduced transparency is requested. */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -395,4 +405,67 @@
     font-size: 9pt;
     color: #555;
   }
+}
+
+/* Map: one pulse on a hub dot when the table asks the map to show it (skipped under reduced motion in code). */
+@keyframes hub-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+.hub-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hub-pulse 900ms ease-out 1 forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-pulse {
+    animation: none;
+    display: none;
+  }
+}
+
+/* Methodology document: readable headings, tables and display math in the side sheet. */
+.methodology h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+.methodology h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.methodology h3 {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.methodology .katex-display {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.methodology code {
+  font-size: 0.85em;
+}
+.methodology pre {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+  padding: 0.75rem;
+}
+.methodology table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }

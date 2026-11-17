@@ -1,7 +1,8 @@
 // Print reports (rendered by ExportReportButton). Plain HTML for paper: no glass, no charts, no motion.
+import { DataSources } from '@/components/DataSources'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { FAMILIES, FAMILY_LABEL, formatDate, formatValue, hubName, pct } from '@/lib/format'
+import { FAMILIES, FAMILY_LABEL, formatDate, formatValue, hubName } from '@/lib/format'
 import type { ChatResponse, HubScore } from '@/lib/types'
 
 const STATUS = { pass: 'Figures checked', retried: 'Figures checked after retry', failed: 'Unverified' } as const
@@ -68,6 +69,7 @@ export function AnswerReport({ response, question, dataAsOf }: { response: ChatR
           </ul>
         </>
       )}
+      <DataSources className="mt-4" />
     </article>
   )
 }
@@ -82,35 +84,35 @@ export function HubReport({ hub }: { hub: HubScore }) {
       <table>
         <tbody>
           <tr>
-            <th>Lost days, typical year</th>
+            <th>Typical year (lost operating days/yr)</th>
             <td>{hub.exposure_days_per_year}</td>
           </tr>
           {typeof hub.bad_year_days === 'number' && (
             <tr>
-              <th>Lost days, worst 1 year in 20</th>
+              <th>Bad year, worst 1 year in 20 (days/yr)</th>
               <td>{hub.bad_year_days}</td>
             </tr>
           )}
           <tr>
-            <th>Exposure score</th>
+            <th>Exposure score (0-100)</th>
             <td>
               {hub.exposure} ({hub.exposure_band})
             </td>
           </tr>
           <tr>
-            <th>Screening priority</th>
+            <th>Review priority (0-100)</th>
             <td>
               {hub.priority} ({hub.priority_band})
             </td>
           </tr>
           <tr>
-            <th>Top driver</th>
+            <th>Biggest risk</th>
             <td>{FAMILY_LABEL[hub.top_driver]}</td>
           </tr>
           {typeof hub.hurricane_10yr_probability_pct === 'number' && (
             <tr>
-              <th>Hurricane chance, 10 years</th>
-              <td>{pct(hub.hurricane_10yr_probability_pct)}</td>
+              <th>Hurricane chance (10 yr, %)</th>
+              <td>{hub.hurricane_10yr_probability_pct}</td>
             </tr>
           )}
         </tbody>
@@ -120,9 +122,9 @@ export function HubReport({ hub }: { hub: HubScore }) {
         <thead>
           <tr>
             <th>Hazard</th>
-            <th>Lost days a year</th>
-            <th>In a bad year</th>
-            <th>Band</th>
+            <th>Typical year (days/yr)</th>
+            <th>Bad year (days/yr)</th>
+            <th>Level</th>
           </tr>
         </thead>
         <tbody>
@@ -145,6 +147,7 @@ export function HubReport({ hub }: { hub: HubScore }) {
         {t.family_medium_from_days} days and high from {t.family_high_from_days}; hurricane is banded by its 10-year chance (medium from {t.hurricane_medium_from_pct}%,
         high from {t.hurricane_high_from_pct}%).
       </p>
+      <DataSources className="mt-4" />
     </article>
   )
 }

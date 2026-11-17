@@ -23,7 +23,7 @@ import { compactHistory } from '@/lib/chats'
 import { NoMotion, useReducedMotion } from '@/lib/motion'
 import { loadMessages, saveMessages } from '@/lib/session'
 import { stopSpeaking } from '@/lib/voice'
-import { AssistantMessage, NoAnswer } from './AssistantMessage'
+import { AssistantMessage, NoAnswer, normalizeQuestion, toolParts } from './AssistantMessage'
 import { COMPOSER_INPUT_ID, Composer } from './Composer'
 import { AskProvider } from '@/lib/ask'
 import { isToolUIPart } from 'ai'
@@ -105,6 +105,11 @@ function ChatThread({ sessionId }: { sessionId: string }) {
   // While the request is in flight there is no assistant message yet: show its steps placeholder.
   const thread = status === 'submitted' && messages.at(-1)?.role === 'user' ? [...messages, PENDING] : messages
   const lastId = thread.at(-1)?.id
+  const last = thread.at(-1)
+  const lastHasResults = last?.role === 'assistant' && toolParts(last).some((t) => t.state === 'output-available')
+  // Only the latest turn can be retried; it is "errored" when the request failed.
+  const asked = new Set(thread.filter((m) => m.role === 'user').map((m) => normalizeQuestion(userText(m))))
+  const retryProps = (m: UIMessage) => (m.id === lastId && !busy ? { onRetry: () => regenerate(), errored: Boolean(error) } : {})
   // Observed histories the agent fetched in this chat, for the breakdown's History tab.
   const histories = useMemo(() => {
     const out: Record<string, HubHistory> = {}
@@ -134,7 +139,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
                 Where will weather hit your network hardest?
               </EmptyTitle>
               <EmptyDescription>
-                Ask about modeled disruption exposure and screening priority for 15 US logistics hubs. Figures in an answer are checked against the scoring data they cite, and charts are
+                Ask about modeled disruption exposure and review priority for 15 US logistics hubs. Figures in an answer are checked against the scoring data they cite, and charts are
                 drawn from it directly.
               </EmptyDescription>
             </EmptyHeader>
@@ -150,7 +155,7 @@ function ChatThread({ sessionId }: { sessionId: string }) {
             <MessageScroller>
               {/* Gutter on both edges keeps the centered column symmetric when a scrollbar shows. */}
               <MessageScrollerViewport className="[scrollbar-gutter:stable_both-edges]">
-                <MessageScrollerContent aria-busy={busy} className="mx-auto w-full max-w-3xl gap-7 px-4 py-6 sm:px-6">
+                <MessageScrollerContent aria-busy={busy} className="mx-auto w-full max-w-3xl gap-7 px-4 pt-6 pb-20 sm:px-6">
                   {thread.map((m, i) =>
                     m.role === 'user' ? (
                       <MessageScrollerItem key={m.id} messageId={m.id}>
@@ -166,10 +171,10 @@ function ChatThread({ sessionId }: { sessionId: string }) {
                       <MessageScrollerItem key={m.id} messageId={m.id}>
                         {restored.has(m.id) ? (
                           <NoMotion>
-                            <AssistantMessage message={m} streaming={false} latest={!busy && m.id === lastId} onFollowUp={send} question={questionBefore(i)} />
+                            <AssistantMessage message={m} streaming={false} latest={!busy && m.id === lastId} onFollowUp={send} question={questionBefore(i)} {...retryProps(m)} asked={asked} />
                           </NoMotion>
                         ) : (
-                          <AssistantMessage message={m} streaming={busy && m.id === lastId} latest={!busy && m.id === lastId} onFollowUp={send} question={questionBefore(i)} />
+                          <AssistantMessage message={m} streaming={busy && m.id === lastId} latest={!busy && m.id === lastId} onFollowUp={send} question={questionBefore(i)} {...retryProps(m)} asked={asked} />
                         )}
                       </MessageScrollerItem>
                     ),
@@ -184,10 +189,12 @@ function ChatThread({ sessionId }: { sessionId: string }) {
                       </Message>
                     </MessageScrollerItem>
                   )}
-                  {error && <ChatError error={error} onRetry={() => regenerate()} />}
+                  {/* The network banner only when nothing arrived; a turn with results shows its own cut-off message. */}
+                  {error && !lastHasResults && <ChatError error={error} onRetry={() => regenerate()} />}
                 </MessageScrollerContent>
               </MessageScrollerViewport>
-              <MessageScrollerButton />
+              {/* Bottom right, clear of the centered column and its "Ask next" chips (the content keeps 5 rem free below). */}
+              <MessageScrollerButton data-testid="scroll-to-end" className="inset-s-auto end-4 translate-x-0 rtl:translate-x-0" />
             </MessageScroller>
           </MessageScrollerProvider>
           </AskProvider>

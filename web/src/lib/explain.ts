@@ -14,7 +14,7 @@ export function signalLine(s: Signal): string {
 }
 
 export function familyLines(f: FamilyScore): string[] {
-  return [...(f.signals ?? []).map(signalLine), `${FAMILY_LABEL[f.family]} total: ${n(f.days_per_year)} days/yr${f.band ? `, ${f.band} band` : ''} (score ${n(f.score)})`]
+  return [...(f.signals ?? []).map(signalLine), `${FAMILY_LABEL[f.family]} total: ${n(f.days_per_year)} days/yr${f.band ? `, ${f.band} level` : ''} (score ${n(f.score)})`]
 }
 
 export function indexLine(t: BandThresholds): string {
@@ -29,7 +29,7 @@ export function exposureLines(s: HubScore): string[] {
   ]
 }
 
-/** Screening priority: weighted blend of 0-100 signals. */
+/** Review priority: weighted blend of 0-100 signals. */
 export function priorityLines(s: HubScore): string[] {
   return [
     ...(s.priority_signals ?? []).map((p) => {
@@ -37,13 +37,13 @@ export function priorityLines(s: HubScore): string[] {
       const cap = isNum(p.cap) ? ` ÷ cap ${n(p.cap)}` : ''
       return `${p.name}: ${raw}${cap} → ${n(p.normalized)} × ${n(p.weight)} = ${n(p.contribution)}`
     }),
-    `Priority: ${n(s.priority)} (bands: medium from ${n(s.band_thresholds?.medium_from)}, high from ${n(s.band_thresholds?.high_from)})`,
+    `Priority: ${n(s.priority)} (levels: medium from ${n(s.band_thresholds?.medium_from)}, high from ${n(s.band_thresholds?.high_from)})`,
   ]
 }
 
 /** Fixed wording (approved): what the two lenses mean. */
 export const LENS_EXPLAINER =
-  'Both are modeled lost days (estimates). Typical year is the modeled average. Bad year is the average across the worst 1 year in 20, because averages hide rare, severe events such as hurricanes.'
+  'Both are lost operating days (modeled estimates). Typical year is the modeled average. Bad year is the average across the worst 1 year in 20, because averages hide rare, severe events such as hurricanes.'
 
 /** Each family's share of the bad year, when the data has it. */
 function badYearShares(s: HubScore): { family: Family; days: number }[] | null {
@@ -62,7 +62,7 @@ export function badYearLines(s: HubScore): string[] {
 
 /** Family band rule, with the cut-offs from the tool's thresholds. */
 export function familyBandLine(t: BandThresholds): string {
-  return `A hazard is medium from ${n(t.family_medium_from_days)} days a year and high from ${n(t.family_high_from_days)}; hurricane is banded by its 10-year chance instead.`
+  return `A hazard is medium from ${n(t.family_medium_from_days)} days a year and high from ${n(t.family_high_from_days)}; hurricane is rated by its 10-year chance instead.`
 }
 
 /** Hurricane: banded by the chance of at least one hurricane-class event in 10 years. */
@@ -73,7 +73,7 @@ export function hurricaneLines(s: HubScore): string[] {
     freq ? `FEMA NRI hurricane frequency: ${n(freq.raw!)} ${freq.unit}.` : 'FEMA NRI has no hurricane frequency for this county.',
     `Chance of at least one hurricane-class event in 10 years: ${n(s.hurricane_10yr_probability_pct)}% chance.`,
     ...(isNum(t?.hurricane_medium_from_pct) && isNum(t?.hurricane_high_from_pct)
-      ? [`Band: medium from ${n(t.hurricane_medium_from_pct)}%, high from ${n(t.hurricane_high_from_pct)}%.`]
+      ? [`Level: medium from ${n(t.hurricane_medium_from_pct)}%, high from ${n(t.hurricane_high_from_pct)}%.`]
       : []),
   ]
 }
@@ -179,7 +179,7 @@ export function prioritySteps(s: HubScore): string[] {
     return `${n0}: ${r1(p.normalized)} of 100 points`
   }
   return [
-    'Screening priority suggests where to look first at upgrades; it is not a cost-benefit estimate. It mixes three things:',
+    `${REVIEW_PRIORITY_MEANING} It mixes three things:`,
     ...(s.priority_signals ?? []).map((p) => `${plain(p)}${isNum(p.weight) ? `, counting for ${Math.round(p.weight * 100)}%` : ''}.`),
     `Result: ${r1(s.priority)} of 100.`,
   ]
@@ -212,6 +212,22 @@ export function weatherStatDetail(s: WeatherStat): string[] {
 
 // ---------- "How to read this": one legend per widget instead of an (i) on every field ----------
 
+/** The one definition of a lost day, shown wherever the term first appears. */
+export const LOST_DAYS =
+  'days a year the hub cannot run normally because of weather (closed or badly slowed), as modeled from how often each hazard happens and how long it usually disrupts a hub.'
+
+/** The one-line meaning of review priority, wherever it is explained. */
+export const REVIEW_PRIORITY_MEANING =
+  "Which hubs to examine first. It doesn't include upgrade costs or existing protection, so it's a starting point for a decision, not the decision itself."
+
+/** One plain line wherever people-days appear. */
+export const PEOPLE_DAYS_LINE =
+  'People-days: if the hub is disrupted, the people it serves (metro estimate) × lost days a year. Computed before rounding.'
+
+/** People served is a proxy, never the hub's customers. */
+export const PEOPLE_SERVED_DEF =
+  "the metro-area population (a Census estimate), used as a stand-in for the people a hub serves, not its actual customers."
+
 export interface LegendEntry {
   term: string
   text: string
@@ -222,19 +238,22 @@ export function readingGuide(t: BandThresholds | null | undefined): LegendEntry[
   const th = t ?? ({} as BandThresholds)
   const cut = (a: number | undefined, b: number | undefined, unit: string) => (isNum(a) && isNum(b) ? ` Medium from ${n(a)}${unit}, high from ${n(b)}${unit}.` : '')
   return [
-    { term: 'Typical year', text: 'modeled lost days in an average year (an estimate).' },
-    { term: 'Bad year (1 in 20)', text: 'average modeled lost days in the worst 1 year in 20.' },
+    { term: 'Lost operating days', text: LOST_DAYS },
+    { term: 'Typical year', text: 'lost operating days in an average year (a modeled estimate).' },
+    { term: 'Bad year', text: 'the average of the worst 1 year in 20.' },
     {
       term: 'Exposure score',
       text: `lost days a year ÷ ${n(th.days_cap)} × 100, capped at 100.${cut(th.medium_from_days, th.high_from_days, ' days a year')}`,
     },
     {
-      term: 'Screening priority',
-      text: 'the exposure score, scaled up by the people served and the resilience gap (0 to 100). A screening aid, not a measured return.',
+      term: 'Review priority (typical year)',
+      text: `the exposure score, scaled up by the people served and the recovery gap (how well the area recovers), 0 to 100, computed before rounding. It uses the typical year, so check the bad year too. ${REVIEW_PRIORITY_MEANING}`,
     },
+    { term: 'People served (metro)', text: PEOPLE_SERVED_DEF },
+    { term: 'People-days', text: 'if the hub is disrupted: people it serves (metro estimate) × lost days a year, in millions. Computed before rounding.' },
     {
-      term: 'Hazard bands',
-      text: `by lost days a year.${cut(th.family_medium_from_days, th.family_high_from_days, ' days')} Hurricane is banded by the chance of at least one in 10 years instead.${cut(th.hurricane_medium_from_pct, th.hurricane_high_from_pct, '%')}`,
+      term: 'Hazard levels',
+      text: `by lost operating days a year.${cut(th.family_medium_from_days, th.family_high_from_days, ' days')} Hurricane is rated by the chance of at least one in 10 years instead.${cut(th.hurricane_medium_from_pct, th.hurricane_high_from_pct, '%')}`,
     },
   ]
 }
@@ -248,4 +267,13 @@ export function hubDetail(s: HubScore): string[] {
     ...hurricaneLines(s),
     ...FAMILIES.flatMap((f) => (s.families?.[f] ? familyLines(s.families[f]) : [])),
   ]
+}
+
+/** Why exposure and priority bands can differ, in one plain line (only when they do). */
+export function bandGapLine(s: Pick<HubScore, 'exposure_band' | 'priority_band'>, name?: string): string | null {
+  const e = s.exposure_band
+  const p = s.priority_band
+  if (!e || !p || e === p) return null
+  const cap = (b: string) => b[0].toUpperCase() + b.slice(1)
+  return `${name ? `${name} is` : 'Here,'} ${cap(e)} exposure but ${cap(p)} priority: priority also weighs the people served and how resilient the county is, not only the weather.`
 }

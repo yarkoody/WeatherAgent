@@ -99,15 +99,20 @@ describe('developer mode', () => {
 
     const panel = await openSettings()
     const toggle = within(panel).getByRole('switch', { name: 'Developer mode' })
-    expect(within(panel).getByText('Show tool names, arguments, trace ids and validation details')).toBeInTheDocument()
+    expect(
+      within(panel).getByText("Show validation details for each answer: which tool and field each figure comes from, the tools called, and the turn's cost."),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Validation details' })).not.toBeInTheDocument()
     fireEvent.click(toggle)
     expect(screen.getByText('Developer view')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Analysis steps/ })).not.toBeInTheDocument() // steps open, with tool names
     expect(screen.getByText(/^trace /)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Validation details' })).toBeInTheDocument()
     expect(readDebugFlag('')).toBe(true)
 
     fireEvent.click(toggle)
     expect(screen.queryByText('Developer view')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Validation details' })).not.toBeInTheDocument()
     expect(readDebugFlag('')).toBe(false)
   })
 

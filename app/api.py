@@ -6,31 +6,79 @@ this module needs no API key and no data files.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import hmac
+import logging
 import os
 import threading
 import time
 import uuid
 from collections import defaultdict, deque
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
 from app import agent
-from app.schemas import ChatRequest, ChatResponse, Hub, ScoreRow, SecondOpinion, WhatIfInput, WhatIfResult
+from app.schemas import ChatRequest, ChatResponse, Hub, HubHistory, HubScore, ScoreRow, SecondOpinion, WhatIfInput, WhatIfResult
 from app.store import Store, Tracer
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 MAX_MESSAGE_CHARS = 2000
 UNAVAILABLE = "The model or an upstream service is unavailable. Please try again later."
+log = logging.getLogger("app.api")
+
+
+def _ensure_log_output() -> None:
+    """Uvicorn configures only its own loggers, so INFO lines from app.api would be dropped.
+
+    Add a stderr handler when nothing else would show them (no handler here or on the root logger).
+    """
+    if log.handlers or logging.getLogger().handlers:
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+    log.addHandler(handler)
+    log.setLevel(logging.INFO)
+
+
+async def logged_stream(chunks: AsyncIterator[str], info: dict[str, Any], *, keepalive_seconds: float) -> AsyncIterator[str]:
+    """The /chat stream with keepalives, and one log line per turn when it ends.
+
+    The line says who ended the stream: completed, error (the turn failed and sent its fallback
+    answer) or client_disconnected (the browser or a proxy closed it before [DONE]). It never
+    carries the message text or the client IP.
+    """
+    started = time.perf_counter()
+    outcome = "client_disconnected"
+    try:
+        # aclosing: when the client goes away, close the keepalive stream at once, which stops the turn.
+        async with contextlib.aclosing(agent.with_keepalive(chunks, keepalive_seconds)) as stream:
+            async for chunk in stream:
+                yield chunk
+        outcome = info.get("outcome", "completed")
+    except (asyncio.CancelledError, GeneratorExit):
+        outcome = "client_disconnected"
+        raise
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        log.info(
+            "chat turn trace_id=%s duration_ms=%d tools=%d outcome=%s",
+            info.get("trace_id", "-"),
+            (time.perf_counter() - started) * 1000,
+            info.get("tools", 0),
+            outcome,
+        )
 
 
 class UIChatRequest(BaseModel):
@@ -185,7 +233,10 @@ def create_app(
     alerts_log: Path | None = None,
     second_opinion_path: Path | None = None,
     second_opinion_builder: Callable[[], Any] | None = None,
+    keepalive_seconds: float = agent.KEEPALIVE_SECONDS,
+    methodology_path: Path | None = None,
 ) -> FastAPI:
+    _ensure_log_output()
     from dotenv import load_dotenv
 
     load_dotenv()
@@ -239,6 +290,14 @@ def create_app(
     async def unexpected_error(_: Request, exc: Exception) -> JSONResponse:
         return JSONResponse(status_code=500, content={"detail": "Internal server error."})
 
+    @app.get("/methodology.md")
+    def methodology() -> Response:
+        """The scoring methodology document (docs/METHODOLOGY.md), linked from the UI."""
+        path = methodology_path or ROOT / "docs" / "METHODOLOGY.md"
+        if not path.is_file():
+            raise HTTPException(404, "The methodology document is not available.")
+        return Response(path.read_text(encoding="utf-8"), media_type="text/markdown; charset=utf-8")
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -250,6 +309,7 @@ def create_app(
         text = check_message(last_user_text(body.messages))
         limit(request)
         m = resolve_model()
+        info: dict[str, Any] = {}
         stream = agent.stream_turn(
             text,
             body.id or uuid.uuid4().hex,
@@ -258,8 +318,13 @@ def create_app(
             tracer=get("tracer"),
             registry=registry,
             client_history=client_history(body.messages),
+            info=info,
         )
-        return StreamingResponse(stream, headers=ai.ui.ai_sdk.UI_MESSAGE_STREAM_HEADERS, media_type="text/event-stream")
+        return StreamingResponse(
+            logged_stream(stream, info, keepalive_seconds=keepalive_seconds),
+            headers=ai.ui.ai_sdk.UI_MESSAGE_STREAM_HEADERS,
+            media_type="text/event-stream",
+        )
 
     @app.post("/chat/json")
     async def chat_json(body: ChatRequest, request: Request) -> ChatResponse:
@@ -293,6 +358,37 @@ def create_app(
             return scoring.what_if(scoring.load_hubs(), scoring.load_snapshot(), body)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+    async def hub_tool(tool: str, hub_id: str, request: Request, response: Response) -> dict[str, Any]:
+        """Run a one-hub tool for a REST route: same name resolution as the agent, 404 on a ToolError.
+
+        A name resolved through a nickname or a metro area gets an X-Resolution-Note header (the
+        schemas have no field for it).
+        """
+        limit(request)
+        import json as json_
+
+        from app import tools
+
+        out = await tools.run_tool(tool, json_.dumps({"hub_id": hub_id}))
+        if not isinstance(out, dict) or "error" in out:
+            detail = f"{out.get('error')}. {out.get('hint')}" if isinstance(out, dict) else "Unknown hub."
+            raise HTTPException(404, detail)
+        notes = out.pop("resolution_notes", None)
+        if notes:
+            # headers are latin-1: keep the note ASCII so an accented city name cannot break the response
+            response.headers["X-Resolution-Note"] = " ".join(notes).encode("ascii", "replace").decode()
+        return out
+
+    @app.get("/hubs/{hub_id}/score")
+    async def hub_score(hub_id: str, request: Request, response: Response) -> HubScore:
+        """One hub's full breakdown (the get_hub_risk tool's result), for the map. No LLM call."""
+        return HubScore.model_validate(await hub_tool("get_hub_risk", hub_id, request, response))
+
+    @app.get("/hubs/{hub_id}/history")
+    async def hub_history(hub_id: str, request: Request, response: Response) -> HubHistory:
+        """One hub's observed yearly and monthly disruption days (the get_hub_history tool's result). No LLM call."""
+        return HubHistory.model_validate(await hub_tool("get_hub_history", hub_id, request, response))
 
     opinion_path = second_opinion_path or DATA_DIR / "jev_second_opinion.json"
 

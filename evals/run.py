@@ -59,6 +59,8 @@ class Oracle:
         self.by_id = {h.id: h for h in self.hubs}
 
     def ranking(self, spec: dict[str, Any]) -> list[str]:
+        if "field" in spec:  # any HubScore field, highest first, ties by hub_id (e.g. people_days_bad_year_m)
+            return [k for k, _ in sorted(self.scores.items(), key=lambda kv: (-getattr(kv[1], spec["field"]), kv[0]))]
         if "what_if" in spec:
             from app.schemas import WhatIfInput
 
@@ -293,6 +295,20 @@ def check_run(run: Run, case: dict, oracle: Oracle) -> None:
     if expect.get("grounding_first_try"):
         add(("grounding_first_try", resp.grounding.status == "pass", f"status {resp.grounding.status}"))
 
+    if "field_figure" in expect:
+        spec = expect["field_figure"]
+        hub_id = oracle.ranking(spec["rank_of"])[0]
+        value = getattr(oracle.scores[hub_id], spec["field"])
+        # The field itself (get_hub_risk / compare_hubs) or the ranking item's value (rank_hubs for that field).
+        ok = any(f.hub_id == hub_id and matches(f.value, value)
+                 and (f.source_field == spec["field"] or (f.source_tool == "rank_hubs" and f.source_field == "value"))
+                 for f in answer.figures)
+        add(("field_figure", ok, "" if ok else f"no figure citing {hub_id}.{spec['field']} = {value}"))
+        if spec.get("names_metro"):  # opt-in: ranking items carry no metro_name, so this needs get_hub_risk
+            metro = oracle.scores[hub_id].metro_name.split("-")[0].split(",")[0]
+            named = re.search(re.escape(metro), text, re.IGNORECASE) is not None
+            add(("metro_named", named, "" if named else f"answer does not name the {metro} metro"))
+
     if "states_band" in expect:
         spec = expect["states_band"]
         band = oracle.band(spec["hub_id"], spec["kind"])
@@ -313,6 +329,15 @@ def check_run(run: Run, case: dict, oracle: Oracle) -> None:
         sentences = [s for s in re.split(r"(?<=[.!?])\s+|\n+", text) if s.strip()]
         bad = [s for s in sentences if re.search(pattern, s, re.IGNORECASE) and not NEGATION.search(s)]
         add(("no_false_claim", not bad, "" if not bad else f"claims: {bad[0][:120]}"))
+
+    if expect.get("no_closing_question"):
+        ends_with_q = text.rstrip().rstrip("*_ ").endswith("?")
+        add(("no_closing_question", not ends_with_q, "" if not ends_with_q else "answer ends the turn with a question"))
+
+    # Rule: a no-data answer cites no figures (and so no numbers).
+    if answer.data_available is False:
+        add(("no_data_no_figures", not answer.figures,
+             "" if not answer.figures else f"data_available false but {len(answer.figures)} figures"))
 
     for key in ("in_scope", "data_available"):
         if key in expect:

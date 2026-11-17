@@ -1,7 +1,9 @@
-import { MenuIcon, PlusIcon } from 'lucide-react'
+import { BookOpenIcon, MenuIcon, PlusIcon } from 'lucide-react'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { lazyWithReload } from '@/lib/chunkReload'
 import { Settings } from '@/components/SettingsPanel'
+import { MethodologyHost } from '@/components/MethodologyHost'
+import { openMethodology } from '@/lib/methodology'
 import { DebugProvider, readDebugFlag, saveDebugFlag } from '@/lib/debug'
 import { useThemePref } from '@/lib/theme'
 import { ChatSidebar } from '@/components/ChatSidebar'
@@ -88,12 +90,29 @@ export default function App() {
               }}
             />
   )
-  const sidebar = <ChatSidebar activeId={chatId} onSelect={openChat} onNew={newChat} onDeleted={onDeleted} footer={settings} />
+  const sidebar = (
+    <ChatSidebar
+      activeId={chatId}
+      onSelect={openChat}
+      onNew={newChat}
+      onDeleted={onDeleted}
+      footer={
+        <>
+          <Button variant="ghost" className="w-full justify-start gap-2 px-2 text-sm font-normal" onClick={() => openMethodology()}>
+            <BookOpenIcon />
+            Methodology
+          </Button>
+          {settings}
+        </>
+      }
+    />
+  )
 
 
 
   return (
     <DebugProvider debug={debug}>
+      <MethodologyHost />
     <TooltipProvider>
       <div className="flex h-dvh flex-col">
         <header className="glass-bar relative z-20">

@@ -20,15 +20,10 @@ export function answerKind(r: ChatResponse): Kind {
   return 'answer'
 }
 
-/** Thin top accent: the state's color without making the card lopsided. */
-const ACCENT: Record<Kind, string> = {
-  answer: 'bg-isobar',
-  out_of_scope: 'bg-ink-faint',
-  no_data: 'bg-band-medium',
-  could_not_answer: 'bg-band-high',
-}
-
-/** Same shell as the widget cards (shadcn Card): radius, ring, shadow and 20 px padding. */
+/**
+ * Same shell as the widget cards (shadcn Card): radius, hairline border, shadow and 20 px padding. No top accent
+ * strip: clipped by the rounded corners it read as a second box. The state is named in words at the top instead.
+ */
 export const CARD_SHELL = 'glass relative w-full overflow-hidden rounded-3xl p-5 text-card-foreground'
 
 export function AnswerCard({ response, dataAsOf, question }: { response: ChatResponse; dataAsOf?: string; question?: string }) {
@@ -39,7 +34,6 @@ export function AnswerCard({ response, dataAsOf, question }: { response: ChatRes
 
   return (
     <article className={CARD_SHELL} data-kind={kind} aria-label="Answer">
-      <span className={`absolute inset-x-0 top-0 h-1 ${ACCENT[kind]}`} aria-hidden="true" />
       {kind === 'out_of_scope' && (
         <p className="mb-2 text-sm font-semibold text-ink-soft">Outside what this assistant covers</p>
       )}
@@ -94,7 +88,8 @@ export function AnswerCard({ response, dataAsOf, question }: { response: ChatRes
       )}
 
       <footer className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        {kind !== 'out_of_scope' && <GroundingBadge grounding={grounding} />}
+        {/* No figures, nothing to check: no badge (a failed check is always shown). */}
+        {kind !== 'out_of_scope' && (answer.figures.length > 0 || failed) && <GroundingBadge grounding={grounding} />}
         {debug && failed && grounding.errors.length > 0 && (
           <details className="text-xs text-ink-soft">
             <summary>Why it is unverified</summary>
@@ -120,12 +115,12 @@ export function AnswerCard({ response, dataAsOf, question }: { response: ChatRes
 
 export function PendingAnswer() {
   return (
-    <div className={CARD_SHELL} aria-live="polite">
-      <span className="absolute inset-x-0 top-0 h-1 bg-muted" aria-hidden="true" />
-      <p className="text-sm text-ink-soft">Validating figures…</p>
-      <div className="mt-3 space-y-2" aria-hidden="true">
+    // The step row above already says what is happening; the card shows only placeholder lines.
+    <div className={CARD_SHELL} role="status" aria-label="Answer loading">
+      <div className="space-y-2.5 py-1" aria-hidden="true">
         <Skeleton className="h-2.5 w-11/12" />
         <Skeleton className="h-2.5 w-8/12" />
+        <Skeleton className="h-2.5 w-5/12" />
       </div>
     </div>
   )

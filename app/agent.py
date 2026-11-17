@@ -14,6 +14,9 @@ Answer text is never streamed: `stream_turn` forwards tool progress only, then o
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import functools
 import importlib
 import inspect
 import json
@@ -39,10 +42,25 @@ from openai.lib._pydantic import to_strict_json_schema
 
 from app import grounding
 from app.followups import suggest_follow_ups
-from app.schemas import AgentAnswer, ChatResponse, Grounding, ToolError
+from app.schemas import AgentAnswer, ChatResponse, Grounding, ToolError, TurnUsage
 from app.store import Store, Tracer
 
 SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "system.md").read_text(encoding="utf-8")
+_SNAPSHOT_META = Path(__file__).resolve().parent.parent / "data" / "snapshot" / "nri.json"
+
+
+@functools.lru_cache(maxsize=1)
+def _data_as_of() -> str:
+    try:
+        with _SNAPSHOT_META.open(encoding="utf-8") as f:
+            return str(json.load(f).get("fetched_at", ""))[:10] or "unknown"
+    except (OSError, ValueError):
+        return "unknown"
+
+
+def system_prompt(model_id: str) -> str:
+    """The system prompt with the facts that change per deployment (model id, snapshot date)."""
+    return SYSTEM_PROMPT.replace("$MODEL_ID", model_id).replace("$DATA_AS_OF", _data_as_of())
 MAX_STEPS = 6
 MAX_OUTPUT_TOKENS = 2000
 # Low effort is enough: the code does the scoring, the model picks tools and writes the JSON answer.
@@ -348,6 +366,17 @@ class WeatherAgent(ai.Agent):
         self.tracer.event(self.trace_id, "final_answer", answer=answer.model_dump(mode="json"))
 
 
+def turn_usage(model_id: str, input_tokens: int, output_tokens: int, tool_calls: int, started: float) -> TurnUsage:
+    """Wall time since `started` (perf_counter), the turn's tokens, the price-table cost estimate and tool calls."""
+    return TurnUsage(
+        latency_ms=round((time.perf_counter() - started) * 1000, 1),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cost_usd=_cost(model_id, input_tokens, output_tokens),
+        tool_calls=tool_calls,
+    )
+
+
 def _cost(model_id: str, input_tokens: int, output_tokens: int) -> float | None:
     price = PRICES_PER_MTOK.get(model_id)
     if price is None:
@@ -372,6 +401,7 @@ async def _turn_events(
     holder["trace_id"] = trace_id
     holder["session_id"] = session_id
     started = time.perf_counter()
+    holder["started"] = started
     tracer.event(trace_id, "user_message", session_id=session_id, text=message)
     try:
         history = [ai.messages.Message.model_validate(m) for m in store.get_messages(session_id)]
@@ -390,8 +420,9 @@ async def _turn_events(
             max_steps=max_steps,
             prior_tool_results=prior,
         )
+        holder["agent"] = agent  # read by stream_turn's failure path for the usage so far
         user = ai.user_message(message)
-        async with agent.run(model, [ai.system_message(SYSTEM_PROMPT), *history, user]) as stream:
+        async with agent.run(model, [ai.system_message(system_prompt(model.id)), *history, user]) as stream:
             async for event in stream:
                 yield event
     except BaseException as exc:
@@ -410,14 +441,16 @@ async def _turn_events(
             user_message=message,
             used_bad_year=any(c.tool_name == "rank_hubs" and "bad_year" in (c.tool_args or "") for c in calls),
         ),
+        usage=(usage := turn_usage(model.id, agent.input_tokens, agent.output_tokens, len(calls), started)),
     )
     tracer.event(
         trace_id,
         "turn_end",
-        latency_ms=round((time.perf_counter() - started) * 1000, 1),
-        input_tokens=agent.input_tokens,
-        output_tokens=agent.output_tokens,
-        cost_usd=_cost(model.id, agent.input_tokens, agent.output_tokens),
+        latency_ms=usage.latency_ms,
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cost_usd=usage.cost_usd,
+        tool_calls=usage.tool_calls,
     )
 
 
@@ -448,6 +481,66 @@ def _tool_input(args: str) -> Any:
         return args
 
 
+KEEPALIVE_SECONDS = 10.0
+KEEPALIVE_SSE = ": keepalive\n\n"  # an SSE comment: the AI SDK UI client ignores it
+_END = object()
+
+
+async def with_keepalive(source: AsyncIterator[str], interval: float = KEEPALIVE_SECONDS) -> AsyncIterator[str]:
+    """Pass SSE chunks through, adding a comment line when none was sent for `interval` seconds.
+
+    Proxies (Render, Cloudflare) close a stream that stays silent while a slow tool or model call runs.
+    The source runs in one producer task: the turn opens task groups and context variables that break
+    if each chunk were awaited from a different task. Order is unchanged, and nothing follows [DONE].
+    Closing this generator (the client went away) cancels the producer, which closes the source.
+    """
+    queue: asyncio.Queue[Any] = asyncio.Queue()
+
+    async def produce() -> None:
+        try:
+            async for chunk in source:
+                await queue.put(chunk)
+        except BaseException as exc:  # handed to the consumer, which re-raises it
+            await queue.put(exc)
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+        else:
+            await queue.put(_END)
+        finally:
+            aclose = getattr(source, "aclose", None)
+            if aclose is not None:
+                await aclose()
+
+    producer = asyncio.create_task(produce())
+    done_sent = False
+    try:
+        while True:
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=interval)
+            except TimeoutError:
+                if not done_sent:
+                    yield KEEPALIVE_SSE
+                continue
+            if item is _END:
+                return
+            if isinstance(item, BaseException):
+                raise item
+            done_sent = done_sent or item == format_done_sse()
+            yield item
+    finally:
+        if not producer.done():
+            producer.cancel()
+        with contextlib.suppress(BaseException):
+            await producer
+
+
+def _must_propagate(exc: BaseException) -> bool:
+    if isinstance(exc, (GeneratorExit, KeyboardInterrupt, SystemExit)):
+        return True
+    task = asyncio.current_task()
+    return task is not None and task.cancelling() > 0  # someone cancelled this task: stop, do not answer
+
+
 async def stream_turn(
     message: str,
     session_id: str | None,
@@ -458,8 +551,13 @@ async def stream_turn(
     max_steps: int = MAX_STEPS,
     registry: Any | None = None,
     client_history: list[dict] | None = None,
+    info: dict[str, Any] | None = None,
 ) -> AsyncIterator[str]:
-    """AI SDK UI message stream (SSE strings): tool parts, one data-answer part, finish, [DONE]."""
+    """AI SDK UI message stream (SSE strings): tool parts, one data-answer part, finish, [DONE].
+
+    `info`, if given, gets trace_id, tools (tool calls sent) and outcome ("completed" or "error") for logging.
+    """
+    info = info if info is not None else {}
     holder: dict[str, Any] = {}
     calls: dict[str, ai.messages.ToolCallPart] = {}
     inputs_sent: set[str] = set()
@@ -493,9 +591,13 @@ async def stream_turn(
                         UIToolInputAvailableEvent(tool_call_id=part.tool_call_id, tool_name=part.tool_name, input=_tool_input(part.tool_args))
                     )
             yield format_sse(ui)
-    except Exception as exc:
+    except BaseException as exc:
         # Already traced in _turn_events. The contract still holds: exactly one data-answer part,
-        # here an apology flagged "failed", then finish and [DONE].
+        # here an apology flagged "failed", then finish and [DONE]. That covers anything raised inside
+        # the turn after tools ran, including a CancelledError from an SDK task group (not an Exception).
+        # Only a cancellation of this task itself (the client went away) or interpreter exit propagates.
+        if _must_propagate(exc):
+            raise
         while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
             exc = exc.exceptions[0]
         holder["response"] = ChatResponse(
@@ -503,8 +605,20 @@ async def stream_turn(
             answer=ERROR_ANSWER,
             grounding=Grounding(status="failed", errors=[f"{STREAM_ERROR_TEXT} ({type(exc).__name__})"]),
             trace_id=holder.get("trace_id") or uuid.uuid4().hex,
+            # what the turn used before it failed: tokens so far and the tool calls the client saw
+            usage=turn_usage(
+                model.id,
+                getattr(holder.get("agent"), "input_tokens", 0),
+                getattr(holder.get("agent"), "output_tokens", 0),
+                len(inputs_sent),
+                holder.get("started", time.perf_counter()),
+            ),
         )
         finish = []
+        info["outcome"] = "error"
+    info.setdefault("outcome", "completed")
+    info["trace_id"] = holder["response"].trace_id
+    info["tools"] = len(inputs_sent)
     if not started:
         yield format_sse(UIStartEvent())
     yield format_sse(UIDataEvent(data_type="answer", data=holder["response"].model_dump(mode="json")))

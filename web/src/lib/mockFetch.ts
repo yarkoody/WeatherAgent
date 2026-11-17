@@ -91,6 +91,26 @@ export const mockFetch: typeof fetch = async (input, init) => {
       headers: { 'Content-Type': 'text/event-stream', 'x-vercel-ai-ui-message-stream': 'v1' },
     })
   }
+  if (path === '/methodology.md') {
+    await sleep(150)
+    return new Response((await loadMocks()).methodology, { headers: { 'Content-Type': 'text/markdown; charset=utf-8' } })
+  }
+  if (path === '/hubs') {
+    await sleep(150)
+    return Response.json((await loadMocks()).hubs)
+  }
+  const hubHistory = /^\/hubs\/([a-z_]+)\/history$/.exec(path)
+  if (hubHistory) {
+    await sleep(200)
+    const history = (await loadMocks()).hubHistories[hubHistory[1]]
+    return history ? Response.json(history) : Response.json({ detail: `Unknown hub ${hubHistory[1]}` }, { status: 404 })
+  }
+  const hubScore = /^\/hubs\/([a-z_]+)\/score$/.exec(path)
+  if (hubScore) {
+    await sleep(150)
+    const score = (await loadMocks()).hubScores[hubScore[1]]
+    return score ? Response.json(score) : Response.json({ detail: `Unknown hub ${hubScore[1]}` }, { status: 404 })
+  }
   if (path === '/scores') {
     await sleep(250)
     return Response.json((await loadMocks()).scores)
@@ -102,14 +122,6 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const body = init?.body ? (JSON.parse(String(init.body)) as { family_weights?: object; upgrade_costs?: unknown[] }) : {}
     const empty = !body.family_weights && !body.upgrade_costs?.length
     return Response.json(empty ? whatIf.baseline : whatIf.example)
-  }
-  if (path === '/second-opinion' && (init?.method ?? 'GET') === 'GET') {
-    await sleep(300)
-    return Response.json((await loadMocks()).secondOpinion)
-  }
-  if (path === '/second-opinion/rerun') {
-    await sleep(900)
-    return Response.json({ detail: 'JEV re-run is only available when running locally.' }, { status: 503 })
   }
   return Response.json({ detail: `No mock for ${path}` }, { status: 404 })
 }

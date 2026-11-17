@@ -328,3 +328,26 @@ def test_cites_compact_helper():
     assert cites_compact("Dallas serves about 2.6M people.", 2607218)
     assert not cites_compact("Dallas serves 2,607,218 people.", 2607218)  # exact, not compact
     assert not cites_compact("Dallas serves 3M people.", 2607218)
+
+
+def test_no_data_answer_must_not_cite_figures():
+    no_data = answer("I don't have Denver's 2026 snow days; 2025 had 11.8%.", [fig(11.8)]).model_copy(update={"data_available": False})
+    errors = check(no_data, [WEATHER], None)
+    assert len(errors) == 1 and "data_available" in errors[0]
+    assert drop_ungrounded_figures(no_data, [WEATHER]).figures == []
+    clean = answer("I don't have Denver's 2026 snow days.", []).model_copy(update={"data_available": False})
+    assert check(clean, [WEATHER], None) == []
+
+
+def test_numbers_inside_identifiers_are_not_figures():
+    # "About this system" answers name the model and versions; those digits are not data
+    meta = answer("Answers come from gpt-6.1-sol via the AI SDK, scored with v2-tvar on Open-Meteo ERA5 data.", [])
+    assert check(meta, [], None) == []
+    # real numbers still need figures
+    assert check(answer("Freezing below -10 °C.", []), [], None) != []
+    assert check(answer("Snow on 11.8% of days in sol-like years.", []), [], None) != []
+
+
+def test_the_0_to_100_scale_is_not_a_figure():
+    assert check(answer("Exposure is a 0-100 index (0 to 100).", []), [], None) == []
+    assert check(answer("Priority is 100.", []), [], None) != []

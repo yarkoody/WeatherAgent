@@ -6,8 +6,10 @@ Current typical-year ranking (expected disruption days per year): minneapolis, c
 
 Current bad-year ranking (average lost days in the worst 1 in 20 years): miami, minneapolis, houston, newark, chicago, detroit, kansas_city, memphis, columbus, indianapolis, dallas, atlanta, denver, los_angeles, phoenix.
 
+Current priority ranking: minneapolis, chicago, newark, detroit, kansas_city, dallas, indianapolis, columbus, denver, memphis, houston, atlanta, miami, los_angeles, phoenix.
+
 Each row changes one assumption and compares the new ranking of all hubs with the current one, on unrounded
-values. The first three groups test the typical-year ranking; the last tests the bad-year ranking.
+values. The first three groups test the typical-year ranking, then the bad-year ranking, then priority.
 Spearman 1.0 = identical order. Biggest move: the hub whose rank changed most (+ = moved up).
 
 ## Days per event
@@ -69,3 +71,14 @@ Lowest Spearman: 0.961 (500 sq mi). The top hub never changes.
 | long closure 50 days | 0.986 | miami | no | minneapolis -2 |
 
 Lowest Spearman: 0.925 (long closure 20 days). Top hub changes under: mix 70% / 30%, mix 90% / 10%, long closure 20 days.
+
+## Priority: people term
+
+| Variant | Spearman | Top hub | Top changed | Biggest move |
+|---|---|---|---|---|
+| linear, cap 25M | 0.993 | minneapolis | no | chicago -1 |
+| log, cap 10M | 1.000 | minneapolis | no | none |
+| log, cap 40M | 0.996 | minneapolis | no | denver -1 |
+| no people term | 0.971 | minneapolis | no | dallas -2 |
+
+Lowest Spearman: 0.971 (no people term). The top hub never changes.

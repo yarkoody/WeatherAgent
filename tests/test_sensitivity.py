@@ -55,3 +55,13 @@ def test_bad_year_and_reference_area_groups():
     area = [r.label for r in result.rows if r.group == "reference area"]
     assert area == ["500 sq mi", "2,000 sq mi"]
     assert result.base_bad_year_order[0] == "charlie"
+
+
+def test_priority_people_term_group():
+    from app import scoring
+
+    result = sensitivity.run(HUBS, SNAPSHOT)
+    rows = [r for r in result.rows if r.group == "priority: people term"]
+    assert [r.label for r in rows] == ["linear, cap 25M", "log, cap 10M", "log, cap 40M", "no people term"]
+    pr = {h.id: scoring.priority_value(h, SNAPSHOT) for h in HUBS}
+    assert result.base_priority_order == sorted(pr, key=lambda k: (-pr[k], k))

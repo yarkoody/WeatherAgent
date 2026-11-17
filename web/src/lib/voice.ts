@@ -19,6 +19,8 @@ interface SpeechRecognitionLike {
   onend: (() => void) | null
   start(): void
   stop(): void
+  /** Ends at once and discards pending results (all current browsers have it). */
+  abort?(): void
 }
 type RecognitionCtor = new () => SpeechRecognitionLike
 
@@ -76,6 +78,7 @@ export function useDictation(onText: (text: string, final: boolean) => void) {
     r.interimResults = true
     session.current = ''
     r.onresult = (e) => {
+      if (rec.current !== r) return // a detached session (the message was sent): late words must not refill the box
       let finalText = ''
       let interim = ''
       for (let i = 0; i < e.results.length; i++) {
@@ -88,6 +91,7 @@ export function useDictation(onText: (text: string, final: boolean) => void) {
       cb.current(join(committed.current, finalText, interim), interim.trim() === '')
     }
     r.onerror = (e) => {
+      if (rec.current !== r) return
       // Silence and our own aborts are normal: the session ends and, if still wanted, restarts.
       if (e.error === 'no-speech' || e.error === 'aborted') return
       want.current = false
@@ -130,6 +134,22 @@ export function useDictation(onText: (text: string, final: boolean) => void) {
     rec.current?.stop()
   }, [])
 
+  /**
+   * The message was sent: stop now and detach the session, so late "result" and "end" events from the recognizer
+   * can neither refill the composer nor restart listening.
+   */
+  const finish = useCallback(() => {
+    want.current = false
+    clearSilence()
+    const r = rec.current
+    rec.current = null
+    committed.current = ''
+    session.current = ''
+    setListening(false)
+    if (r?.abort) r.abort()
+    else r?.stop()
+  }, [])
+
   useEffect(
     () => () => {
       want.current = false
@@ -139,7 +159,7 @@ export function useDictation(onText: (text: string, final: boolean) => void) {
     [],
   )
 
-  return { supported, listening, error, hint, start, stop }
+  return { supported, listening, error, hint, start, stop, finish }
 }
 
 export function speechSupported(): boolean {
