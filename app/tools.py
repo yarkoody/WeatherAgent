@@ -42,22 +42,22 @@ class RankHubsArgs(_Args):
 
 
 class GetHubRiskArgs(_Args):
-    hub_id: str = Field(description="Hub id from list_hubs, e.g. 'kansas_city'.")
+    hub_id: str = Field(description="Hub id (e.g. 'kansas_city') or the hub's city name (e.g. 'Kansas City').")
 
 
 class CompareHubsArgs(_Args):
-    hub_ids: list[str] = Field(min_length=2, max_length=5, description="2 to 5 hub ids from list_hubs.")
+    hub_ids: list[str] = Field(min_length=2, max_length=5, description="2 to 5 hub ids or hub city names.")
     hazards: list[Hazard] = Field(min_length=1, description="Hazards the comparison is about, e.g. ['overall'] or ['winter'].")
 
 
 class WeatherStatArgs(_Args):
-    hub_id: str = Field(description="Hub id from list_hubs.")
+    hub_id: str = Field(description="Hub id or the hub's city name.")
     metric: Metric = Field(description="Which statistic to compute.")
     year: int = Field(description="Calendar year; the snapshot covers full years 2015-2025.")
 
 
 class GetActiveAlertsArgs(_Args):
-    hub_id: str = Field(description="Hub id from list_hubs.")
+    hub_id: str = Field(description="Hub id or the hub's city name.")
 
 
 class WhatIfArgs(_Args):
@@ -157,7 +157,8 @@ def _tool(fn: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
 @_tool
 async def list_hubs(region: Region | None = None) -> list:
     """List the logistics hubs (id, name, city, state, region, coordinates, county FIPS), optionally for one region.
-    Use it first to map a city or hub name the analyst typed to its hub id, and to check that a hub exists."""
+    The other tools already accept a hub id or the hub's city name, so call this only to map a name that is
+    neither (an abbreviation like 'KC', a misspelling) to its hub id, or to check which places are hubs."""
     hubs = _state()[0]
     return [h for h in hubs if region is None or h.region == region]
 
