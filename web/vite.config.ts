@@ -15,6 +15,7 @@ export default defineConfig({
       '/scores': backend,
       '/hubs': backend,
       '/health': backend,
+      '/second-opinion': backend,
     },
   },
   // One app chunk (React, AI SDK, shadcn/Base UI, Recharts, markdown) is ~360 kB gzipped; acceptable for an internal analyst tool.

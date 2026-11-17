@@ -84,6 +84,14 @@ export const mockFetch: typeof fetch = async (input, init) => {
     await sleep(250)
     return Response.json((await loadMocks()).scores)
   }
+  if (path === '/second-opinion' && (init?.method ?? 'GET') === 'GET') {
+    await sleep(300)
+    return Response.json((await loadMocks()).secondOpinion)
+  }
+  if (path === '/second-opinion/rerun') {
+    await sleep(900)
+    return Response.json({ detail: 'JEV re-run is only available when running locally.' }, { status: 503 })
+  }
   return Response.json({ detail: `No mock for ${path}` }, { status: 404 })
 }
 

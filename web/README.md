@@ -40,6 +40,10 @@ The default view is for analysts: plain-language progress steps, and figures wit
 
 Every score has an (i) button ("How is this calculated?"). It opens on click, tap or Enter. Its text is built only from the tool output (`src/lib/explain.ts`): each signal's raw value, unit, weight and contribution, then one line on the index (days ÷ `days_cap` × 100, bands at `medium_from_days` and `high_from_days`).
 
+## JEV second opinion (Scores view)
+
+`GET /second-opinion` feeds a "Second opinion (JEV)" column: per hub a four-square strip (winter, flood, hurricane, severe storm; filled = agrees, red outline = differs) and "3/4 agree"; click or tap shows each hazard's formula band against JEV's band and score. A summary line above the table gives the overall agreement, run date and data date, with an (i) explainer. A 404 hides all of it. Below 640 px the column collapses into a compact badge next to the hub name. In the developer view a "Re-run JEV" button calls `POST /second-opinion/rerun` and shows the server's detail on 503 (re-running works only locally). JEV never changes scores or rankings.
+
 ## Mocks
 
-`src/mocks/chat-stream*.sse` were recorded from `app.agent.stream_turn` with `ai.testing.FakeModel` and the real tools (NWS alerts stubbed). Scenarios: ranking, compare, weather, alerts, no data, out of scope, and failed grounding (ask "How exposed is Houston?"). `scores.json` is the real `/scores` output. The mock transport is the real `DefaultChatTransport` with a replaying `fetch`, so the mocks go through the same parser as the live stream. Mock code is dropped from production builds.
+`src/mocks/chat-stream*.sse` were recorded from `app.agent.stream_turn` with `ai.testing.FakeModel` and the real tools (NWS alerts stubbed). Scenarios: ranking, compare, weather, alerts, no data, out of scope, and failed grounding (ask "How exposed is Houston?"). `scores.json` is the real `/scores` output. `second-opinion.json` is synthetic (real formula bands, made-up JEV scores with six deliberate disagreements); the mock re-run returns 503. The mock transport is the real `DefaultChatTransport` with a replaying `fetch`, so the mocks go through the same parser as the live stream. Mock code is dropped from production builds.

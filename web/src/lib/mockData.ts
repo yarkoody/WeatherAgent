@@ -9,7 +9,11 @@ import weather from '../mocks/chat-stream-weather.sse?raw'
 import ranking from '../mocks/chat-stream.sse?raw'
 import type { MockScenario } from './mockFetch'
 import scoresJson from '../mocks/scores.json'
-import type { ScoreRow } from './types'
+import secondOpinionJson from '../mocks/second-opinion.json'
+import type { ScoreRow, SecondOpinion } from './types'
 
 export const MOCK_STREAMS: Record<MockScenario, string> = { ranking, compare, weather, alerts, nodata, outofscope, failed }
 export const scores = scoresJson as ScoreRow[]
+
+/** Synthetic JEV cross-check for UI development (not a real JEV run): real formula bands, a few deliberate disagreements. */
+export const secondOpinion = secondOpinionJson as SecondOpinion
