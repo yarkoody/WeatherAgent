@@ -58,6 +58,7 @@ class Signal(Strict):
 class FamilyScore(Strict):
     family: Family
     score: float
+    days_per_year: float  # expected disruption days per year from this family
     signals: list[Signal]
 
 
@@ -70,7 +71,8 @@ class BandThresholds(Strict):
 
 class HubScore(Strict):
     hub_id: str
-    exposure: float
+    exposure: float  # index 0-100 = min(exposure_days_per_year / cap, 1) * 100
+    exposure_days_per_year: float  # total expected disruption days per year
     exposure_band: Band
     families: dict[Family, FamilyScore]
     family_weights: dict[Family, float]
