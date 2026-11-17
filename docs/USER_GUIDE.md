@@ -10,12 +10,12 @@ Type a question, or press the mic and speak (Chrome and Edge). Enter sends, even
 
 ### Live voice (Chrome and Edge)
 
-Press **Live** next to the mic to talk hands-free. Allow the microphone when the browser asks. The bar above the box shows what it is doing:
-- **Listening:** ask your question. The words it hears appear as you speak, and it sends the question when you pause.
-- **Thinking:** the agent runs its tools and checks every figure, as for a typed question.
-- **Speaking:** it reads the checked answer aloud. Start talking to interrupt it with a new question, or press **Skip**.
+Press **Live** next to the mic to talk hands-free. Allow the microphone when the browser asks. The text box turns into a voice bar with a colored dot, the state, a waveform of the sound, the time left, a mute button and an end button (×):
+- **Listening** (blue): ask your question. The words it hears appear as a dashed question in the chat, and it sends the question when you pause.
+- **Checking the figures** (violet): the agent runs its tools and checks every figure, as for a typed question.
+- **Speaking** (teal): it reads the checked answer aloud. Start talking to interrupt it with a new question, or tap the dot to skip the rest.
 
-Press **End live** to stop. A session ends by itself after 10 minutes. An answer whose numbers couldn't be verified isn't read aloud; the voice says so, and the answer is on screen. In other browsers the Live button explains that it needs Chrome or Edge.
+Press × to stop. A session ends by itself after 10 minutes. An answer whose numbers couldn't be verified isn't read aloud; the voice says so, and the answer is on screen. In other browsers the Live button explains that it needs Chrome or Edge.
 
 ### What to ask
 

@@ -7,6 +7,7 @@
 // client cannot choose the text). Talking while it speaks lowers the voice at once and, if it was a new question
 // rather than the speaker's own echo, stops it and asks.
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { createMeter, type Meter } from './liveAudio'
 
 export type LiveState = 'off' | 'connecting' | 'listening' | 'thinking' | 'speaking'
 
@@ -62,6 +63,8 @@ export interface LiveDeps {
   createAudio: () => HTMLAudioElement
   setTimer: (fn: () => void, ms: number) => unknown
   clearTimer: (id: unknown) => void
+  /** Audio levels for the waveform; null where Web Audio is missing (the waveform then stays idle). */
+  createMeter?: () => Meter | null
 }
 
 function defaultDeps(): LiveDeps {
@@ -72,6 +75,7 @@ function defaultDeps(): LiveDeps {
     createAudio: () => new Audio(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (id) => clearTimeout(id as ReturnType<typeof setTimeout>),
+    createMeter,
   }
 }
 
@@ -94,10 +98,13 @@ export class LiveVoice {
   hint: string | null = null
   interim = ''
   endsAt: number | null = null
+  muted = false
   private listeners = new Set<Listener>()
   private peer: RTCPeerConnection | null = null
   private stream: MediaStream | null = null
-  private audio: HTMLAudioElement | null = null
+  private audio: HTMLAudioElement | null = null // one element per session: Web Audio can attach to it only once
+  private playing = false
+  private meter: Meter | null = null
   private spokenText = ''
   private capTimer: unknown = null
   private run = 0 // bumps on every start/stop, so late events of an old session are ignored
@@ -112,7 +119,7 @@ export class LiveVoice {
     return () => void this.listeners.delete(l)
   }
 
-  private set(patch: Partial<Pick<LiveVoice, 'state' | 'error' | 'hint' | 'interim' | 'endsAt'>>) {
+  private set(patch: Partial<Pick<LiveVoice, 'state' | 'error' | 'hint' | 'interim' | 'endsAt' | 'muted'>>) {
     Object.assign(this, patch)
     this.listeners.forEach((l) => l())
   }
@@ -124,7 +131,9 @@ export class LiveVoice {
   async start(): Promise<void> {
     if (this.state !== 'off') return
     const run = ++this.run
-    this.set({ state: 'connecting', error: null, hint: null, interim: '' })
+    // Created inside the click that started Live, so the browser lets the audio context run.
+    this.meter = this.deps.createMeter?.() ?? null
+    this.set({ state: 'connecting', error: null, hint: null, interim: '', muted: false })
     try {
       const res = await this.deps.fetch('/voice/session', { method: 'POST' })
       if (!res.ok) throw new Error(await detail(res, 'Live voice is unavailable right now.'))
@@ -136,6 +145,7 @@ export class LiveVoice {
         })
       if (run !== this.run) return void stream.getTracks().forEach((t) => t.stop())
       this.stream = stream
+      this.meter?.mic(stream)
       const pc = this.deps.createPeer()
       this.peer = pc
       stream.getTracks().forEach((t) => pc.addTrack(t, stream))
@@ -170,11 +180,14 @@ export class LiveVoice {
     if (this.capTimer !== null) this.deps.clearTimer(this.capTimer)
     this.capTimer = null
     this.stopAudio()
+    this.audio = null
+    this.meter?.close()
+    this.meter = null
     this.peer?.close()
     this.peer = null
     this.stream?.getTracks().forEach((t) => t.stop())
     this.stream = null
-    this.set({ state: 'off', error, hint: null, interim: '', endsAt: null })
+    this.set({ state: 'off', error, hint: null, interim: '', endsAt: null, muted: false })
   }
 
   /** The chat sent a question (typed or spoken) and is working on it. */
@@ -190,12 +203,16 @@ export class LiveVoice {
     if (this.state === 'off' || this.state === 'connecting') return
     if (!traceId) return this.set({ state: 'listening' })
     this.stopAudio()
-    const audio = this.deps.createAudio()
-    this.audio = audio
+    if (!this.audio) {
+      this.audio = this.deps.createAudio()
+      this.meter?.speaker(this.audio)
+    }
+    const audio = this.audio
+    const play = ++this.playId
     this.spokenText = spokenText
     const done = () => {
-      if (this.audio !== audio) return
-      this.audio = null
+      if (play !== this.playId || !this.playing) return
+      this.playing = false
       if (this.state === 'speaking') this.set({ state: 'listening' })
     }
     audio.onended = done
@@ -203,7 +220,10 @@ export class LiveVoice {
       done()
       if (this.state !== 'off') this.set({ hint: 'The answer could not be read aloud. It is on screen.' })
     }
+    audio.volume = 1
     audio.src = `/voice/speak?trace_id=${encodeURIComponent(traceId)}`
+    this.playing = true
+    this.meter?.resume()
     this.set({ state: 'speaking', hint: null })
     void audio.play().catch(done)
   }
@@ -215,9 +235,27 @@ export class LiveVoice {
     this.set({ state: 'listening' })
   }
 
+  /** Mute or unmute the microphone (the call stays open; nothing is heard while muted). */
+  toggleMute(): void {
+    if (this.state === 'off') return
+    const muted = !this.muted
+    this.stream?.getTracks().forEach((t) => (t.enabled = !muted))
+    this.set({ muted, interim: muted ? '' : this.interim })
+  }
+
+  /** Waveform bars for the current state: the microphone while listening, the answer while speaking. */
+  levels(n: number): number[] | null {
+    if (this.state === 'listening') return this.muted ? null : (this.meter?.read('mic', n) ?? null)
+    if (this.state === 'speaking') return this.meter?.read('speaker', n) ?? null
+    return null
+  }
+
+  private playId = 0
+
   private stopAudio() {
     const a = this.audio
-    this.audio = null
+    this.playing = false
+    this.playId++
     if (a) {
       a.onended = null
       a.onerror = null
@@ -237,7 +275,7 @@ export class LiveVoice {
     switch (e.type) {
       case 'input_audio_buffer.speech_started':
         // Barge-in: lower the voice now; the transcript decides whether it was a question or our own echo.
-        if (this.state === 'speaking' && this.audio) this.audio.volume = 0.15
+        if (this.state === 'speaking' && this.playing && this.audio) this.audio.volume = 0.15
         if (this.state === 'listening') this.set({ interim: '' })
         break
       case 'conversation.item.input_audio_transcription.delta':
@@ -280,7 +318,7 @@ export function useLiveVoice(onUtterance: (text: string) => void, deps?: LiveDep
   live.setHandler(onUtterance)
   const snapshot = useSyncExternalStore(
     live.subscribe,
-    () => `${live.state}|${live.error}|${live.hint}|${live.interim}|${live.endsAt}`,
+    () => `${live.state}|${live.error}|${live.hint}|${live.interim}|${live.endsAt}|${live.muted}`,
     () => 'off',
   )
   void snapshot
@@ -289,5 +327,10 @@ export function useLiveVoice(onUtterance: (text: string) => void, deps?: LiveDep
   const start = useCallback(() => void live.start(), [live])
   const stop = useCallback(() => live.stop(), [live])
   const skip = useCallback(() => live.skip(), [live])
-  return { live, supported, state: live.state, error: live.error, hint: live.hint, interim: live.interim, endsAt: live.endsAt, start, stop, skip }
+  const toggleMute = useCallback(() => live.toggleMute(), [live])
+  const levels = useCallback((n: number) => live.levels(n), [live])
+  return {
+    live, supported, state: live.state, error: live.error, hint: live.hint, interim: live.interim, endsAt: live.endsAt, muted: live.muted,
+    start, stop, skip, toggleMute, levels,
+  }
 }
