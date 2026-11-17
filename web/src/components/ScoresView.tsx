@@ -1,8 +1,11 @@
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, SearchIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, DownloadIcon, SearchIcon, SlidersHorizontalIcon } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { HazardIcon } from '@/components/HazardIcon'
 import { InfoTip } from '@/components/InfoTip'
 import { SecondOpinionCell } from '@/components/SecondOpinionCell'
+import { SelectPill } from '@/components/SelectPill'
+import { WhatIfPanel } from '@/components/WhatIfPanel'
+import { downloadCsv } from '@/lib/exportCsv'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
@@ -123,6 +126,7 @@ export function ScoresView() {
   const [query, setQuery] = useState('')
   const [region, setRegion] = useState<Region | ''>('')
   const [band, setBand] = useState<Band | ''>('')
+  const [whatIf, setWhatIf] = useState(false)
 
   useEffect(() => {
     const ctl = new AbortController()
@@ -188,7 +192,17 @@ export function ScoresView() {
 
         {opinion && <SecondOpinionSummary opinion={opinion} onRerun={setOpinion} />}
 
-        {/* Tier 2 slot: US hub map and what-if weight sliders go here, above the table. */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button variant={whatIf ? 'secondary' : 'outline'} size="sm" aria-expanded={whatIf} onClick={() => setWhatIf((v) => !v)}>
+            <SlidersHorizontalIcon />
+            What if
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => shown && exportCsv(shown)} disabled={!shown || shown.length === 0}>
+            <DownloadIcon />
+            Export CSV
+          </Button>
+        </div>
+        {whatIf && rows && <WhatIfPanel rows={rows} />}
 
         <Filters
           query={query}
@@ -280,30 +294,36 @@ export function ScoresView() {
   )
 }
 
-/** Header cell: one-line label as a sort button, direction arrow, and the column's (i), all on one baseline. */
+/**
+ * Header cell, in a fixed order for every column: label, (i), sort arrow, on one baseline.
+ * Right-aligned (numeric) columns right-align the whole group over the numbers; the order never flips.
+ */
 function SortHeader({ column, sort, onSort }: { column: Column; sort: { key: SortKey; dir: Dir }; onSort: () => void }) {
   const active = sort.key === column.key
   const Arrow = !active ? ChevronsUpDownIcon : sort.dir === 'asc' ? ArrowUpIcon : ArrowDownIcon
   const right = column.align === 'right'
+  const tone = active ? 'text-foreground' : 'text-muted-foreground'
   return (
     <th
       scope="col"
       aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
       className={`sticky top-0 z-10 border-b border-border bg-header px-3 py-2 align-bottom text-xs font-semibold whitespace-nowrap ${right ? 'text-right' : 'text-left'}`}
     >
-      <span className={`inline-flex items-center gap-0.5 ${right ? 'flex-row-reverse' : ''}`}>
+      {/* gap-0.5 + the (i) button's own inset gives about 5 px between label, icon and arrow. */}
+      <span data-header-group className="inline-flex items-center gap-0.5 align-middle">
         <button
           type="button"
           onClick={onSort}
           aria-label={`Sort by ${column.label}`}
-          className={`inline-flex items-center gap-1 rounded-md px-1 py-1 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none ${
-            active ? 'text-foreground' : 'text-muted-foreground'
-          } ${right ? 'flex-row-reverse' : ''}`}
+          className={`rounded-md py-1 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none ${tone}`}
         >
           {column.label}
-          <Arrow className={`size-3.5 ${active ? '' : 'opacity-40'}`} aria-hidden="true" />
         </button>
         <InfoTip subject={column.label} title={column.tip.title} steps={column.tip.steps} />
+        {/* The arrow sorts too (pointer only; the label button is the keyboard target). */}
+        <span data-sort-arrow aria-hidden="true" onClick={onSort} className={`cursor-pointer ${tone}`}>
+          <Arrow className={`size-3.5 ${active ? '' : 'opacity-40'}`} />
+        </span>
       </span>
     </th>
   )
@@ -357,25 +377,25 @@ function Filters(props: {
       </label>
       <label className="flex flex-col gap-1 text-xs text-muted-foreground">
         Region
-        <select aria-label="Region" value={props.region} onChange={(e) => props.onRegion(e.target.value as Region | '')} className={select}>
+        <SelectPill aria-label="Region" value={props.region} onChange={(e) => props.onRegion(e.target.value as Region | '')}>
           <option value="">All regions</option>
           {REGIONS.map((r) => (
             <option key={r} value={r}>
               {r}
             </option>
           ))}
-        </select>
+        </SelectPill>
       </label>
       <label className="flex flex-col gap-1 text-xs text-muted-foreground">
         Exposure band
-        <select aria-label="Exposure band" value={props.band} onChange={(e) => props.onBand(e.target.value as Band | '')} className={select}>
+        <SelectPill aria-label="Exposure band" value={props.band} onChange={(e) => props.onBand(e.target.value as Band | '')}>
           <option value="">All bands</option>
           {BANDS.map((b) => (
             <option key={b} value={b}>
               {b[0].toUpperCase() + b.slice(1)}
             </option>
           ))}
-        </select>
+        </SelectPill>
       </label>
       <Button variant="ghost" size="sm" className="h-9" onClick={props.onReset} disabled={!props.active}>
         Reset filters
@@ -441,4 +461,33 @@ function SecondOpinionSummary({ opinion, onRerun }: { opinion: SecondOpinion; on
       )}
     </div>
   )
+}
+
+/** The table as shown (filters and sort applied), one row per hub. */
+function exportCsv(rows: ScoreRow[]) {
+  const header = [
+    'Rank',
+    'Hub',
+    'Region',
+    'Typical year (lost days)',
+    'Bad year (lost days)',
+    'Hurricane 10-yr chance (%)',
+    'Investment priority',
+    'Priority band',
+    'Exposure band',
+    'Top driver',
+  ]
+  const body = rows.map((r, i) => [
+    i + 1,
+    shortHubName(r.name),
+    r.region,
+    r.exposure_days_per_year,
+    r.bad_year_days,
+    r.hurricane_10yr_probability_pct,
+    r.priority,
+    r.priority_band,
+    r.exposure_band,
+    FAMILY_LABEL[r.top_driver],
+  ])
+  downloadCsv(`hub-scores-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...body])
 }

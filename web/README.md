@@ -42,7 +42,7 @@ Wherever a hub's exposure appears (hub breakdown, comparison cards, Scores table
 
 ## Analyst and developer views
 
-The default view is for analysts: plain-language progress steps, and figures with label, hub and value plus the grounding badge. Add `?debug=1` to the URL for the developer view (remembered in `localStorage`; `?debug=0` turns it off): a "Developer view" pill, source-tool citations on each figure, expandable tool names and arguments, the trace id and grounding errors.
+The default view is for analysts: plain-language progress steps, and figures with label, hub and value plus the grounding badge. Turn on Developer mode in Settings (gear, top right), or use `?debug=1` / `?debug=0` as a shortcut for the same stored preference, for the developer view: a "Developer view" pill, source-tool citations on each figure, expandable tool names and arguments, the trace id and grounding errors.
 
 Every score has an (i) button ("How is this calculated?"). It opens on click, tap or Enter and shows at most five short plain-language steps; "More detail" reveals the technical breakdown (each signal's raw value, weight and contribution). All numbers come from the tool output (`src/lib/explain.ts`).
 
@@ -52,6 +52,10 @@ Large numbers display compact (472K, 2.6M, 1.2B), days and scores with one decim
 
 `GET /second-opinion` feeds a "Second opinion (JEV)" column: per hub a four-square strip (winter, flood, hurricane, severe storm; filled = agrees, red outline = differs) and "3/4 agree"; click or tap shows each hazard's formula band against JEV's band and score. A summary line above the table gives the overall agreement, run date and data date, with an (i) explainer. A 404 hides all of it. Below 640 px the column collapses into a compact badge next to the hub name. In the developer view a "Re-run JEV" button calls `POST /second-opinion/rerun` and shows the server's detail on 503 (re-running works only locally). JEV never changes scores or rankings.
 
+## Settings
+
+The gear at the top right opens Settings (a popover on desktop, a bottom sheet on phones): Appearance (Light / Dark / System, default System, stored; `index.html` applies it before first paint via `<html data-theme>`), Developer mode, and Clear chat history (with confirmation).
+
 ## UI polish
 
 - Liquid-glass surfaces (`.glass`, `.glass-bar` in `src/index.css`) over a calm sky gradient, with a solid fallback when `backdrop-filter` is unsupported or `prefers-reduced-transparency` is set. Dark mode follows the system setting; band and hazard colors are theme tokens with AA text contrast in both.
@@ -59,6 +63,18 @@ Large numbers display compact (472K, 2.6M, 1.2B), days and scores with one decim
 - Scores table: sort by any column header (aria-sort, direction arrow), filters for region, exposure band and hub name with a reset, sticky header, zebra rows, numbers right-aligned under right-aligned headers, one (i) per column. The JEV header (i) explains why JEV can disagree; the summary shows rank agreement per hazard when the run has it.
 - Dates read "Nov 17, 2026" (`formatDate`, no time-zone shift).
 
+## Analyst tools
+
+- **What if** (Scores page): one slider per hazard (×0.1 to ×5, default ×1) and optional upgrade costs in $M call `POST /what-if` (debounced 250 ms) and show the re-ranked investment priority with rank changes against the current ranking, plus "Priority per $1M" when costs are given. Scores themselves do not change.
+- **Observed history** (`get_hub_history`): stacked lost days per year with the worst year marked, and a month-by-hazard heatmap with peak months; also a History tab in the hub breakdown (renders history fetched in the chat, or asks for it).
+- **Export**: "Export CSV" downloads the Scores table as shown (filters and sort); "Export report" on an answer or a hub breakdown opens a print-only report (`window.print()`, save as PDF).
+
 ## Mocks
 
-`src/mocks/chat-stream*.sse` were recorded from `app.agent.stream_turn` with `ai.testing.FakeModel` and the real tools (NWS alerts stubbed). Scenarios: ranking, compare, weather, alerts, no data, out of scope, failed grounding (ask "How exposed is Houston?"), metro-area resolution ("How exposed is New York?") and a bad-year ranking ("Which hubs have the worst bad years?"). All are recorded from the formula-v2 backend; `scores.json` and `chat-response.json` are real v2 output too. `second-opinion.json` is the real committed JEV run (`data/jev_second_opinion.json`); the mock re-run returns 503. The mock transport is the real `DefaultChatTransport` with a replaying `fetch`, so the mocks go through the same parser as the live stream. Mock code is dropped from production builds.
+`src/mocks/chat-stream*.sse` were recorded from `app.agent.stream_turn` with `ai.testing.FakeModel` and the real tools (NWS alerts stubbed). Scenarios: ranking, compare, weather, alerts, no data, out of scope, failed grounding (ask "How exposed is Houston?"), metro-area resolution ("How exposed is New York?") and a bad-year ranking ("Which hubs have the worst bad years?"). All are recorded from the formula-v2 backend, except `chat-stream-history.sse` (hand-made around `history-minneapolis.json`, computed from the committed weather snapshot until the backend tool lands) and `what-if.json` (two results recorded from `scoring.what_if`; the mock returns the example for any non-default input); `scores.json` and `chat-response.json` are real v2 output too. `second-opinion.json` is the real committed JEV run (`data/jev_second_opinion.json`); the mock re-run returns 503. The mock transport is the real `DefaultChatTransport` with a replaying `fetch`, so the mocks go through the same parser as the live stream. Mock code is dropped from production builds.
+
+## Robustness
+
+- **Real tool outputs in tests.** `src/__tests__/real/tool-outputs.json` holds outputs captured from `app.tools.run_tool` against the committed snapshot: `get_hub_risk`, `get_hub_history` and `get_active_alerts` for six hubs (and one city with no hub, which returns an error), `rank_hubs` for exposure, priority and bad-year rankings plus each hazard and a region filter, two `compare_hubs`, `weather_stat` for every metric, and two `what_if` runs. `realOutputs.test.tsx` renders every widget from these directly and inside a message (lazy widget plus error boundary), checks every `explain()` line, and fuzzes the real `get_hub_risk` for two hubs by deleting or nulling each field one at a time.
+- **Null-safe formatting.** `fmt`, `pct`, `exact`, `compact`, `formatValue` and `formatDate` show "n/a" for a missing number. `lib/normalize.ts` gives the hub widgets a copy with lists, families and thresholds always present; it never invents a number. Missing band cut-offs drop their sentence and the chart's dashed lines.
+- **Stale chunks after a deploy.** `lib/chunkReload.ts` reloads the page once when a lazy chunk fails to load: on `vite:preloadError` and in the lazy loader (`lazyWithReload`). A 30-second sessionStorage guard prevents reload loops, and while the page reloads the widget stays on its loading state instead of showing the error message.

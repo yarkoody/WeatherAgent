@@ -42,7 +42,7 @@ function toSse(events: Record<string, unknown>[]): string {
 async function ask(text = 'Which Midwest hubs are most exposed to winter weather?', debug = false) {
   render(
     <DebugProvider debug={debug}>
-      <ChatView sessionId={`s-${Math.random()}`} speakAnswers={false} />
+      <ChatView sessionId={`s-${Math.random()}`} />
     </DebugProvider>,
   )
   fireEvent.change(screen.getByLabelText('Ask about hub weather risk'), { target: { value: text } })
@@ -162,7 +162,7 @@ describe('restored history', () => {
       parts: [{ type: 'tool-rank_hubs', toolCallId: 't1', state: 'input-available', input: { score: 'exposure' } } as UIMessage['parts'][number]],
     }
     saveMessages('restored', [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Rank hubs' }] }, half])
-    render(<ChatView sessionId="restored" speakAnswers={false} />)
+    render(<ChatView sessionId="restored" />)
     expect(document.querySelector('[data-status="running"]')).toBeNull()
     expect(screen.getByText(/No answer received/)).toBeInTheDocument()
   })
@@ -171,7 +171,7 @@ describe('restored history', () => {
 describe('stopped before the first chunk', () => {
   it('a question with no reply gets the no-answer notice', () => {
     saveMessages('orphan', [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Rank hubs' }] }])
-    render(<ChatView sessionId="orphan" speakAnswers={false} />)
+    render(<ChatView sessionId="orphan" />)
     expect(screen.getByText(/No answer received/)).toBeInTheDocument()
   })
 })

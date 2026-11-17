@@ -1,6 +1,6 @@
 // Chat history list: "New chat", chats grouped by day, rename in place, delete with a confirmation step.
 import { CheckIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from 'lucide-react'
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { deleteChat, groupChats, loadChats, renameChat, subscribeChats, type StoredChat } from '@/lib/chats'
 
@@ -16,7 +16,9 @@ export function ChatSidebar({
   onSelect,
   onNew,
   onDeleted,
+  footer,
 }: {
+  footer?: ReactNode
   activeId: string
   onSelect: (id: string) => void
   onNew: () => void
@@ -48,7 +50,10 @@ export function ChatSidebar({
           </section>
         ))}
       </div>
-      <p className="border-t border-border/60 px-4 py-3 text-xs text-muted-foreground">Chats are saved in this browser only.</p>
+      <div className="border-t border-border/60 p-2">
+        {footer}
+        <p className="px-2 pt-1.5 pb-1 text-xs text-muted-foreground">Chats are saved in this browser only.</p>
+      </div>
     </nav>
   )
 }

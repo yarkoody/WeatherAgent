@@ -1,19 +1,20 @@
 // "How is this calculated?" text. Every number comes from the tool output (signals, scores, thresholds);
 // the only fixed text is the wording around them.
-import { FAMILIES, FAMILY_LABEL, compact, fmt, pct } from './format'
+import { FAMILIES, FAMILY_LABEL, NA, compact, fmt, isNum, pct } from './format'
 import type { BandThresholds, Family, FamilyScore, HubScore, Signal } from './types'
 
-const n = (v: number) => String(v)
+/** Exact tool value, or n/a when the field is missing (older backends and saved chats can lack optional fields). */
+const n = (v: number | null | undefined) => (isNum(v) ? String(v) : NA)
 
 /** One FEMA or observed-weather signal of a hazard family, in days per year. */
 export function signalLine(s: Signal): string {
-  if (s.raw === null) return `${s.name}: ${s.note ?? 'no data'}, counted as 0 days/yr`
+  if (!isNum(s.raw)) return `${s.name}: ${s.note ?? 'no data'}, counted as 0 days/yr`
   const converted = s.unit === 'days/year' ? `${n(s.raw)} days/yr` : `${n(s.raw)} ${s.unit} → ${n(s.normalized)} days/yr`
   return `${s.name}: ${converted} × ${n(s.weight)} = ${n(s.contribution)} days/yr`
 }
 
 export function familyLines(f: FamilyScore): string[] {
-  return [...f.signals.map(signalLine), `${FAMILY_LABEL[f.family]} total: ${n(f.days_per_year)} days/yr, ${f.band} band (score ${n(f.score)})`]
+  return [...(f.signals ?? []).map(signalLine), `${FAMILY_LABEL[f.family]} total: ${n(f.days_per_year)} days/yr${f.band ? `, ${f.band} band` : ''} (score ${n(f.score)})`]
 }
 
 export function indexLine(t: BandThresholds): string {
@@ -31,12 +32,12 @@ export function exposureLines(s: HubScore): string[] {
 /** Investment priority: weighted blend of 0-100 signals. */
 export function priorityLines(s: HubScore): string[] {
   return [
-    ...s.priority_signals.map((p) => {
-      const raw = p.raw === null ? (p.note ?? 'no data') : `${n(p.raw)} ${p.unit}`
-      const cap = p.cap !== null ? ` ÷ cap ${n(p.cap)}` : ''
+    ...(s.priority_signals ?? []).map((p) => {
+      const raw = !isNum(p.raw) ? (p.note ?? 'no data') : `${n(p.raw)} ${p.unit}`
+      const cap = isNum(p.cap) ? ` ÷ cap ${n(p.cap)}` : ''
       return `${p.name}: ${raw}${cap} → ${n(p.normalized)} × ${n(p.weight)} = ${n(p.contribution)}`
     }),
-    `Priority: ${n(s.priority)} (bands: medium from ${n(s.band_thresholds.medium_from)}, high from ${n(s.band_thresholds.high_from)})`,
+    `Priority: ${n(s.priority)} (bands: medium from ${n(s.band_thresholds?.medium_from)}, high from ${n(s.band_thresholds?.high_from)})`,
   ]
 }
 
@@ -46,8 +47,8 @@ export const LENS_EXPLAINER =
 
 /** Each family's share of the bad year, when the data has it. */
 function badYearShares(s: HubScore): { family: Family; days: number }[] | null {
-  const shares = FAMILIES.map((f) => ({ family: f, days: s.families[f]?.bad_year_days }))
-  return shares.every((x) => typeof x.days === 'number') ? (shares as { family: Family; days: number }[]) : null
+  const shares = FAMILIES.map((f) => ({ family: f, days: s.families?.[f]?.bad_year_days }))
+  return shares.every((x) => isNum(x.days)) ? (shares as { family: Family; days: number }[]) : null
 }
 
 export function badYearLines(s: HubScore): string[] {
@@ -67,24 +68,26 @@ export function familyBandLine(t: BandThresholds): string {
 /** Hurricane: banded by the chance of at least one hurricane-class event in 10 years. */
 export function hurricaneLines(s: HubScore): string[] {
   const t = s.band_thresholds
-  const freq = s.families.hurricane?.signals.find((x) => x.raw !== null)
+  const freq = s.families?.hurricane?.signals?.find((x) => isNum(x.raw))
   return [
     freq ? `FEMA NRI hurricane frequency: ${n(freq.raw!)} ${freq.unit}.` : 'FEMA NRI has no hurricane frequency for this county.',
     `Chance of at least one hurricane-class event in 10 years: ${n(s.hurricane_10yr_probability_pct)}% chance.`,
-    `Band: medium from ${n(t.hurricane_medium_from_pct)}%, high from ${n(t.hurricane_high_from_pct)}%.`,
+    ...(isNum(t?.hurricane_medium_from_pct) && isNum(t?.hurricane_high_from_pct)
+      ? [`Band: medium from ${n(t.hurricane_medium_from_pct)}%, high from ${n(t.hurricane_high_from_pct)}%.`]
+      : []),
   ]
 }
 
 // ---------- Plain-language steps for the (i) tips: at most five short lines, numbers only from tool data ----------
 
-const r1 = (v: number) => fmt(v) // one decimal, compact when large
+const r1 = (v: number | null | undefined) => fmt(v) // one decimal, compact when large
 
 /** "winter weather (FEMA NRI, 0.5 days/event)" -> "winter weather" */
 const baseName = (name: string) => name.replace(/\s*\(.*$/, '').trim()
 /** "... 0.5 days/event)" -> 0.5, the days each event is counted as (part of the tool's own signal name). */
 const daysPerEvent = (s: Signal) => {
   const m = /([\d.]+)\s*days\/event/.exec(s.name)
-  return m ? Number(m[1]) : s.raw ? s.normalized / s.raw : null
+  return m ? Number(m[1]) : isNum(s.raw) && s.raw && isNum(s.normalized) ? s.normalized / s.raw : null
 }
 
 function listJoin(items: string[]): string {
@@ -92,9 +95,10 @@ function listJoin(items: string[]): string {
 }
 
 export function familySteps(f: FamilyScore, t: BandThresholds): string[] {
-  const fema = f.signals.filter((s) => s.source.startsWith('FEMA'))
-  const observed = f.signals.filter((s) => !s.source.startsWith('FEMA'))
-  const known = fema.filter((s) => s.raw !== null)
+  const signals = f.signals ?? []
+  const fema = signals.filter((s) => s.source.startsWith('FEMA'))
+  const observed = signals.filter((s) => !s.source?.startsWith('FEMA'))
+  const known = fema.filter((s) => isNum(s.raw))
   const steps: string[] = []
   if (known.length) {
     steps.push(`FEMA expects about ${listJoin(known.map((s) => `${r1(s.raw!)} ${baseName(s.name)}`))} events a year in this county.`)
@@ -113,11 +117,11 @@ export function familySteps(f: FamilyScore, t: BandThresholds): string[] {
     const years = /(\d{4})-\d{2}-\d{2} to (\d{4})/.exec(o.note ?? '')
     const when = years ? ` in ${years[1]}–${years[2]}` : ''
     steps.push(
-      `We blend that with what actually happened at the hub${when} (${r1(o.raw ?? 0)} days a year): ${Math.round(fema[0].weight * 100)}% FEMA, ${Math.round(o.weight * 100)}% observed.`,
+      `We blend that with what actually happened at the hub${when} (${r1(o.raw ?? 0)} days a year): ${n(Math.round(fema[0].weight * 100))}% FEMA, ${n(Math.round(o.weight * 100))}% observed.`,
     )
   }
-  const cut = f.family === 'hurricane' ? '' : ` (medium from ${r1(t.family_medium_from_days)} days, high from ${r1(t.family_high_from_days)})`
-  steps.push(`Result: about ${f.days_per_year} lost days a year, which counts as ${f.band ?? 'unrated'}${cut}.`)
+  const cut = f.family === 'hurricane' || !isNum(t?.family_medium_from_days) || !isNum(t?.family_high_from_days) ? '' : ` (medium from ${r1(t.family_medium_from_days)} days, high from ${r1(t.family_high_from_days)})`
+  steps.push(`Result: about ${r1(f.days_per_year)} lost days a year, which counts as ${f.band ?? 'unrated'}${cut}.`)
   return steps
 }
 
@@ -129,7 +133,7 @@ export function indexSteps(t: BandThresholds): string[] {
 }
 
 export function exposureSteps(s: HubScore): string[] {
-  const parts = FAMILIES.map((f) => `${FAMILY_LABEL[f].toLowerCase()} ${r1(s.families[f]?.days_per_year ?? 0)}`)
+  const parts = FAMILIES.map((f) => `${FAMILY_LABEL[f].toLowerCase()} ${r1(s.families?.[f]?.days_per_year ?? 0)}`)
   return [`Lost days a year by hazard: ${listJoin(parts)}.`, `Together: about ${r1(s.exposure_days_per_year)} lost days in a typical year.`, ...indexSteps(s.band_thresholds)]
 }
 
@@ -143,7 +147,7 @@ const DRIVER: Record<Family, { name: string; plural: boolean }> = {
 export function badYearSteps(s: HubScore): string[] {
   const steps = [`In the worst 1 year in 20, this hub loses on average about ${r1(s.bad_year_days)} days.`]
   const shares = badYearShares(s)
-  if (shares && s.bad_year_days > 0) {
+  if (shares && isNum(s.bad_year_days) && s.bad_year_days > 0) {
     const top = [...shares].sort((a, b) => b.days - a.days)[0]
     const d = DRIVER[top.family]
     steps.push(
@@ -158,23 +162,25 @@ export function badYearSteps(s: HubScore): string[] {
 
 export function hurricaneSteps(s: HubScore): string[] {
   const t = s.band_thresholds
-  const freq = s.families.hurricane?.signals.find((x) => x.raw !== null)
+  const freq = s.families?.hurricane?.signals?.find((x) => isNum(x.raw))
   return [
-    freq ? `FEMA expects about ${freq.raw} hurricanes a year near this hub.` : 'FEMA has no hurricane data for this county.',
+    freq ? `FEMA expects about ${n(freq.raw)} hurricanes a year near this hub.` : 'FEMA has no hurricane data for this county.',
     `That is a ${pct(s.hurricane_10yr_probability_pct)} chance of at least one in the next 10 years.`,
-    `Hurricane risk counts as medium from a ${pct(t.hurricane_medium_from_pct)} chance, high from ${pct(t.hurricane_high_from_pct)}.`,
+    ...(isNum(t?.hurricane_medium_from_pct) && isNum(t?.hurricane_high_from_pct)
+      ? [`Hurricane risk counts as medium from a ${pct(t.hurricane_medium_from_pct)} chance, high from ${pct(t.hurricane_high_from_pct)}.`]
+      : []),
   ]
 }
 
 export function prioritySteps(s: HubScore): string[] {
   const plain = (p: Signal) => {
     const n0 = baseName(p.name)
-    if (p.unit === 'people' && p.raw !== null) return `${n0}: ${compact(p.raw)} people, worth ${r1(p.normalized)} of 100 points`
+    if (p.unit === 'people' && isNum(p.raw)) return `${n0}: ${compact(p.raw)} people, worth ${r1(p.normalized)} of 100 points`
     return `${n0}: ${r1(p.normalized)} of 100 points`
   }
   return [
     'Investment priority says where upgrades would help most. It mixes three things:',
-    ...s.priority_signals.map((p) => `${plain(p)}, counting for ${Math.round(p.weight * 100)}%.`),
+    ...(s.priority_signals ?? []).map((p) => `${plain(p)}${isNum(p.weight) ? `, counting for ${Math.round(p.weight * 100)}%` : ''}.`),
     `Result: ${r1(s.priority)} of 100.`,
   ]
 }

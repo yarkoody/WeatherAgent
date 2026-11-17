@@ -60,29 +60,37 @@ export const METRIC_LABEL: Record<Metric, string> = {
 
 const COMPACT = new Intl.NumberFormat('en-US', { notation: 'compact', maximumSignificantDigits: 3 })
 
+/** Shown wherever a number is missing (null, undefined or not finite), so a gap never crashes a widget. */
+export const NA = 'n/a'
+/** True for a usable number; tool outputs from older backends or saved chats can lack optional fields. */
+export const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+
 /** Large numbers for display: 472K, 2.6M, 1.2B. */
-export function compact(value: number): string {
-  return COMPACT.format(value)
+export function compact(value: number | null | undefined): string {
+  return isNum(value) ? COMPACT.format(value) : NA
 }
 
 /** Display number: compact when large, otherwise at most one decimal (days, scores). Display only, never for verification. */
-export function fmt(value: number, digits = 1): string {
+export function fmt(value: number | null | undefined, digits = 1): string {
+  if (!isNum(value)) return NA
   if (Math.abs(value) >= 10_000) return compact(value)
   return value.toLocaleString('en-US', { maximumFractionDigits: digits })
 }
 
 /** Percent for display: "95%", "10%", "2.4%" (one decimal only below 10). */
-export function pct(value: number): string {
+export function pct(value: number | null | undefined): string {
+  if (!isNum(value)) return NA
   return `${value.toLocaleString('en-US', { maximumFractionDigits: Math.abs(value) < 10 ? 1 : 0 })}%`
 }
 
 /** A cited figure exactly as the tool returned it: no rounding. */
-export function exact(value: number): string {
-  return value.toLocaleString('en-US', { maximumFractionDigits: 10 })
+export function exact(value: number | null | undefined): string {
+  return isNum(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 10 }) : NA
 }
 
 /** A cited figure: its given precision, but large numbers compact (1.28M). Display only. */
-export function formatValue(value: number, unit: string): string {
+export function formatValue(value: number | null | undefined, unit: string): string {
+  if (!isNum(value)) return NA
   const v = Math.abs(value) >= 10_000 ? compact(value) : exact(value)
   if (unit === '%') return `${v}%`
   if (unit === 'score 0-100') return v
@@ -92,7 +100,8 @@ export function formatValue(value: number, unit: string): string {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** "2026-11-17" or an ISO timestamp -> "Nov 17, 2026". Uses the calendar date as written, so no time-zone shift. */
-export function formatDate(iso: string): string {
+export function formatDate(iso: string | null | undefined): string {
+  if (!iso) return NA
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
   if (!m) return iso
   const [, y, mo, d] = m
@@ -100,7 +109,8 @@ export function formatDate(iso: string): string {
   return month ? `${month} ${Number(d)}, ${y}` : iso
 }
 
-export function formatDateTime(iso: string): string {
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return NA
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })

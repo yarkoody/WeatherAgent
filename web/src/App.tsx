@@ -1,19 +1,21 @@
-import { MenuIcon, PlusIcon, Volume2Icon, VolumeOffIcon } from 'lucide-react'
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
-import { DebugProvider, readDebugFlag } from '@/lib/debug'
+import { MenuIcon, PlusIcon } from 'lucide-react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { lazyWithReload } from '@/lib/chunkReload'
+import { Settings } from '@/components/SettingsPanel'
+import { DebugProvider, readDebugFlag, saveDebugFlag } from '@/lib/debug'
+import { useThemePref } from '@/lib/theme'
 import { ChatSidebar } from '@/components/ChatSidebar'
 import { ChatView } from '@/components/ChatView'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
-import { createChat, getChat, loadActiveChatId, loadChats, newChatId, saveActiveChatId } from '@/lib/chats'
+import { clearChats, createChat, getChat, loadActiveChatId, loadChats, newChatId, saveActiveChatId } from '@/lib/chats'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import { Button } from '@/components/ui/button'
-import { Toggle } from '@/components/ui/toggle'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { USE_MOCKS } from '@/lib/mockFetch'
 import { loadFlag, saveFlag } from '@/lib/session'
-import { speechSupported, stopSpeaking } from '@/lib/voice'
+import { stopSpeaking } from '@/lib/voice'
 
-const ScoresView = lazy(() => import('@/components/ScoresView').then((m) => ({ default: m.ScoresView })))
+const ScoresView = lazyWithReload(() => import('@/components/ScoresView').then((m) => ({ default: m.ScoresView })))
 
 type View = 'chat' | 'scores'
 
@@ -28,9 +30,12 @@ export default function App() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
   const historyOpen = narrow ? sheetOpen : sidebarOpen
-  const [speakOn, setSpeakOn] = useState(() => loadFlag('speak'))
-  const [debug] = useState(() => readDebugFlag())
-  const canSpeak = speechSupported()
+  const [debug, setDebugState] = useState(() => readDebugFlag())
+  const [theme, setTheme] = useThemePref()
+  const setDebug = (on: boolean) => {
+    saveDebugFlag(on)
+    setDebugState(on)
+  }
 
   function openChat(id: string) {
     stopSpeaking()
@@ -70,20 +75,29 @@ export default function App() {
     })
   }
 
-  const sidebar = <ChatSidebar activeId={chatId} onSelect={openChat} onNew={newChat} onDeleted={onDeleted} />
+  const settings = (
+      <Settings
+              narrow={narrow}
+              theme={theme}
+              onTheme={setTheme}
+              debug={debug}
+              onDebug={setDebug}
+              onClearHistory={() => {
+                clearChats()
+                openChat(newChatId())
+              }}
+            />
+  )
+  const sidebar = <ChatSidebar activeId={chatId} onSelect={openChat} onNew={newChat} onDeleted={onDeleted} footer={settings} />
 
-  function onSpeakChange(next: boolean) {
-    if (!next) stopSpeaking()
-    setSpeakOn(next)
-    saveFlag('speak', next)
-  }
+
 
   return (
     <DebugProvider debug={debug}>
     <TooltipProvider>
       <div className="flex h-dvh flex-col">
         <header className="glass-bar relative z-20">
-          <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6">
+          <div className="flex w-full items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3">
             {/* Hamburger: opens and closes the chat history on every screen size. */}
             <Button
               ref={menuButton}
@@ -128,22 +142,6 @@ export default function App() {
               ))}
             </nav>
             <span className="flex-1" />
-            {canSpeak && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Toggle
-                      pressed={speakOn}
-                      onPressedChange={onSpeakChange}
-                      aria-label={speakOn ? 'Stop reading answers aloud' : 'Read answers aloud'}
-                    />
-                  }
-                >
-                  {speakOn ? <Volume2Icon /> : <VolumeOffIcon />}
-                </TooltipTrigger>
-                <TooltipContent>{speakOn ? 'Answers are read aloud' : 'Read answers aloud'}</TooltipContent>
-              </Tooltip>
-            )}
             {narrow && (
               <Button variant="outline" size="icon-sm" onClick={newChat} aria-label="Start a new chat">
                 <PlusIcon />
@@ -168,7 +166,7 @@ export default function App() {
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* The chat stays mounted while Scores is open, so a running answer is not lost. */}
           <div className={view === 'chat' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
-            <ChatView key={chatId} sessionId={chatId} speakAnswers={speakOn} onReset={() => openChat(newChatId())} />
+            <ChatView key={chatId} sessionId={chatId} onReset={() => openChat(newChatId())} />
           </div>
           {view === 'scores' && (
             <Suspense fallback={null}>

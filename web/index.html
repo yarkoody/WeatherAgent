@@ -6,6 +6,15 @@
     <meta name="description" content="Ask about weather-disruption exposure and investment priority for 15 US logistics hubs." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>Hub Weather Risk</title>
+    <script>
+      // Apply the saved appearance before first paint (no light flash in dark mode). Mirrors src/lib/theme.ts.
+      try {
+        var pref = localStorage.getItem('weather-risk.theme')
+        var dark = pref === 'dark' || (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

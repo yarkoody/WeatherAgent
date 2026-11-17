@@ -64,6 +64,6 @@ describe('bad-year ranking without bands', () => {
     const fills = [...container.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))
     expect(fills.length).toBe(bad.items.length)
     expect(new Set(fills).size).toBe(1) // one neutral color, not band colors
-    expect(fills[0]).toBe('#4a5b68') // neutral ink, no band meaning
+    expect(fills[0]).toBe('var(--color-ink-soft)') // neutral ink token, no band meaning
   })
 })

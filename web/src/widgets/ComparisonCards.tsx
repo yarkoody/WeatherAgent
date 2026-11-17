@@ -16,6 +16,7 @@ import {
   prioritySteps,
 } from '@/lib/explain'
 import { BandText, WidgetFrame } from './WidgetFrame'
+import { normalizeComparison } from '@/lib/normalize'
 
 function hazardValue(s: HubScore, h: Hazard): { score: number; days: number } {
   if (h === 'overall') return { score: s.exposure, days: s.exposure_days_per_year }
@@ -23,7 +24,8 @@ function hazardValue(s: HubScore, h: Hazard): { score: number; days: number } {
   return { score: f?.score ?? 0, days: f?.days_per_year ?? 0 }
 }
 
-export function ComparisonCards({ data }: { data: HubComparison }) {
+export function ComparisonCards({ data: raw }: { data: HubComparison }) {
+  const data = normalizeComparison(raw)
   const hazards: Hazard[] = data.hazards.length ? data.hazards : ['overall']
   const best = (h: Hazard) => Math.max(...data.hubs.map((s) => hazardValue(s, h).score))
   const names = data.hubs.map((s) => hubName(s.hub_id))
@@ -44,7 +46,7 @@ export function ComparisonCards({ data }: { data: HubComparison }) {
           <div key={s.hub_id} role="group" aria-label={hubName(s.hub_id)} className="rounded-2xl bg-background/60 px-4 py-3.5 ring-1 ring-border/60">
             <p className="heading-tight font-semibold">{hubName(s.hub_id)}</p>
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
-              Top driver: <HazardIcon hazard={s.top_driver} className="size-3.5" /> {FAMILY_LABEL[s.top_driver]}
+              Top driver: {s.top_driver ? <><HazardIcon hazard={s.top_driver} className="size-3.5" /> {FAMILY_LABEL[s.top_driver]}</> : 'n/a'}
             </p>
             <dl className="mt-2.5 grid grid-cols-2 gap-2 border-b border-border/60 pb-2.5 text-sm">
               <div>

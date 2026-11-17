@@ -28,7 +28,7 @@ describe('mock transport', () => {
 describe('chat over the recorded stream (real AI SDK parser)', () => {
   it('renders progress chips, one answer card and the widgets', async () => {
     const { ChatView } = await import('../components/ChatView')
-    render(<ChatView sessionId="test-session" speakAnswers={false} />)
+    render(<ChatView sessionId="test-session" />)
     const button = screen.getByRole('button', { name: /Midwest hubs/ })
     fireEvent.click(button)
 

@@ -6,6 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useDebug } from '@/lib/debug'
 import type { ChatResponse } from '@/lib/types'
 import { FiguresTable } from './FiguresTable'
+import { ExportReportButton } from './PrintReport'
+import { AnswerReport } from './reports'
 import { GroundingBadge } from './GroundingBadge'
 
 type Kind = 'answer' | 'out_of_scope' | 'no_data' | 'could_not_answer'
@@ -29,7 +31,7 @@ const ACCENT: Record<Kind, string> = {
 /** Same shell as the widget cards (shadcn Card): radius, ring, shadow and 20 px padding. */
 export const CARD_SHELL = 'glass relative w-full overflow-hidden rounded-3xl p-5 text-card-foreground'
 
-export function AnswerCard({ response }: { response: ChatResponse }) {
+export function AnswerCard({ response, dataAsOf, question }: { response: ChatResponse; dataAsOf?: string; question?: string }) {
   const { answer, grounding } = response
   const debug = useDebug()
   const kind = answerKind(response)
@@ -103,8 +105,11 @@ export function AnswerCard({ response }: { response: ChatResponse }) {
             </ul>
           </details>
         )}
+        {kind !== 'out_of_scope' && (
+          <ExportReportButton className="ml-auto text-muted-foreground" report={() => <AnswerReport response={response} dataAsOf={dataAsOf} question={question} />} />
+        )}
         {debug && (
-          <span className="ml-auto text-[0.7rem] text-muted-foreground" title="Trace id for debugging">
+          <span className="text-[0.7rem] text-muted-foreground" title="Trace id for debugging">
             trace {response.trace_id.slice(0, 8)}
           </span>
         )}

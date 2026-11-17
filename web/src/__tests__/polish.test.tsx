@@ -84,6 +84,33 @@ describe('Scores table', () => {
     expect(screen.getByRole('button', { name: 'Sort by Top driver' })).toBeInTheDocument()
   })
 
+  it('every sortable header reads label, then (i), then the sort arrow, whatever the column alignment', async () => {
+    await view()
+    const sortable = screen.getAllByRole('columnheader').filter((th) => th.querySelector('[data-sort-arrow]'))
+    expect(sortable.length).toBeGreaterThan(5)
+    const after = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    let rightAligned = 0
+    for (const th of sortable) {
+      const label = within(th).getByRole('button', { name: /^Sort by / })
+      const info = within(th).getAllByRole('button').find((b) => b !== label)! // the (i)
+      const arrow = th.querySelector('[data-sort-arrow]')!
+      expect(after(label, info), th.textContent ?? '').toBe(true)
+      expect(after(info, arrow), th.textContent ?? '').toBe(true)
+      const group = th.querySelector('[data-header-group]')!
+      expect(group.className).not.toMatch(/flex-row-reverse/)
+      expect(label.className).not.toMatch(/flex-row-reverse/)
+      if (th.className.includes('text-right')) rightAligned++
+    }
+    expect(rightAligned).toBeGreaterThan(0) // numeric columns are covered too
+  })
+
+  it('the sort arrow sorts too', async () => {
+    await view()
+    const th = screen.getByRole('button', { name: 'Sort by Bad year' }).closest('th')!
+    fireEvent.click(th.querySelector('[data-sort-arrow]')!)
+    expect(th).toHaveAttribute('aria-sort', 'descending')
+  })
+
   it('filters by region, exposure band and name, and resets', async () => {
     await view()
     fireEvent.change(screen.getByLabelText('Region'), { target: { value: 'South' } })
@@ -112,6 +139,25 @@ describe('Scores table', () => {
     for (const [family, value] of Object.entries(opinion.rank_correlation ?? {})) {
       expect(within(summary).getByText(new RegExp(String(value)))).toBeInTheDocument()
       expect(family).toBeTruthy()
+    }
+  })
+})
+
+describe('filter select pills', () => {
+  it('draw their own chevron inside the pill, which never blocks the click', async () => {
+    vi.stubEnv('VITE_USE_MOCKS', '')
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (new URL(url, 'http://t').pathname === '/scores' ? Response.json(scores) : Response.json({}, { status: 404 }))))
+    render(
+      <DebugProvider debug={false}>
+        <ScoresView />
+      </DebugProvider>,
+    )
+    await screen.findAllByRole('rowheader')
+    for (const name of ['Region', 'Exposure band']) {
+      const select = screen.getByLabelText(name)
+      expect(select).toHaveClass('appearance-none', 'pr-[30px]')
+      const chevron = select.parentElement!.querySelector('svg.lucide-chevron-down')!
+      expect(chevron).toHaveClass('pointer-events-none', 'right-2.5')
     }
   })
 })

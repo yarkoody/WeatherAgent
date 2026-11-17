@@ -1,9 +1,12 @@
 import { getToolName, isToolUIPart, type UIMessage } from 'ai'
 import { CircleSlashIcon } from 'lucide-react'
-import { ChevronRightIcon, MapPinIcon } from 'lucide-react'
+import { ChevronRightIcon, MapPinIcon, SquareIcon, Volume2Icon } from 'lucide-react'
 import { Suspense, useState, type ReactNode } from 'react'
 import { useDebug } from '@/lib/debug'
 import { useReducedMotion } from '@/lib/motion'
+import { answerSpeech, speakMessage, speechSupported, stopSpeaking, useSpeakingId } from '@/lib/voice'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Suggestions } from '@/components/ai-elements/suggestions'
 import { ToolSteps, type ToolPartView } from '@/components/ai-elements/tool-steps'
@@ -50,8 +53,11 @@ export function AssistantMessage({
   streaming,
   latest = false,
   onFollowUp,
+  question,
 }: {
   message: UIMessage
+  /** The user's question for this answer (for the printed report). */
+  question?: string
   streaming: boolean
   /** Only the latest finished answer offers follow-up questions. */
   latest?: boolean
@@ -101,8 +107,13 @@ export function AssistantMessage({
         )}
         <ResolutionNotes notes={resolutionNotes(message)} />
         <div aria-live="polite">
-          {response ? <AnswerCard response={response} /> : streaming ? <PendingAnswer /> : <NoAnswer />}
+          {response ? <AnswerCard response={response} dataAsOf={dataAsOfOf(tools)} question={question} /> : streaming ? <PendingAnswer /> : <NoAnswer />}
         </div>
+        {response && !streaming && speechSupported() && (
+          <div className="-mt-1 flex items-center gap-1 px-1">
+            <ReadAloud id={message.id} response={response} />
+          </div>
+        )}
         {large.map((t) => renderWidget(t))}
         {small.length > 0 && (
           <div className="grid gap-3 md:grid-cols-2">
@@ -161,4 +172,38 @@ function ResolutionNotes({ notes }: { notes: string[] }) {
       </div>
     </div>
   )
+}
+
+/** Reads this answer's verified text aloud; "Unverified answer." first when validation failed. */
+function ReadAloud({ id, response }: { id: string; response: ChatResponse }) {
+  const speaking = useSpeakingId() === id
+  const label = speaking ? 'Stop reading' : 'Read aloud'
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={label}
+            aria-pressed={speaking}
+            onClick={() => (speaking ? stopSpeaking() : speakMessage(id, answerSpeech(response)))}
+            className="text-muted-foreground hover:text-foreground"
+          />
+        }
+      >
+        {speaking ? <SquareIcon className="fill-current" /> : <Volume2Icon />}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+/** The snapshot date the tools reported (for the printed report). */
+function dataAsOfOf(tools: ToolPartView[]): string | undefined {
+  for (const t of tools) {
+    const d = (t.output as { data_as_of?: unknown } | undefined)?.data_as_of
+    if (typeof d === 'string') return d
+  }
+  return undefined
 }

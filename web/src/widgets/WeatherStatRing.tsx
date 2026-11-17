@@ -7,10 +7,10 @@ import { useCountUp, useReducedMotion } from '@/lib/motion'
 import { WidgetFrame } from './WidgetFrame'
 
 const RING_COLOR: Record<string, string> = {
-  snow_days_pct: '#7FA6CC',
-  freezing_days_pct: '#5B87B0',
-  heavy_rain_days: '#2F5D8A',
-  high_wind_days: '#7C8A94',
+  snow_days_pct: 'var(--color-hazard-winter)',
+  freezing_days_pct: 'var(--color-hazard-winter)',
+  heavy_rain_days: 'var(--color-hazard-flood)',
+  high_wind_days: 'var(--color-hazard-severe_storm)',
 }
 
 export function WeatherStatRing({ data }: { data: WeatherStat }) {
@@ -18,7 +18,7 @@ export function WeatherStatRing({ data }: { data: WeatherStat }) {
   const metric = METRIC_LABEL[data.metric] ?? data.metric
   const isTotal = data.metric.startsWith('total_')
   const ring = !isTotal && data.denominator > 0 && data.numerator >= 0 && data.numerator <= data.denominator
-  const color = RING_COLOR[data.metric] ?? '#2F5D8A'
+  const color = RING_COLOR[data.metric] ?? 'var(--color-hazard-flood)'
   const reduced = useReducedMotion()
   const shown = useCountUp(data.value)
   const headline = data.unit === '%' ? pct(shown) : fmt(shown)

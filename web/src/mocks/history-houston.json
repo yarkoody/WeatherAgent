@@ -1,0 +1,254 @@
+{
+  "hub_id": "houston",
+  "name": "Houston Hub",
+  "start_year": 2015,
+  "end_year": 2025,
+  "years": [
+    {
+      "year": 2015,
+      "days": {
+        "winter": 0.0,
+        "flood": 2.0,
+        "hurricane": 0.0,
+        "severe_storm": 2.0
+      },
+      "total": 4.0
+    },
+    {
+      "year": 2016,
+      "days": {
+        "winter": 0.0,
+        "flood": 3.0,
+        "hurricane": 0.0,
+        "severe_storm": 0.0
+      },
+      "total": 3.0
+    },
+    {
+      "year": 2017,
+      "days": {
+        "winter": 0.0,
+        "flood": 9.0,
+        "hurricane": 0.0,
+        "severe_storm": 2.0
+      },
+      "total": 11.0
+    },
+    {
+      "year": 2018,
+      "days": {
+        "winter": 0.0,
+        "flood": 7.0,
+        "hurricane": 0.0,
+        "severe_storm": 2.0
+      },
+      "total": 9.0
+    },
+    {
+      "year": 2019,
+      "days": {
+        "winter": 0.0,
+        "flood": 5.0,
+        "hurricane": 0.0,
+        "severe_storm": 1.0
+      },
+      "total": 6.0
+    },
+    {
+      "year": 2020,
+      "days": {
+        "winter": 0.0,
+        "flood": 8.0,
+        "hurricane": 0.0,
+        "severe_storm": 2.0
+      },
+      "total": 10.0
+    },
+    {
+      "year": 2021,
+      "days": {
+        "winter": 0.0,
+        "flood": 11.0,
+        "hurricane": 0.0,
+        "severe_storm": 2.0
+      },
+      "total": 13.0
+    },
+    {
+      "year": 2022,
+      "days": {
+        "winter": 0.0,
+        "flood": 2.0,
+        "hurricane": 0.0,
+        "severe_storm": 0.0
+      },
+      "total": 2.0
+    },
+    {
+      "year": 2023,
+      "days": {
+        "winter": 0.0,
+        "flood": 2.0,
+        "hurricane": 0.0,
+        "severe_storm": 1.0
+      },
+      "total": 3.0
+    },
+    {
+      "year": 2024,
+      "days": {
+        "winter": 0.0,
+        "flood": 4.0,
+        "hurricane": 0.0,
+        "severe_storm": 1.0
+      },
+      "total": 5.0
+    },
+    {
+      "year": 2025,
+      "days": {
+        "winter": 1.0,
+        "flood": 2.0,
+        "hurricane": 0.0,
+        "severe_storm": 0.0
+      },
+      "total": 3.0
+    }
+  ],
+  "months": [
+    {
+      "month": 1,
+      "days": {
+        "winter": 0.09,
+        "flood": 0.18,
+        "hurricane": 0.0,
+        "severe_storm": 0.36
+      },
+      "total": 0.64
+    },
+    {
+      "month": 2,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.09,
+        "hurricane": 0.0,
+        "severe_storm": 0.0
+      },
+      "total": 0.09
+    },
+    {
+      "month": 3,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.36,
+        "hurricane": 0.0,
+        "severe_storm": 0.0
+      },
+      "total": 0.36
+    },
+    {
+      "month": 4,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.36,
+        "hurricane": 0.0,
+        "severe_storm": 0.09
+      },
+      "total": 0.45
+    },
+    {
+      "month": 5,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.73,
+        "hurricane": 0.0,
+        "severe_storm": 0.0
+      },
+      "total": 0.73
+    },
+    {
+      "month": 6,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.64,
+        "hurricane": 0.0,
+        "severe_storm": 0.0
+      },
+      "total": 0.64
+    },
+    {
+      "month": 7,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.55,
+        "hurricane": 0.0,
+        "severe_storm": 0.09
+      },
+      "total": 0.64
+    },
+    {
+      "month": 8,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.36,
+        "hurricane": 0.0,
+        "severe_storm": 0.09
+      },
+      "total": 0.45
+    },
+    {
+      "month": 9,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.64,
+        "hurricane": 0.0,
+        "severe_storm": 0.27
+      },
+      "total": 0.91
+    },
+    {
+      "month": 10,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.45,
+        "hurricane": 0.0,
+        "severe_storm": 0.0
+      },
+      "total": 0.45
+    },
+    {
+      "month": 11,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.09,
+        "hurricane": 0.0,
+        "severe_storm": 0.0
+      },
+      "total": 0.09
+    },
+    {
+      "month": 12,
+      "days": {
+        "winter": 0.0,
+        "flood": 0.55,
+        "hurricane": 0.0,
+        "severe_storm": 0.27
+      },
+      "total": 0.82
+    }
+  ],
+  "worst_year": 2021,
+  "peak_months": [
+    9,
+    12,
+    5
+  ],
+  "thresholds": {
+    "winter": "snowfall >= 5 cm or minimum temperature <= -18 \u00b0C",
+    "flood": "precipitation >= 50 mm",
+    "hurricane": "not observable in daily point data (see note)",
+    "severe_storm": "maximum wind gust >= 75 km/h"
+  },
+  "note": "Observed days at the hub point from Open-Meteo ERA5 reanalysis (a grid, not a station). Hurricanes are not captured as such by daily data; their rain and wind show up as flood and severe-storm days. Mock fixture computed from the committed snapshot until the backend tool lands.",
+  "data_as_of": "2026-11-17"
+}

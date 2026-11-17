@@ -27,7 +27,7 @@ function serve({ finishLater = false } = {}) {
 const textOf = (m: UIMessage) => m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('')
 
 async function askFirst() {
-  render(<ChatView sessionId={`s-${Math.random()}`} speakAnswers={false} />)
+  render(<ChatView sessionId={`s-${Math.random()}`} />)
   fireEvent.click(screen.getByRole('button', { name: /Midwest hubs/ }))
   return screen.findByRole('group', { name: 'Ask next' })
 }
@@ -91,7 +91,7 @@ describe('Ask next', () => {
       { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Rank hubs' }] },
       { id: 'a1', role: 'assistant', parts: [{ type: 'data-answer', data: old } as UIMessage['parts'][number]] },
     ])
-    render(<ChatView sessionId="old" speakAnswers={false} />)
+    render(<ChatView sessionId="old" />)
     expect(screen.getByLabelText('Answer')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Ask next' })).not.toBeInTheDocument()
   })

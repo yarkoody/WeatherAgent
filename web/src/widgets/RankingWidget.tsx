@@ -5,7 +5,7 @@ import { BAND_COLOR, BAND_LABEL, BAND_LABEL_COLOR, HAZARD_LABEL, fmt, formatDate
 import type { Band, Ranking } from '@/lib/types'
 
 /** Bars without a band (bad-year ranking): neutral ink, so color never implies a band. */
-const NEUTRAL = '#4a5b68'
+const NEUTRAL = 'var(--color-ink-soft)' // theme token: readable in light and dark
 import { InfoTip } from '@/components/InfoTip'
 import { indexSteps } from '@/lib/explain'
 import { useReducedMotion } from '@/lib/motion'

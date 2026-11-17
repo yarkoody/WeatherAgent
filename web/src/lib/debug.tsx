@@ -27,3 +27,13 @@ export function DebugProvider({ debug, children }: { debug: boolean; children: R
 export function useDebug(): boolean {
   return useContext(DebugContext)
 }
+
+/** Developer mode from Settings: the same stored preference ?debug=1 / ?debug=0 set. */
+export function saveDebugFlag(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(KEY, '1')
+    else localStorage.removeItem(KEY)
+  } catch {
+    /* not persisted */
+  }
+}

@@ -149,6 +149,10 @@ export function renameChat(id: string, title: string): void {
   write(read().map((c) => (c.id === id ? { ...c, title: clean, renamed: true } : c)))
 }
 
+export function clearChats(): void {
+  write([])
+}
+
 export function deleteChat(id: string): void {
   write(read().filter((c) => c.id !== id))
 }

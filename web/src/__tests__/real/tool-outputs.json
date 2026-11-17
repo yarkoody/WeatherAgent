@@ -1,0 +1,5874 @@
+[
+ {
+  "tool": "get_hub_risk",
+  "input": {
+   "hub_id": "minneapolis"
+  },
+  "output": {
+   "hub_id": "minneapolis",
+   "exposure": 100.0,
+   "exposure_days_per_year": 27.6,
+   "bad_year_days": 38.7,
+   "hurricane_10yr_probability_pct": 0.0,
+   "exposure_band": "high",
+   "families": {
+    "winter": {
+     "family": "winter",
+     "score": 92.1,
+     "days_per_year": 23.0,
+     "band": "high",
+     "bad_year_days": 31.9,
+     "signals": [
+      {
+       "name": "winter weather (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 16.579,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 8.289,
+       "weight": 0.6,
+       "contribution": 4.974,
+       "note": null
+      },
+      {
+       "name": "ice storm (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.485,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.971,
+       "weight": 0.6,
+       "contribution": 0.582,
+       "note": null
+      },
+      {
+       "name": "cold wave (FEMA NRI, 1 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 8.947,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 8.947,
+       "weight": 0.6,
+       "contribution": 5.368,
+       "note": null
+      },
+      {
+       "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 30.271,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 30.271,
+       "weight": 0.4,
+       "contribution": 12.108,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "flood": {
+     "family": "flood",
+     "score": 9.1,
+     "days_per_year": 2.3,
+     "band": "medium",
+     "bad_year_days": 4.2,
+     "signals": [
+      {
+       "name": "inland flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 1.536,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 3.071,
+       "weight": 0.6,
+       "contribution": 1.843,
+       "note": null
+      },
+      {
+       "name": "coastal flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": null,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.6,
+       "contribution": 0.0,
+       "note": "missing in NRI"
+      },
+      {
+       "name": "observed heavy-rain days (precipitation >= 50 mm)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 1.091,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 1.091,
+       "weight": 0.4,
+       "contribution": 0.436,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "hurricane": {
+     "family": "hurricane",
+     "score": 0.0,
+     "days_per_year": 0.0,
+     "band": "low",
+     "bad_year_days": 0.0,
+     "signals": [
+      {
+       "name": "hurricane (FEMA NRI, 10 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": null,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 1.0,
+       "contribution": 0.0,
+       "note": "missing in NRI"
+      }
+     ]
+    },
+    "severe_storm": {
+     "family": "severe_storm",
+     "score": 9.0,
+     "days_per_year": 2.3,
+     "band": "medium",
+     "bad_year_days": 2.6,
+     "signals": [
+      {
+       "name": "tornado (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.458,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.229,
+       "weight": 0.6,
+       "contribution": 0.137,
+       "note": null
+      },
+      {
+       "name": "strong wind (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 4.566,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.142,
+       "weight": 0.6,
+       "contribution": 0.685,
+       "note": null
+      },
+      {
+       "name": "hail (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 6.412,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.603,
+       "weight": 0.6,
+       "contribution": 0.962,
+       "note": null
+      },
+      {
+       "name": "observed high-gust days (gust >= 75 km/h)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 1.182,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 1.182,
+       "weight": 0.4,
+       "contribution": 0.473,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    }
+   },
+   "family_weights": {
+    "winter": 83.5,
+    "flood": 8.3,
+    "hurricane": 0.0,
+    "severe_storm": 8.2
+   },
+   "priority": 66.7,
+   "priority_band": "high",
+   "priority_signals": [
+    {
+     "name": "overall exposure (base share)",
+     "source": "scoring",
+     "raw": 100.0,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 100.0,
+     "weight": 0.6,
+     "contribution": 60.0,
+     "note": null
+    },
+    {
+     "name": "people served (county population)",
+     "source": "FEMA National Risk Index, population (county)",
+     "raw": 1281172.0,
+     "unit": "people",
+     "cap": 5000000.0,
+     "normalized": 25.62,
+     "weight": 0.25,
+     "contribution": 6.41,
+     "note": "multiplies exposure"
+    },
+    {
+     "name": "resilience gap (100 - FEMA community resilience score)",
+     "source": "FEMA National Risk Index, community resilience (county)",
+     "raw": 98.092,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 1.91,
+     "weight": 0.15,
+     "contribution": 0.29,
+     "note": "multiplies exposure"
+    }
+   ],
+   "top_driver": "winter",
+   "upgrade_categories": [
+    "winterized fleet",
+    "snow and ice removal",
+    "heated docks"
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_hub_history",
+  "input": {
+   "hub_id": "minneapolis"
+  },
+  "output": {
+   "hub_id": "minneapolis",
+   "name": "Minneapolis Hub",
+   "start_year": 2015,
+   "end_year": 2025,
+   "years": [
+    {
+     "year": 2015,
+     "days": {
+      "winter": 27.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 30.0
+    },
+    {
+     "year": 2016,
+     "days": {
+      "winter": 19.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 4.0
+     },
+     "total": 25.0
+    },
+    {
+     "year": 2017,
+     "days": {
+      "winter": 22.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 23.0
+    },
+    {
+     "year": 2018,
+     "days": {
+      "winter": 37.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 38.0
+    },
+    {
+     "year": 2019,
+     "days": {
+      "winter": 46.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 48.0
+    },
+    {
+     "year": 2020,
+     "days": {
+      "winter": 24.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 25.0
+    },
+    {
+     "year": 2021,
+     "days": {
+      "winter": 27.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 27.0
+    },
+    {
+     "year": 2022,
+     "days": {
+      "winter": 53.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 54.0
+    },
+    {
+     "year": 2023,
+     "days": {
+      "winter": 22.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 23.0
+    },
+    {
+     "year": 2024,
+     "days": {
+      "winter": 19.0,
+      "flood": 3.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 24.0
+    },
+    {
+     "year": 2025,
+     "days": {
+      "winter": 37.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 3.0
+     },
+     "total": 41.0
+    }
+   ],
+   "months": [
+    {
+     "month": 1,
+     "days": {
+      "winter": 10.7,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 10.7
+    },
+    {
+     "month": 2,
+     "days": {
+      "winter": 10.4,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 10.5
+    },
+    {
+     "month": 3,
+     "days": {
+      "winter": 1.9,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 2.1
+    },
+    {
+     "month": 4,
+     "days": {
+      "winter": 0.7,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 0.9
+    },
+    {
+     "month": 5,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 0.4
+    },
+    {
+     "month": 6,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.3,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.3
+    },
+    {
+     "month": 7,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.3
+    },
+    {
+     "month": 8,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.2
+    },
+    {
+     "month": 9,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.2
+    },
+    {
+     "month": 10,
+     "days": {
+      "winter": 0.3,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.3
+    },
+    {
+     "month": 11,
+     "days": {
+      "winter": 0.6,
+      "flood": 0.1,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 0.9
+    },
+    {
+     "month": 12,
+     "days": {
+      "winter": 5.6,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.3
+     },
+     "total": 5.9
+    }
+   ],
+   "worst_year": 2022,
+   "peak_months": [
+    1,
+    2,
+    12
+   ],
+   "thresholds": {
+    "winter": "snow >= 5 cm or min temp <= -18 \u00b0C",
+    "flood": "precipitation >= 50 mm",
+    "severe_storm": "max gust >= 75 km/h",
+    "hurricane": "not observable in daily weather data (see the hurricane 10-year probability)"
+   },
+   "note": "Observed at the hub point (ERA5 reanalysis, about 25 km grid); hurricanes are not captured by daily data, see the hurricane probability instead; observed signal only, not FEMA's long-term frequency.",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_active_alerts",
+  "input": {
+   "hub_id": "minneapolis"
+  },
+  "output": {
+   "hub_id": "minneapolis",
+   "alerts": [],
+   "fetched_at": "2026-11-17T13:18:07+00:00"
+  }
+ },
+ {
+  "tool": "get_hub_risk",
+  "input": {
+   "hub_id": "miami"
+  },
+  "output": {
+   "hub_id": "miami",
+   "exposure": 31.2,
+   "exposure_days_per_year": 7.8,
+   "bad_year_days": 42.8,
+   "hurricane_10yr_probability_pct": 95.3,
+   "exposure_band": "low",
+   "families": {
+    "winter": {
+     "family": "winter",
+     "score": 3.1,
+     "days_per_year": 0.8,
+     "band": "low",
+     "bad_year_days": 0.8,
+     "signals": [
+      {
+       "name": "winter weather (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.0,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.6,
+       "contribution": 0.0,
+       "note": null
+      },
+      {
+       "name": "ice storm (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": null,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.6,
+       "contribution": 0.0,
+       "note": "missing in NRI"
+      },
+      {
+       "name": "cold wave (FEMA NRI, 1 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 1.284,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.284,
+       "weight": 0.6,
+       "contribution": 0.77,
+       "note": null
+      },
+      {
+       "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 0.0,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.4,
+       "contribution": 0.0,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "flood": {
+     "family": "flood",
+     "score": 12.5,
+     "days_per_year": 3.1,
+     "band": "medium",
+     "bad_year_days": 3.6,
+     "signals": [
+      {
+       "name": "inland flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 4.0,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 3.315,
+       "weight": 0.6,
+       "contribution": 1.989,
+       "note": "area-adjusted x0.41 (county 2,413 sq mi)"
+      },
+      {
+       "name": "coastal flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 2.25,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.251,
+       "weight": 0.6,
+       "contribution": 0.15,
+       "note": "5.6% of county area exposed to coastal flooding (NRI)"
+      },
+      {
+       "name": "observed heavy-rain days (precipitation >= 50 mm)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 2.454,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 2.454,
+       "weight": 0.4,
+       "contribution": 0.982,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "hurricane": {
+     "family": "hurricane",
+     "score": 12.2,
+     "days_per_year": 3.0,
+     "band": "high",
+     "bad_year_days": 37.4,
+     "signals": [
+      {
+       "name": "hurricane (FEMA NRI, 10 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.305,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 3.05,
+       "weight": 1.0,
+       "contribution": 3.05,
+       "note": null
+      }
+     ]
+    },
+    "severe_storm": {
+     "family": "severe_storm",
+     "score": 3.5,
+     "days_per_year": 0.9,
+     "band": "low",
+     "bad_year_days": 0.9,
+     "signals": [
+      {
+       "name": "tornado (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 1.074,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.222,
+       "weight": 0.6,
+       "contribution": 0.133,
+       "note": "area-adjusted x0.41 (county 2,413 sq mi)"
+      },
+      {
+       "name": "strong wind (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.758,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.079,
+       "weight": 0.6,
+       "contribution": 0.047,
+       "note": "area-adjusted x0.41 (county 2,413 sq mi)"
+      },
+      {
+       "name": "hail (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.559,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.058,
+       "weight": 0.6,
+       "contribution": 0.035,
+       "note": "area-adjusted x0.41 (county 2,413 sq mi)"
+      },
+      {
+       "name": "observed high-gust days (gust >= 75 km/h)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 1.636,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 1.636,
+       "weight": 0.4,
+       "contribution": 0.655,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    }
+   },
+   "family_weights": {
+    "winter": 9.9,
+    "flood": 40.0,
+    "hurricane": 39.0,
+    "severe_storm": 11.1
+   },
+   "priority": 25.6,
+   "priority_band": "low",
+   "priority_signals": [
+    {
+     "name": "overall exposure (base share)",
+     "source": "scoring",
+     "raw": 31.243,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 31.24,
+     "weight": 0.6,
+     "contribution": 18.75,
+     "note": null
+    },
+    {
+     "name": "people served (county population)",
+     "source": "FEMA National Risk Index, population (county)",
+     "raw": 2698679.0,
+     "unit": "people",
+     "cap": 5000000.0,
+     "normalized": 53.97,
+     "weight": 0.25,
+     "contribution": 4.22,
+     "note": "multiplies exposure"
+    },
+    {
+     "name": "resilience gap (100 - FEMA community resilience score)",
+     "source": "FEMA National Risk Index, community resilience (county)",
+     "raw": 42.907,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 57.09,
+     "weight": 0.15,
+     "contribution": 2.68,
+     "note": "multiplies exposure"
+    }
+   ],
+   "top_driver": "flood",
+   "upgrade_categories": [
+    "drainage",
+    "raised docks",
+    "flood barriers"
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_hub_history",
+  "input": {
+   "hub_id": "miami"
+  },
+  "output": {
+   "hub_id": "miami",
+   "name": "Miami Hub",
+   "start_year": 2015,
+   "end_year": 2025,
+   "years": [
+    {
+     "year": 2015,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "year": 2016,
+     "days": {
+      "winter": 0.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 2.0
+    },
+    {
+     "year": 2017,
+     "days": {
+      "winter": 0.0,
+      "flood": 5.0,
+      "hurricane": 0.0,
+      "severe_storm": 4.0
+     },
+     "total": 9.0
+    },
+    {
+     "year": 2018,
+     "days": {
+      "winter": 0.0,
+      "flood": 4.0,
+      "hurricane": 0.0,
+      "severe_storm": 3.0
+     },
+     "total": 7.0
+    },
+    {
+     "year": 2019,
+     "days": {
+      "winter": 0.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 2.0
+    },
+    {
+     "year": 2020,
+     "days": {
+      "winter": 0.0,
+      "flood": 4.0,
+      "hurricane": 0.0,
+      "severe_storm": 5.0
+     },
+     "total": 9.0
+    },
+    {
+     "year": 2021,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "year": 2022,
+     "days": {
+      "winter": 0.0,
+      "flood": 3.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 4.0
+    },
+    {
+     "year": 2023,
+     "days": {
+      "winter": 0.0,
+      "flood": 3.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 5.0
+    },
+    {
+     "year": 2024,
+     "days": {
+      "winter": 0.0,
+      "flood": 4.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 6.0
+    },
+    {
+     "year": 2025,
+     "days": {
+      "winter": 0.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 1.0
+    }
+   ],
+   "months": [
+    {
+     "month": 1,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 0.4
+    },
+    {
+     "month": 2,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.1,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.2
+    },
+    {
+     "month": 3,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.2
+    },
+    {
+     "month": 4,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 5,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.4,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.5
+    },
+    {
+     "month": 6,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.5,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.5
+    },
+    {
+     "month": 7,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.1,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.1
+    },
+    {
+     "month": 8,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.1
+    },
+    {
+     "month": 9,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.4,
+      "hurricane": 0.0,
+      "severe_storm": 0.5
+     },
+     "total": 0.9
+    },
+    {
+     "month": 10,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.3
+    },
+    {
+     "month": 11,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.3,
+      "hurricane": 0.0,
+      "severe_storm": 0.3
+     },
+     "total": 0.5
+    },
+    {
+     "month": 12,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.3
+     },
+     "total": 0.5
+    }
+   ],
+   "worst_year": 2017,
+   "peak_months": [
+    9,
+    6,
+    11
+   ],
+   "thresholds": {
+    "winter": "snow >= 5 cm or min temp <= -18 \u00b0C",
+    "flood": "precipitation >= 50 mm",
+    "severe_storm": "max gust >= 75 km/h",
+    "hurricane": "not observable in daily weather data (see the hurricane 10-year probability)"
+   },
+   "note": "Observed at the hub point (ERA5 reanalysis, about 25 km grid); hurricanes are not captured by daily data, see the hurricane probability instead; observed signal only, not FEMA's long-term frequency.",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_active_alerts",
+  "input": {
+   "hub_id": "miami"
+  },
+  "output": {
+   "hub_id": "miami",
+   "alerts": [
+    {
+     "event": "Rip Current Statement",
+     "severity": "Moderate",
+     "headline": "Rip Current Statement issued November 17 at 8:09AM EST until November 19 at 7:00PM EST by NWS Miami FL",
+     "expires": "2026-11-17T17:00:00-05:00"
+    },
+    {
+     "event": "Flood Watch",
+     "severity": "Severe",
+     "headline": "Flood Watch issued November 17 at 8:07AM EST until November 19 at 7:00PM EST by NWS Miami FL",
+     "expires": "2026-11-17T17:00:00-05:00"
+    }
+   ],
+   "fetched_at": "2026-11-17T13:18:07+00:00"
+  }
+ },
+ {
+  "tool": "get_hub_risk",
+  "input": {
+   "hub_id": "phoenix"
+  },
+  "output": {
+   "hub_id": "phoenix",
+   "exposure": 6.3,
+   "exposure_days_per_year": 1.6,
+   "bad_year_days": 7.2,
+   "hurricane_10yr_probability_pct": 10.9,
+   "exposure_band": "low",
+   "families": {
+    "winter": {
+     "family": "winter",
+     "score": 0.7,
+     "days_per_year": 0.2,
+     "band": "low",
+     "bad_year_days": 0.3,
+     "signals": [
+      {
+       "name": "winter weather (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.567,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.283,
+       "weight": 0.6,
+       "contribution": 0.17,
+       "note": null
+      },
+      {
+       "name": "ice storm (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": null,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.6,
+       "contribution": 0.0,
+       "note": "missing in NRI"
+      },
+      {
+       "name": "cold wave (FEMA NRI, 1 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.0,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.6,
+       "contribution": 0.0,
+       "note": null
+      },
+      {
+       "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 0.0,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.4,
+       "contribution": 0.0,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "flood": {
+     "family": "flood",
+     "score": 4.7,
+     "days_per_year": 1.2,
+     "band": "low",
+     "bad_year_days": 4.6,
+     "signals": [
+      {
+       "name": "inland flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 8.464,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.817,
+       "weight": 0.6,
+       "contribution": 1.09,
+       "note": "area-adjusted x0.11 (county 9,319 sq mi)"
+      },
+      {
+       "name": "coastal flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": null,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.6,
+       "contribution": 0.0,
+       "note": "missing in NRI"
+      },
+      {
+       "name": "observed heavy-rain days (precipitation >= 50 mm)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 0.182,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 0.182,
+       "weight": 0.4,
+       "contribution": 0.073,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "hurricane": {
+     "family": "hurricane",
+     "score": 0.5,
+     "days_per_year": 0.1,
+     "band": "low",
+     "bad_year_days": 2.0,
+     "signals": [
+      {
+       "name": "hurricane (FEMA NRI, 10 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.012,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.115,
+       "weight": 1.0,
+       "contribution": 0.115,
+       "note": null
+      }
+     ]
+    },
+    "severe_storm": {
+     "family": "severe_storm",
+     "score": 0.5,
+     "days_per_year": 0.1,
+     "band": "low",
+     "bad_year_days": 0.2,
+     "signals": [
+      {
+       "name": "tornado (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.571,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.031,
+       "weight": 0.6,
+       "contribution": 0.018,
+       "note": "area-adjusted x0.11 (county 9,319 sq mi)"
+      },
+      {
+       "name": "strong wind (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 1.401,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.038,
+       "weight": 0.6,
+       "contribution": 0.023,
+       "note": "area-adjusted x0.11 (county 9,319 sq mi)"
+      },
+      {
+       "name": "hail (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.28,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.008,
+       "weight": 0.6,
+       "contribution": 0.005,
+       "note": "area-adjusted x0.11 (county 9,319 sq mi)"
+      },
+      {
+       "name": "observed high-gust days (gust >= 75 km/h)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 0.182,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 0.182,
+       "weight": 0.4,
+       "contribution": 0.073,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    }
+   },
+   "family_weights": {
+    "winter": 10.9,
+    "flood": 74.2,
+    "hurricane": 7.4,
+    "severe_storm": 7.5
+   },
+   "priority": 5.9,
+   "priority_band": "low",
+   "priority_signals": [
+    {
+     "name": "overall exposure (base share)",
+     "source": "scoring",
+     "raw": 6.264,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 6.26,
+     "weight": 0.6,
+     "contribution": 3.76,
+     "note": null
+    },
+    {
+     "name": "people served (county population)",
+     "source": "FEMA National Risk Index, population (county)",
+     "raw": 4418836.0,
+     "unit": "people",
+     "cap": 5000000.0,
+     "normalized": 88.38,
+     "weight": 0.25,
+     "contribution": 1.38,
+     "note": "multiplies exposure"
+    },
+    {
+     "name": "resilience gap (100 - FEMA community resilience score)",
+     "source": "FEMA National Risk Index, community resilience (county)",
+     "raw": 18.034,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 81.97,
+     "weight": 0.15,
+     "contribution": 0.77,
+     "note": "multiplies exposure"
+    }
+   ],
+   "top_driver": "flood",
+   "upgrade_categories": [
+    "drainage",
+    "raised docks",
+    "flood barriers"
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_hub_history",
+  "input": {
+   "hub_id": "phoenix"
+  },
+  "output": {
+   "hub_id": "phoenix",
+   "name": "Phoenix Hub",
+   "start_year": 2015,
+   "end_year": 2025,
+   "years": [
+    {
+     "year": 2015,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "year": 2016,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "year": 2017,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 1.0
+    },
+    {
+     "year": 2018,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "year": 2019,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "year": 2020,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "year": 2021,
+     "days": {
+      "winter": 0.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 1.0
+    },
+    {
+     "year": 2022,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "year": 2023,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "year": 2024,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 1.0
+    },
+    {
+     "year": 2025,
+     "days": {
+      "winter": 0.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 1.0
+    }
+   ],
+   "months": [
+    {
+     "month": 1,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 2,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 3,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 4,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.1
+    },
+    {
+     "month": 5,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 6,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 7,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.1,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.2
+    },
+    {
+     "month": 8,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 9,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 10,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.1,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.1
+    },
+    {
+     "month": 11,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 12,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    }
+   ],
+   "worst_year": 2017,
+   "peak_months": [
+    7,
+    4,
+    10
+   ],
+   "thresholds": {
+    "winter": "snow >= 5 cm or min temp <= -18 \u00b0C",
+    "flood": "precipitation >= 50 mm",
+    "severe_storm": "max gust >= 75 km/h",
+    "hurricane": "not observable in daily weather data (see the hurricane 10-year probability)"
+   },
+   "note": "Observed at the hub point (ERA5 reanalysis, about 25 km grid); hurricanes are not captured by daily data, see the hurricane probability instead; observed signal only, not FEMA's long-term frequency.",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_active_alerts",
+  "input": {
+   "hub_id": "phoenix"
+  },
+  "output": {
+   "hub_id": "phoenix",
+   "alerts": [],
+   "fetched_at": "2026-11-17T13:18:08+00:00"
+  }
+ },
+ {
+  "tool": "get_hub_risk",
+  "input": {
+   "hub_id": "houston"
+  },
+  "output": {
+   "hub_id": "houston",
+   "exposure": 42.0,
+   "exposure_days_per_year": 10.5,
+   "bad_year_days": 38.2,
+   "hurricane_10yr_probability_pct": 84.1,
+   "exposure_band": "medium",
+   "families": {
+    "winter": {
+     "family": "winter",
+     "score": 7.0,
+     "days_per_year": 1.7,
+     "band": "low",
+     "bad_year_days": 2.3,
+     "signals": [
+      {
+       "name": "winter weather (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 1.121,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.56,
+       "weight": 0.6,
+       "contribution": 0.336,
+       "note": null
+      },
+      {
+       "name": "ice storm (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.905,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.81,
+       "weight": 0.6,
+       "contribution": 1.086,
+       "note": null
+      },
+      {
+       "name": "cold wave (FEMA NRI, 1 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.481,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.481,
+       "weight": 0.6,
+       "contribution": 0.289,
+       "note": null
+      },
+      {
+       "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 0.091,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 0.091,
+       "weight": 0.4,
+       "contribution": 0.036,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "flood": {
+     "family": "flood",
+     "score": 23.4,
+     "days_per_year": 5.9,
+     "band": "high",
+     "bad_year_days": 7.8,
+     "signals": [
+      {
+       "name": "inland flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 5.143,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 5.729,
+       "weight": 0.6,
+       "contribution": 3.437,
+       "note": "area-adjusted x0.56 (county 1,795 sq mi)"
+      },
+      {
+       "name": "coastal flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 3.761,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.689,
+       "weight": 0.6,
+       "contribution": 0.413,
+       "note": "9.2% of county area exposed to coastal flooding (NRI)"
+      },
+      {
+       "name": "observed heavy-rain days (precipitation >= 50 mm)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 5.0,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 5.0,
+       "weight": 0.4,
+       "contribution": 2.0,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "hurricane": {
+     "family": "hurricane",
+     "score": 7.3,
+     "days_per_year": 1.8,
+     "band": "high",
+     "bad_year_days": 27.0,
+     "signals": [
+      {
+       "name": "hurricane (FEMA NRI, 10 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.184,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.836,
+       "weight": 1.0,
+       "contribution": 1.836,
+       "note": null
+      }
+     ]
+    },
+    "severe_storm": {
+     "family": "severe_storm",
+     "score": 4.3,
+     "days_per_year": 1.1,
+     "band": "low",
+     "bad_year_days": 1.2,
+     "signals": [
+      {
+       "name": "tornado (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 1.61,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.448,
+       "weight": 0.6,
+       "contribution": 0.269,
+       "note": "area-adjusted x0.56 (county 1,795 sq mi)"
+      },
+      {
+       "name": "strong wind (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 1.523,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.212,
+       "weight": 0.6,
+       "contribution": 0.127,
+       "note": "area-adjusted x0.56 (county 1,795 sq mi)"
+      },
+      {
+       "name": "hail (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 2.35,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.327,
+       "weight": 0.6,
+       "contribution": 0.196,
+       "note": "area-adjusted x0.56 (county 1,795 sq mi)"
+      },
+      {
+       "name": "observed high-gust days (gust >= 75 km/h)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 1.182,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 1.182,
+       "weight": 0.4,
+       "contribution": 0.473,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    }
+   },
+   "family_weights": {
+    "winter": 16.6,
+    "flood": 55.7,
+    "hurricane": 17.5,
+    "severe_storm": 10.1
+   },
+   "priority": 40.3,
+   "priority_band": "medium",
+   "priority_signals": [
+    {
+     "name": "overall exposure (base share)",
+     "source": "scoring",
+     "raw": 41.998,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 42.0,
+     "weight": 0.6,
+     "contribution": 25.2,
+     "note": null
+    },
+    {
+     "name": "people served (county population)",
+     "source": "FEMA National Risk Index, population (county)",
+     "raw": 4726200.0,
+     "unit": "people",
+     "cap": 5000000.0,
+     "normalized": 94.52,
+     "weight": 0.25,
+     "contribution": 9.92,
+     "note": "multiplies exposure"
+    },
+    {
+     "name": "resilience gap (100 - FEMA community resilience score)",
+     "source": "FEMA National Risk Index, community resilience (county)",
+     "raw": 17.875,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 82.12,
+     "weight": 0.15,
+     "contribution": 5.17,
+     "note": "multiplies exposure"
+    }
+   ],
+   "top_driver": "flood",
+   "upgrade_categories": [
+    "drainage",
+    "raised docks",
+    "flood barriers"
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_hub_history",
+  "input": {
+   "hub_id": "houston"
+  },
+  "output": {
+   "hub_id": "houston",
+   "name": "Houston Hub",
+   "start_year": 2015,
+   "end_year": 2025,
+   "years": [
+    {
+     "year": 2015,
+     "days": {
+      "winter": 0.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 4.0
+    },
+    {
+     "year": 2016,
+     "days": {
+      "winter": 0.0,
+      "flood": 3.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 3.0
+    },
+    {
+     "year": 2017,
+     "days": {
+      "winter": 0.0,
+      "flood": 9.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 11.0
+    },
+    {
+     "year": 2018,
+     "days": {
+      "winter": 0.0,
+      "flood": 7.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 9.0
+    },
+    {
+     "year": 2019,
+     "days": {
+      "winter": 0.0,
+      "flood": 5.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 6.0
+    },
+    {
+     "year": 2020,
+     "days": {
+      "winter": 0.0,
+      "flood": 8.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 10.0
+    },
+    {
+     "year": 2021,
+     "days": {
+      "winter": 0.0,
+      "flood": 11.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 13.0
+    },
+    {
+     "year": 2022,
+     "days": {
+      "winter": 0.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 2.0
+    },
+    {
+     "year": 2023,
+     "days": {
+      "winter": 0.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 3.0
+    },
+    {
+     "year": 2024,
+     "days": {
+      "winter": 0.0,
+      "flood": 4.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 5.0
+    },
+    {
+     "year": 2025,
+     "days": {
+      "winter": 1.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 3.0
+    }
+   ],
+   "months": [
+    {
+     "month": 1,
+     "days": {
+      "winter": 0.1,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.4
+     },
+     "total": 0.6
+    },
+    {
+     "month": 2,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.1,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.1
+    },
+    {
+     "month": 3,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.4,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.4
+    },
+    {
+     "month": 4,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.4,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.5
+    },
+    {
+     "month": 5,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.7,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.7
+    },
+    {
+     "month": 6,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.6,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.6
+    },
+    {
+     "month": 7,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.5,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.6
+    },
+    {
+     "month": 8,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.4,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.5
+    },
+    {
+     "month": 9,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.6,
+      "hurricane": 0.0,
+      "severe_storm": 0.3
+     },
+     "total": 0.9
+    },
+    {
+     "month": 10,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.5,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.5
+    },
+    {
+     "month": 11,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.1,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.1
+    },
+    {
+     "month": 12,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.5,
+      "hurricane": 0.0,
+      "severe_storm": 0.3
+     },
+     "total": 0.8
+    }
+   ],
+   "worst_year": 2021,
+   "peak_months": [
+    9,
+    12,
+    5
+   ],
+   "thresholds": {
+    "winter": "snow >= 5 cm or min temp <= -18 \u00b0C",
+    "flood": "precipitation >= 50 mm",
+    "severe_storm": "max gust >= 75 km/h",
+    "hurricane": "not observable in daily weather data (see the hurricane 10-year probability)"
+   },
+   "note": "Observed at the hub point (ERA5 reanalysis, about 25 km grid); hurricanes are not captured by daily data, see the hurricane probability instead; observed signal only, not FEMA's long-term frequency.",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_active_alerts",
+  "input": {
+   "hub_id": "houston"
+  },
+  "output": {
+   "hub_id": "houston",
+   "alerts": [],
+   "fetched_at": "2026-11-17T13:18:08+00:00"
+  }
+ },
+ {
+  "tool": "get_hub_risk",
+  "input": {
+   "hub_id": "kansas_city"
+  },
+  "output": {
+   "hub_id": "kansas_city",
+   "exposure": 67.9,
+   "exposure_days_per_year": 17.0,
+   "bad_year_days": 27.0,
+   "hurricane_10yr_probability_pct": 0.0,
+   "exposure_band": "high",
+   "families": {
+    "winter": {
+     "family": "winter",
+     "score": 30.7,
+     "days_per_year": 7.7,
+     "band": "high",
+     "bad_year_days": 11.1,
+     "signals": [
+      {
+       "name": "winter weather (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 11.211,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 5.605,
+       "weight": 0.6,
+       "contribution": 3.363,
+       "note": null
+      },
+      {
+       "name": "ice storm (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.925,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.849,
+       "weight": 0.6,
+       "contribution": 1.11,
+       "note": null
+      },
+      {
+       "name": "cold wave (FEMA NRI, 1 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 2.263,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 2.263,
+       "weight": 0.6,
+       "contribution": 1.358,
+       "note": null
+      },
+      {
+       "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 4.636,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 4.636,
+       "weight": 0.4,
+       "contribution": 1.854,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "flood": {
+     "family": "flood",
+     "score": 24.0,
+     "days_per_year": 6.0,
+     "band": "high",
+     "bad_year_days": 12.0,
+     "signals": [
+      {
+       "name": "inland flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 4.357,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 8.714,
+       "weight": 0.6,
+       "contribution": 5.229,
+       "note": null
+      },
+      {
+       "name": "coastal flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": null,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.6,
+       "contribution": 0.0,
+       "note": "missing in NRI"
+      },
+      {
+       "name": "observed heavy-rain days (precipitation >= 50 mm)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 1.909,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 1.909,
+       "weight": 0.4,
+       "contribution": 0.764,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "hurricane": {
+     "family": "hurricane",
+     "score": 0.0,
+     "days_per_year": 0.0,
+     "band": "low",
+     "bad_year_days": 0.0,
+     "signals": [
+      {
+       "name": "hurricane (FEMA NRI, 10 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.0,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 1.0,
+       "contribution": 0.0,
+       "note": null
+      }
+     ]
+    },
+    "severe_storm": {
+     "family": "severe_storm",
+     "score": 13.1,
+     "days_per_year": 3.3,
+     "band": "medium",
+     "bad_year_days": 4.0,
+     "signals": [
+      {
+       "name": "tornado (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.384,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.192,
+       "weight": 0.6,
+       "contribution": 0.115,
+       "note": null
+      },
+      {
+       "name": "strong wind (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 6.192,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.548,
+       "weight": 0.6,
+       "contribution": 0.929,
+       "note": null
+      },
+      {
+       "name": "hail (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 8.165,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 2.041,
+       "weight": 0.6,
+       "contribution": 1.225,
+       "note": null
+      },
+      {
+       "name": "observed high-gust days (gust >= 75 km/h)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 2.545,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 2.545,
+       "weight": 0.4,
+       "contribution": 1.018,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    }
+   },
+   "family_weights": {
+    "winter": 45.3,
+    "flood": 35.3,
+    "hurricane": 0.0,
+    "severe_storm": 19.4
+   },
+   "priority": 47.8,
+   "priority_band": "medium",
+   "priority_signals": [
+    {
+     "name": "overall exposure (base share)",
+     "source": "scoring",
+     "raw": 67.857,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 67.86,
+     "weight": 0.6,
+     "contribution": 40.71,
+     "note": null
+    },
+    {
+     "name": "people served (county population)",
+     "source": "FEMA National Risk Index, population (county)",
+     "raw": 716764.0,
+     "unit": "people",
+     "cap": 5000000.0,
+     "normalized": 14.34,
+     "weight": 0.25,
+     "contribution": 2.43,
+     "note": "multiplies exposure"
+    },
+    {
+     "name": "resilience gap (100 - FEMA community resilience score)",
+     "source": "FEMA National Risk Index, community resilience (county)",
+     "raw": 53.976,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 46.02,
+     "weight": 0.15,
+     "contribution": 4.68,
+     "note": "multiplies exposure"
+    }
+   ],
+   "top_driver": "winter",
+   "upgrade_categories": [
+    "winterized fleet",
+    "snow and ice removal",
+    "heated docks"
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_hub_history",
+  "input": {
+   "hub_id": "kansas_city"
+  },
+  "output": {
+   "hub_id": "kansas_city",
+   "name": "Kansas City Hub",
+   "start_year": 2015,
+   "end_year": 2025,
+   "years": [
+    {
+     "year": 2015,
+     "days": {
+      "winter": 4.0,
+      "flood": 3.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 8.0
+    },
+    {
+     "year": 2016,
+     "days": {
+      "winter": 2.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 3.0
+     },
+     "total": 7.0
+    },
+    {
+     "year": 2017,
+     "days": {
+      "winter": 2.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 3.0
+     },
+     "total": 6.0
+    },
+    {
+     "year": 2018,
+     "days": {
+      "winter": 3.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 7.0
+    },
+    {
+     "year": 2019,
+     "days": {
+      "winter": 7.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 10.0
+    },
+    {
+     "year": 2020,
+     "days": {
+      "winter": 2.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 6.0
+    },
+    {
+     "year": 2021,
+     "days": {
+      "winter": 6.0,
+      "flood": 3.0,
+      "hurricane": 0.0,
+      "severe_storm": 4.0
+     },
+     "total": 13.0
+    },
+    {
+     "year": 2022,
+     "days": {
+      "winter": 7.0,
+      "flood": 1.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 9.0
+    },
+    {
+     "year": 2023,
+     "days": {
+      "winter": 2.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 2.0
+     },
+     "total": 4.0
+    },
+    {
+     "year": 2024,
+     "days": {
+      "winter": 8.0,
+      "flood": 3.0,
+      "hurricane": 0.0,
+      "severe_storm": 3.0
+     },
+     "total": 14.0
+    },
+    {
+     "year": 2025,
+     "days": {
+      "winter": 8.0,
+      "flood": 2.0,
+      "hurricane": 0.0,
+      "severe_storm": 6.0
+     },
+     "total": 16.0
+    }
+   ],
+   "months": [
+    {
+     "month": 1,
+     "days": {
+      "winter": 1.7,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 1.9
+    },
+    {
+     "month": 2,
+     "days": {
+      "winter": 1.7,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 1.9
+    },
+    {
+     "month": 3,
+     "days": {
+      "winter": 0.3,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.9
+     },
+     "total": 1.2
+    },
+    {
+     "month": 4,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.4
+     },
+     "total": 0.5
+    },
+    {
+     "month": 5,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 0.4
+    },
+    {
+     "month": 6,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.5,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.5
+    },
+    {
+     "month": 7,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.4,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.4
+    },
+    {
+     "month": 8,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.2
+    },
+    {
+     "month": 9,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 10,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.4,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 0.5
+    },
+    {
+     "month": 11,
+     "days": {
+      "winter": 0.3,
+      "flood": 0.2,
+      "hurricane": 0.0,
+      "severe_storm": 0.3
+     },
+     "total": 0.7
+    },
+    {
+     "month": 12,
+     "days": {
+      "winter": 0.6,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.3
+     },
+     "total": 0.9
+    }
+   ],
+   "worst_year": 2025,
+   "peak_months": [
+    1,
+    2,
+    3
+   ],
+   "thresholds": {
+    "winter": "snow >= 5 cm or min temp <= -18 \u00b0C",
+    "flood": "precipitation >= 50 mm",
+    "severe_storm": "max gust >= 75 km/h",
+    "hurricane": "not observable in daily weather data (see the hurricane 10-year probability)"
+   },
+   "note": "Observed at the hub point (ERA5 reanalysis, about 25 km grid); hurricanes are not captured by daily data, see the hurricane probability instead; observed signal only, not FEMA's long-term frequency.",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_active_alerts",
+  "input": {
+   "hub_id": "kansas_city"
+  },
+  "output": {
+   "hub_id": "kansas_city",
+   "alerts": [],
+   "fetched_at": "2026-11-17T13:18:08+00:00"
+  }
+ },
+ {
+  "tool": "get_hub_risk",
+  "input": {
+   "hub_id": "denver"
+  },
+  "output": {
+   "hub_id": "denver",
+   "exposure": 52.7,
+   "exposure_days_per_year": 13.2,
+   "bad_year_days": 20.6,
+   "hurricane_10yr_probability_pct": 0.0,
+   "exposure_band": "medium",
+   "families": {
+    "winter": {
+     "family": "winter",
+     "score": 40.4,
+     "days_per_year": 10.1,
+     "band": "high",
+     "bad_year_days": 15.3,
+     "signals": [
+      {
+       "name": "winter weather (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 13.738,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 6.869,
+       "weight": 0.6,
+       "contribution": 4.121,
+       "note": null
+      },
+      {
+       "name": "ice storm (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.016,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.031,
+       "weight": 0.6,
+       "contribution": 0.019,
+       "note": null
+      },
+      {
+       "name": "cold wave (FEMA NRI, 1 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 1.263,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.263,
+       "weight": 0.6,
+       "contribution": 0.758,
+       "note": null
+      },
+      {
+       "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 12.999,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 12.999,
+       "weight": 0.4,
+       "contribution": 5.2,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "flood": {
+     "family": "flood",
+     "score": 3.9,
+     "days_per_year": 1.0,
+     "band": "low",
+     "bad_year_days": 2.6,
+     "signals": [
+      {
+       "name": "inland flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.821,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 1.643,
+       "weight": 0.6,
+       "contribution": 0.986,
+       "note": null
+      },
+      {
+       "name": "coastal flood (FEMA NRI, 2 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": null,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.6,
+       "contribution": 0.0,
+       "note": "missing in NRI"
+      },
+      {
+       "name": "observed heavy-rain days (precipitation >= 50 mm)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 0.0,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 0.4,
+       "contribution": 0.0,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    },
+    "hurricane": {
+     "family": "hurricane",
+     "score": 0.0,
+     "days_per_year": 0.0,
+     "band": "low",
+     "bad_year_days": 0.0,
+     "signals": [
+      {
+       "name": "hurricane (FEMA NRI, 10 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": null,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.0,
+       "weight": 1.0,
+       "contribution": 0.0,
+       "note": "missing in NRI"
+      }
+     ]
+    },
+    "severe_storm": {
+     "family": "severe_storm",
+     "score": 8.4,
+     "days_per_year": 2.1,
+     "band": "medium",
+     "bad_year_days": 2.7,
+     "signals": [
+      {
+       "name": "tornado (FEMA NRI, 0.5 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 0.16,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.08,
+       "weight": 0.6,
+       "contribution": 0.048,
+       "note": null
+      },
+      {
+       "name": "strong wind (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 1.189,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 0.297,
+       "weight": 0.6,
+       "contribution": 0.178,
+       "note": null
+      },
+      {
+       "name": "hail (FEMA NRI, 0.25 days/event)",
+       "source": "FEMA National Risk Index, annualized frequency (county)",
+       "raw": 8.291,
+       "unit": "events/year",
+       "cap": null,
+       "normalized": 2.073,
+       "weight": 0.6,
+       "contribution": 1.244,
+       "note": null
+      },
+      {
+       "name": "observed high-gust days (gust >= 75 km/h)",
+       "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+       "raw": 1.545,
+       "unit": "days/year",
+       "cap": null,
+       "normalized": 1.545,
+       "weight": 0.4,
+       "contribution": 0.618,
+       "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+      }
+     ]
+    }
+   },
+   "family_weights": {
+    "winter": 76.7,
+    "flood": 7.5,
+    "hurricane": 0.0,
+    "severe_storm": 15.9
+   },
+   "priority": 36.0,
+   "priority_band": "medium",
+   "priority_signals": [
+    {
+     "name": "overall exposure (base share)",
+     "source": "scoring",
+     "raw": 52.685,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 52.69,
+     "weight": 0.6,
+     "contribution": 31.61,
+     "note": null
+    },
+    {
+     "name": "people served (county population)",
+     "source": "FEMA National Risk Index, population (county)",
+     "raw": 715210.0,
+     "unit": "people",
+     "cap": 5000000.0,
+     "normalized": 14.3,
+     "weight": 0.25,
+     "contribution": 1.88,
+     "note": "multiplies exposure"
+    },
+    {
+     "name": "resilience gap (100 - FEMA community resilience score)",
+     "source": "FEMA National Risk Index, community resilience (county)",
+     "raw": 68.48,
+     "unit": "score 0-100",
+     "cap": null,
+     "normalized": 31.52,
+     "weight": 0.15,
+     "contribution": 2.49,
+     "note": "multiplies exposure"
+    }
+   ],
+   "top_driver": "winter",
+   "upgrade_categories": [
+    "winterized fleet",
+    "snow and ice removal",
+    "heated docks"
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_hub_history",
+  "input": {
+   "hub_id": "denver"
+  },
+  "output": {
+   "hub_id": "denver",
+   "name": "Denver Hub",
+   "start_year": 2015,
+   "end_year": 2025,
+   "years": [
+    {
+     "year": 2015,
+     "days": {
+      "winter": 27.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 27.0
+    },
+    {
+     "year": 2016,
+     "days": {
+      "winter": 15.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 15.0
+    },
+    {
+     "year": 2017,
+     "days": {
+      "winter": 9.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 3.0
+     },
+     "total": 12.0
+    },
+    {
+     "year": 2018,
+     "days": {
+      "winter": 5.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 6.0
+    },
+    {
+     "year": 2019,
+     "days": {
+      "winter": 22.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 3.0
+     },
+     "total": 25.0
+    },
+    {
+     "year": 2020,
+     "days": {
+      "winter": 13.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 3.0
+     },
+     "total": 16.0
+    },
+    {
+     "year": 2021,
+     "days": {
+      "winter": 6.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 7.0
+    },
+    {
+     "year": 2022,
+     "days": {
+      "winter": 20.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 21.0
+    },
+    {
+     "year": 2023,
+     "days": {
+      "winter": 11.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 12.0
+    },
+    {
+     "year": 2024,
+     "days": {
+      "winter": 8.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 3.0
+     },
+     "total": 11.0
+    },
+    {
+     "year": 2025,
+     "days": {
+      "winter": 7.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 1.0
+     },
+     "total": 8.0
+    }
+   ],
+   "months": [
+    {
+     "month": 1,
+     "days": {
+      "winter": 3.3,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 3.3
+    },
+    {
+     "month": 2,
+     "days": {
+      "winter": 3.5,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 3.5
+    },
+    {
+     "month": 3,
+     "days": {
+      "winter": 1.5,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.4
+     },
+     "total": 1.9
+    },
+    {
+     "month": 4,
+     "days": {
+      "winter": 1.1,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.3
+     },
+     "total": 1.4
+    },
+    {
+     "month": 5,
+     "days": {
+      "winter": 0.3,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 0.5
+    },
+    {
+     "month": 6,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.2
+     },
+     "total": 0.2
+    },
+    {
+     "month": 7,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 8,
+     "days": {
+      "winter": 0.0,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.0
+    },
+    {
+     "month": 9,
+     "days": {
+      "winter": 0.1,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 0.2
+    },
+    {
+     "month": 10,
+     "days": {
+      "winter": 0.7,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.4
+     },
+     "total": 1.1
+    },
+    {
+     "month": 11,
+     "days": {
+      "winter": 0.8,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.0
+     },
+     "total": 0.8
+    },
+    {
+     "month": 12,
+     "days": {
+      "winter": 1.7,
+      "flood": 0.0,
+      "hurricane": 0.0,
+      "severe_storm": 0.1
+     },
+     "total": 1.8
+    }
+   ],
+   "worst_year": 2015,
+   "peak_months": [
+    2,
+    1,
+    3
+   ],
+   "thresholds": {
+    "winter": "snow >= 5 cm or min temp <= -18 \u00b0C",
+    "flood": "precipitation >= 50 mm",
+    "severe_storm": "max gust >= 75 km/h",
+    "hurricane": "not observable in daily weather data (see the hurricane 10-year probability)"
+   },
+   "note": "Observed at the hub point (ERA5 reanalysis, about 25 km grid); hurricanes are not captured by daily data, see the hurricane probability instead; observed signal only, not FEMA's long-term frequency.",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "get_active_alerts",
+  "input": {
+   "hub_id": "denver"
+  },
+  "output": {
+   "hub_id": "denver",
+   "alerts": [],
+   "fetched_at": "2026-11-17T13:18:09+00:00"
+  }
+ },
+ {
+  "tool": "get_hub_risk",
+  "input": {
+   "hub_id": "seattle"
+  },
+  "output": {
+   "error": "'seattle' is in the Seattle-Tacoma-Bellevue, WA metro area, where there is no hub",
+   "retryable": false,
+   "hint": "Tell the analyst there is no hub there. Hubs: atlanta, chicago, columbus, dallas, denver, detroit, houston, indianapolis, kansas_city, los_angeles, memphis, miami, minneapolis, newark, phoenix."
+  }
+ },
+ {
+  "tool": "get_hub_history",
+  "input": {
+   "hub_id": "seattle"
+  },
+  "output": {
+   "error": "'seattle' is in the Seattle-Tacoma-Bellevue, WA metro area, where there is no hub",
+   "retryable": false,
+   "hint": "Tell the analyst there is no hub there. Hubs: atlanta, chicago, columbus, dallas, denver, detroit, houston, indianapolis, kansas_city, los_angeles, memphis, miami, minneapolis, newark, phoenix."
+  }
+ },
+ {
+  "tool": "get_active_alerts",
+  "input": {
+   "hub_id": "seattle"
+  },
+  "output": {
+   "error": "'seattle' is in the Seattle-Tacoma-Bellevue, WA metro area, where there is no hub",
+   "retryable": false,
+   "hint": "Tell the analyst there is no hub there. Hubs: atlanta, chicago, columbus, dallas, denver, detroit, houston, indianapolis, kansas_city, los_angeles, memphis, miami, minneapolis, newark, phoenix."
+  }
+ },
+ {
+  "tool": "rank_hubs",
+  "input": {
+   "score": "exposure",
+   "hazard": "overall",
+   "region": null,
+   "top_n": 15
+  },
+  "output": {
+   "kind": "exposure",
+   "hazard": "overall",
+   "region": null,
+   "items": [
+    {
+     "rank": 1,
+     "hub_id": "minneapolis",
+     "name": "Minneapolis Hub",
+     "value": 100.0,
+     "band": "high"
+    },
+    {
+     "rank": 2,
+     "hub_id": "chicago",
+     "name": "Chicago Hub",
+     "value": 72.5,
+     "band": "high"
+    },
+    {
+     "rank": 3,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 67.9,
+     "band": "high"
+    },
+    {
+     "rank": 4,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 67.6,
+     "band": "high"
+    },
+    {
+     "rank": 5,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 61.4,
+     "band": "high"
+    },
+    {
+     "rank": 6,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 60.1,
+     "band": "high"
+    },
+    {
+     "rank": 7,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 59.7,
+     "band": "medium"
+    },
+    {
+     "rank": 8,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 55.0,
+     "band": "medium"
+    },
+    {
+     "rank": 9,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 54.7,
+     "band": "medium"
+    },
+    {
+     "rank": 10,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 52.7,
+     "band": "medium"
+    },
+    {
+     "rank": 11,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 42.0,
+     "band": "medium"
+    },
+    {
+     "rank": 12,
+     "hub_id": "atlanta",
+     "name": "Atlanta Hub",
+     "value": 38.2,
+     "band": "medium"
+    },
+    {
+     "rank": 13,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "value": 31.2,
+     "band": "low"
+    },
+    {
+     "rank": 14,
+     "hub_id": "los_angeles",
+     "name": "Los Angeles Hub",
+     "value": 14.7,
+     "band": "low"
+    },
+    {
+     "rank": 15,
+     "hub_id": "phoenix",
+     "name": "Phoenix Hub",
+     "value": 6.3,
+     "band": "low"
+    }
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "rank_hubs",
+  "input": {
+   "score": "priority",
+   "hazard": "overall",
+   "region": null,
+   "top_n": 15
+  },
+  "output": {
+   "kind": "priority",
+   "hazard": "overall",
+   "region": null,
+   "items": [
+    {
+     "rank": 1,
+     "hub_id": "minneapolis",
+     "name": "Minneapolis Hub",
+     "value": 66.7,
+     "band": "high"
+    },
+    {
+     "rank": 2,
+     "hub_id": "chicago",
+     "name": "Chicago Hub",
+     "value": 64.5,
+     "band": "high"
+    },
+    {
+     "rank": 3,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 50.8,
+     "band": "medium"
+    },
+    {
+     "rank": 4,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 47.8,
+     "band": "medium"
+    },
+    {
+     "rank": 5,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 47.1,
+     "band": "medium"
+    },
+    {
+     "rank": 6,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 45.2,
+     "band": "medium"
+    },
+    {
+     "rank": 7,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 44.1,
+     "band": "medium"
+    },
+    {
+     "rank": 8,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 43.3,
+     "band": "medium"
+    },
+    {
+     "rank": 9,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 40.3,
+     "band": "medium"
+    },
+    {
+     "rank": 10,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 39.0,
+     "band": "medium"
+    },
+    {
+     "rank": 11,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 36.0,
+     "band": "medium"
+    },
+    {
+     "rank": 12,
+     "hub_id": "atlanta",
+     "name": "Atlanta Hub",
+     "value": 26.3,
+     "band": "low"
+    },
+    {
+     "rank": 13,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "value": 25.6,
+     "band": "low"
+    },
+    {
+     "rank": 14,
+     "hub_id": "los_angeles",
+     "name": "Los Angeles Hub",
+     "value": 14.4,
+     "band": "low"
+    },
+    {
+     "rank": 15,
+     "hub_id": "phoenix",
+     "name": "Phoenix Hub",
+     "value": 5.9,
+     "band": "low"
+    }
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "rank_hubs",
+  "input": {
+   "score": "bad_year",
+   "hazard": "overall",
+   "region": null,
+   "top_n": 15
+  },
+  "output": {
+   "kind": "bad_year",
+   "hazard": "overall",
+   "region": null,
+   "items": [
+    {
+     "rank": 1,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "value": 42.8,
+     "band": null
+    },
+    {
+     "rank": 2,
+     "hub_id": "minneapolis",
+     "name": "Minneapolis Hub",
+     "value": 38.7,
+     "band": null
+    },
+    {
+     "rank": 3,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 38.2,
+     "band": null
+    },
+    {
+     "rank": 4,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 35.4,
+     "band": null
+    },
+    {
+     "rank": 5,
+     "hub_id": "chicago",
+     "name": "Chicago Hub",
+     "value": 29.1,
+     "band": null
+    },
+    {
+     "rank": 6,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 28.2,
+     "band": null
+    },
+    {
+     "rank": 7,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 27.0,
+     "band": null
+    },
+    {
+     "rank": 8,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 26.3,
+     "band": null
+    },
+    {
+     "rank": 9,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 25.5,
+     "band": null
+    },
+    {
+     "rank": 10,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 25.0,
+     "band": null
+    },
+    {
+     "rank": 11,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 24.7,
+     "band": null
+    },
+    {
+     "rank": 12,
+     "hub_id": "atlanta",
+     "name": "Atlanta Hub",
+     "value": 22.0,
+     "band": null
+    },
+    {
+     "rank": 13,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 20.6,
+     "band": null
+    },
+    {
+     "rank": 14,
+     "hub_id": "los_angeles",
+     "name": "Los Angeles Hub",
+     "value": 8.4,
+     "band": null
+    },
+    {
+     "rank": 15,
+     "hub_id": "phoenix",
+     "name": "Phoenix Hub",
+     "value": 7.2,
+     "band": null
+    }
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "rank_hubs",
+  "input": {
+   "score": "exposure",
+   "hazard": "winter",
+   "region": null,
+   "top_n": 15
+  },
+  "output": {
+   "kind": "exposure",
+   "hazard": "winter",
+   "region": null,
+   "items": [
+    {
+     "rank": 1,
+     "hub_id": "minneapolis",
+     "name": "Minneapolis Hub",
+     "value": 92.1,
+     "band": "high"
+    },
+    {
+     "rank": 2,
+     "hub_id": "chicago",
+     "name": "Chicago Hub",
+     "value": 43.6,
+     "band": "high"
+    },
+    {
+     "rank": 3,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 40.4,
+     "band": "high"
+    },
+    {
+     "rank": 4,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 39.4,
+     "band": "high"
+    },
+    {
+     "rank": 5,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 34.5,
+     "band": "high"
+    },
+    {
+     "rank": 6,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 31.7,
+     "band": "high"
+    },
+    {
+     "rank": 7,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 30.7,
+     "band": "high"
+    },
+    {
+     "rank": 8,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 26.5,
+     "band": "high"
+    },
+    {
+     "rank": 9,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 16.6,
+     "band": "medium"
+    },
+    {
+     "rank": 10,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 13.6,
+     "band": "medium"
+    },
+    {
+     "rank": 11,
+     "hub_id": "atlanta",
+     "name": "Atlanta Hub",
+     "value": 11.4,
+     "band": "medium"
+    },
+    {
+     "rank": 12,
+     "hub_id": "los_angeles",
+     "name": "Los Angeles Hub",
+     "value": 8.0,
+     "band": "medium"
+    },
+    {
+     "rank": 13,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 7.0,
+     "band": "low"
+    },
+    {
+     "rank": 14,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "value": 3.1,
+     "band": "low"
+    },
+    {
+     "rank": 15,
+     "hub_id": "phoenix",
+     "name": "Phoenix Hub",
+     "value": 0.7,
+     "band": "low"
+    }
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "rank_hubs",
+  "input": {
+   "score": "exposure",
+   "hazard": "flood",
+   "region": null,
+   "top_n": 15
+  },
+  "output": {
+   "kind": "exposure",
+   "hazard": "flood",
+   "region": null,
+   "items": [
+    {
+     "rank": 1,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 28.3,
+     "band": "high"
+    },
+    {
+     "rank": 2,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 27.8,
+     "band": "high"
+    },
+    {
+     "rank": 3,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 24.0,
+     "band": "high"
+    },
+    {
+     "rank": 4,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 23.4,
+     "band": "high"
+    },
+    {
+     "rank": 5,
+     "hub_id": "chicago",
+     "name": "Chicago Hub",
+     "value": 18.2,
+     "band": "medium"
+    },
+    {
+     "rank": 6,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 17.8,
+     "band": "medium"
+    },
+    {
+     "rank": 7,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 17.7,
+     "band": "medium"
+    },
+    {
+     "rank": 8,
+     "hub_id": "atlanta",
+     "name": "Atlanta Hub",
+     "value": 15.6,
+     "band": "medium"
+    },
+    {
+     "rank": 9,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 15.5,
+     "band": "medium"
+    },
+    {
+     "rank": 10,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 15.4,
+     "band": "medium"
+    },
+    {
+     "rank": 11,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "value": 12.5,
+     "band": "medium"
+    },
+    {
+     "rank": 12,
+     "hub_id": "minneapolis",
+     "name": "Minneapolis Hub",
+     "value": 9.1,
+     "band": "medium"
+    },
+    {
+     "rank": 13,
+     "hub_id": "los_angeles",
+     "name": "Los Angeles Hub",
+     "value": 6.3,
+     "band": "low"
+    },
+    {
+     "rank": 14,
+     "hub_id": "phoenix",
+     "name": "Phoenix Hub",
+     "value": 4.7,
+     "band": "low"
+    },
+    {
+     "rank": 15,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 3.9,
+     "band": "low"
+    }
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "rank_hubs",
+  "input": {
+   "score": "exposure",
+   "hazard": "hurricane",
+   "region": null,
+   "top_n": 15
+  },
+  "output": {
+   "kind": "exposure",
+   "hazard": "hurricane",
+   "region": null,
+   "items": [
+    {
+     "rank": 1,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "value": 12.2,
+     "band": "high"
+    },
+    {
+     "rank": 2,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 7.3,
+     "band": "high"
+    },
+    {
+     "rank": 3,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 4.3,
+     "band": "high"
+    },
+    {
+     "rank": 4,
+     "hub_id": "atlanta",
+     "name": "Atlanta Hub",
+     "value": 1.5,
+     "band": "medium"
+    },
+    {
+     "rank": 5,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 0.9,
+     "band": "medium"
+    },
+    {
+     "rank": 6,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 0.5,
+     "band": "low"
+    },
+    {
+     "rank": 7,
+     "hub_id": "phoenix",
+     "name": "Phoenix Hub",
+     "value": 0.5,
+     "band": "low"
+    },
+    {
+     "rank": 8,
+     "hub_id": "chicago",
+     "name": "Chicago Hub",
+     "value": 0.4,
+     "band": "low"
+    },
+    {
+     "rank": 9,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 0.4,
+     "band": "low"
+    },
+    {
+     "rank": 10,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 0.3,
+     "band": "low"
+    },
+    {
+     "rank": 11,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 0.2,
+     "band": "low"
+    },
+    {
+     "rank": 12,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 0.0,
+     "band": "low"
+    },
+    {
+     "rank": 13,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 0.0,
+     "band": "low"
+    },
+    {
+     "rank": 14,
+     "hub_id": "los_angeles",
+     "name": "Los Angeles Hub",
+     "value": 0.0,
+     "band": "low"
+    },
+    {
+     "rank": 15,
+     "hub_id": "minneapolis",
+     "name": "Minneapolis Hub",
+     "value": 0.0,
+     "band": "low"
+    }
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "rank_hubs",
+  "input": {
+   "score": "exposure",
+   "hazard": "severe_storm",
+   "region": null,
+   "top_n": 15
+  },
+  "output": {
+   "kind": "exposure",
+   "hazard": "severe_storm",
+   "region": null,
+   "items": [
+    {
+     "rank": 1,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 13.1,
+     "band": "medium"
+    },
+    {
+     "rank": 2,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 12.9,
+     "band": "medium"
+    },
+    {
+     "rank": 3,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 12.4,
+     "band": "medium"
+    },
+    {
+     "rank": 4,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 12.2,
+     "band": "medium"
+    },
+    {
+     "rank": 5,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 11.6,
+     "band": "medium"
+    },
+    {
+     "rank": 6,
+     "hub_id": "chicago",
+     "name": "Chicago Hub",
+     "value": 10.4,
+     "band": "medium"
+    },
+    {
+     "rank": 7,
+     "hub_id": "atlanta",
+     "name": "Atlanta Hub",
+     "value": 9.6,
+     "band": "medium"
+    },
+    {
+     "rank": 8,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 9.1,
+     "band": "medium"
+    },
+    {
+     "rank": 9,
+     "hub_id": "minneapolis",
+     "name": "Minneapolis Hub",
+     "value": 9.0,
+     "band": "medium"
+    },
+    {
+     "rank": 10,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 8.8,
+     "band": "medium"
+    },
+    {
+     "rank": 11,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 8.4,
+     "band": "medium"
+    },
+    {
+     "rank": 12,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 4.3,
+     "band": "low"
+    },
+    {
+     "rank": 13,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "value": 3.5,
+     "band": "low"
+    },
+    {
+     "rank": 14,
+     "hub_id": "phoenix",
+     "name": "Phoenix Hub",
+     "value": 0.5,
+     "band": "low"
+    },
+    {
+     "rank": 15,
+     "hub_id": "los_angeles",
+     "name": "Los Angeles Hub",
+     "value": 0.4,
+     "band": "low"
+    }
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "rank_hubs",
+  "input": {
+   "score": "priority",
+   "hazard": "overall",
+   "region": "South",
+   "top_n": 3
+  },
+  "output": {
+   "kind": "priority",
+   "hazard": "overall",
+   "region": "South",
+   "items": [
+    {
+     "rank": 1,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 47.1,
+     "band": "medium"
+    },
+    {
+     "rank": 2,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 40.3,
+     "band": "medium"
+    },
+    {
+     "rank": 3,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 39.0,
+     "band": "medium"
+    }
+   ],
+   "band_thresholds": {
+    "medium_from": 35.0,
+    "high_from": 60.0,
+    "days_cap": 25.0,
+    "medium_from_days": 8.75,
+    "high_from_days": 15.0,
+    "family_medium_from_days": 2.0,
+    "family_high_from_days": 5.0,
+    "hurricane_medium_from_pct": 20.0,
+    "hurricane_high_from_pct": 50.0
+   },
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "compare_hubs",
+  "input": {
+   "hub_ids": [
+    "minneapolis",
+    "miami"
+   ],
+   "hazards": [
+    "overall"
+   ]
+  },
+  "output": {
+   "hubs": [
+    {
+     "hub_id": "minneapolis",
+     "exposure": 100.0,
+     "exposure_days_per_year": 27.6,
+     "bad_year_days": 38.7,
+     "hurricane_10yr_probability_pct": 0.0,
+     "exposure_band": "high",
+     "families": {
+      "winter": {
+       "family": "winter",
+       "score": 92.1,
+       "days_per_year": 23.0,
+       "band": "high",
+       "bad_year_days": 31.9,
+       "signals": [
+        {
+         "name": "winter weather (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 16.579,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 8.289,
+         "weight": 0.6,
+         "contribution": 4.974,
+         "note": null
+        },
+        {
+         "name": "ice storm (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.485,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.971,
+         "weight": 0.6,
+         "contribution": 0.582,
+         "note": null
+        },
+        {
+         "name": "cold wave (FEMA NRI, 1 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 8.947,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 8.947,
+         "weight": 0.6,
+         "contribution": 5.368,
+         "note": null
+        },
+        {
+         "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 30.271,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 30.271,
+         "weight": 0.4,
+         "contribution": 12.108,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "flood": {
+       "family": "flood",
+       "score": 9.1,
+       "days_per_year": 2.3,
+       "band": "medium",
+       "bad_year_days": 4.2,
+       "signals": [
+        {
+         "name": "inland flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 1.536,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 3.071,
+         "weight": 0.6,
+         "contribution": 1.843,
+         "note": null
+        },
+        {
+         "name": "coastal flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": null,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.6,
+         "contribution": 0.0,
+         "note": "missing in NRI"
+        },
+        {
+         "name": "observed heavy-rain days (precipitation >= 50 mm)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 1.091,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 1.091,
+         "weight": 0.4,
+         "contribution": 0.436,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "hurricane": {
+       "family": "hurricane",
+       "score": 0.0,
+       "days_per_year": 0.0,
+       "band": "low",
+       "bad_year_days": 0.0,
+       "signals": [
+        {
+         "name": "hurricane (FEMA NRI, 10 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": null,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 1.0,
+         "contribution": 0.0,
+         "note": "missing in NRI"
+        }
+       ]
+      },
+      "severe_storm": {
+       "family": "severe_storm",
+       "score": 9.0,
+       "days_per_year": 2.3,
+       "band": "medium",
+       "bad_year_days": 2.6,
+       "signals": [
+        {
+         "name": "tornado (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.458,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.229,
+         "weight": 0.6,
+         "contribution": 0.137,
+         "note": null
+        },
+        {
+         "name": "strong wind (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 4.566,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 1.142,
+         "weight": 0.6,
+         "contribution": 0.685,
+         "note": null
+        },
+        {
+         "name": "hail (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 6.412,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 1.603,
+         "weight": 0.6,
+         "contribution": 0.962,
+         "note": null
+        },
+        {
+         "name": "observed high-gust days (gust >= 75 km/h)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 1.182,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 1.182,
+         "weight": 0.4,
+         "contribution": 0.473,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      }
+     },
+     "family_weights": {
+      "winter": 83.5,
+      "flood": 8.3,
+      "hurricane": 0.0,
+      "severe_storm": 8.2
+     },
+     "priority": 66.7,
+     "priority_band": "high",
+     "priority_signals": [
+      {
+       "name": "overall exposure (base share)",
+       "source": "scoring",
+       "raw": 100.0,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 100.0,
+       "weight": 0.6,
+       "contribution": 60.0,
+       "note": null
+      },
+      {
+       "name": "people served (county population)",
+       "source": "FEMA National Risk Index, population (county)",
+       "raw": 1281172.0,
+       "unit": "people",
+       "cap": 5000000.0,
+       "normalized": 25.62,
+       "weight": 0.25,
+       "contribution": 6.41,
+       "note": "multiplies exposure"
+      },
+      {
+       "name": "resilience gap (100 - FEMA community resilience score)",
+       "source": "FEMA National Risk Index, community resilience (county)",
+       "raw": 98.092,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 1.91,
+       "weight": 0.15,
+       "contribution": 0.29,
+       "note": "multiplies exposure"
+      }
+     ],
+     "top_driver": "winter",
+     "upgrade_categories": [
+      "winterized fleet",
+      "snow and ice removal",
+      "heated docks"
+     ],
+     "band_thresholds": {
+      "medium_from": 35.0,
+      "high_from": 60.0,
+      "days_cap": 25.0,
+      "medium_from_days": 8.75,
+      "high_from_days": 15.0,
+      "family_medium_from_days": 2.0,
+      "family_high_from_days": 5.0,
+      "hurricane_medium_from_pct": 20.0,
+      "hurricane_high_from_pct": 50.0
+     },
+     "data_as_of": "2026-11-17"
+    },
+    {
+     "hub_id": "miami",
+     "exposure": 31.2,
+     "exposure_days_per_year": 7.8,
+     "bad_year_days": 42.8,
+     "hurricane_10yr_probability_pct": 95.3,
+     "exposure_band": "low",
+     "families": {
+      "winter": {
+       "family": "winter",
+       "score": 3.1,
+       "days_per_year": 0.8,
+       "band": "low",
+       "bad_year_days": 0.8,
+       "signals": [
+        {
+         "name": "winter weather (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.0,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.6,
+         "contribution": 0.0,
+         "note": null
+        },
+        {
+         "name": "ice storm (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": null,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.6,
+         "contribution": 0.0,
+         "note": "missing in NRI"
+        },
+        {
+         "name": "cold wave (FEMA NRI, 1 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 1.284,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 1.284,
+         "weight": 0.6,
+         "contribution": 0.77,
+         "note": null
+        },
+        {
+         "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 0.0,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.4,
+         "contribution": 0.0,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "flood": {
+       "family": "flood",
+       "score": 12.5,
+       "days_per_year": 3.1,
+       "band": "medium",
+       "bad_year_days": 3.6,
+       "signals": [
+        {
+         "name": "inland flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 4.0,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 3.315,
+         "weight": 0.6,
+         "contribution": 1.989,
+         "note": "area-adjusted x0.41 (county 2,413 sq mi)"
+        },
+        {
+         "name": "coastal flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 2.25,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.251,
+         "weight": 0.6,
+         "contribution": 0.15,
+         "note": "5.6% of county area exposed to coastal flooding (NRI)"
+        },
+        {
+         "name": "observed heavy-rain days (precipitation >= 50 mm)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 2.454,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 2.454,
+         "weight": 0.4,
+         "contribution": 0.982,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "hurricane": {
+       "family": "hurricane",
+       "score": 12.2,
+       "days_per_year": 3.0,
+       "band": "high",
+       "bad_year_days": 37.4,
+       "signals": [
+        {
+         "name": "hurricane (FEMA NRI, 10 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.305,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 3.05,
+         "weight": 1.0,
+         "contribution": 3.05,
+         "note": null
+        }
+       ]
+      },
+      "severe_storm": {
+       "family": "severe_storm",
+       "score": 3.5,
+       "days_per_year": 0.9,
+       "band": "low",
+       "bad_year_days": 0.9,
+       "signals": [
+        {
+         "name": "tornado (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 1.074,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.222,
+         "weight": 0.6,
+         "contribution": 0.133,
+         "note": "area-adjusted x0.41 (county 2,413 sq mi)"
+        },
+        {
+         "name": "strong wind (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.758,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.079,
+         "weight": 0.6,
+         "contribution": 0.047,
+         "note": "area-adjusted x0.41 (county 2,413 sq mi)"
+        },
+        {
+         "name": "hail (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.559,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.058,
+         "weight": 0.6,
+         "contribution": 0.035,
+         "note": "area-adjusted x0.41 (county 2,413 sq mi)"
+        },
+        {
+         "name": "observed high-gust days (gust >= 75 km/h)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 1.636,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 1.636,
+         "weight": 0.4,
+         "contribution": 0.655,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      }
+     },
+     "family_weights": {
+      "winter": 9.9,
+      "flood": 40.0,
+      "hurricane": 39.0,
+      "severe_storm": 11.1
+     },
+     "priority": 25.6,
+     "priority_band": "low",
+     "priority_signals": [
+      {
+       "name": "overall exposure (base share)",
+       "source": "scoring",
+       "raw": 31.243,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 31.24,
+       "weight": 0.6,
+       "contribution": 18.75,
+       "note": null
+      },
+      {
+       "name": "people served (county population)",
+       "source": "FEMA National Risk Index, population (county)",
+       "raw": 2698679.0,
+       "unit": "people",
+       "cap": 5000000.0,
+       "normalized": 53.97,
+       "weight": 0.25,
+       "contribution": 4.22,
+       "note": "multiplies exposure"
+      },
+      {
+       "name": "resilience gap (100 - FEMA community resilience score)",
+       "source": "FEMA National Risk Index, community resilience (county)",
+       "raw": 42.907,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 57.09,
+       "weight": 0.15,
+       "contribution": 2.68,
+       "note": "multiplies exposure"
+      }
+     ],
+     "top_driver": "flood",
+     "upgrade_categories": [
+      "drainage",
+      "raised docks",
+      "flood barriers"
+     ],
+     "band_thresholds": {
+      "medium_from": 35.0,
+      "high_from": 60.0,
+      "days_cap": 25.0,
+      "medium_from_days": 8.75,
+      "high_from_days": 15.0,
+      "family_medium_from_days": 2.0,
+      "family_high_from_days": 5.0,
+      "hurricane_medium_from_pct": 20.0,
+      "hurricane_high_from_pct": 50.0
+     },
+     "data_as_of": "2026-11-17"
+    }
+   ],
+   "hazards": [
+    "overall"
+   ],
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "compare_hubs",
+  "input": {
+   "hub_ids": [
+    "phoenix",
+    "houston",
+    "denver"
+   ],
+   "hazards": [
+    "winter",
+    "hurricane"
+   ]
+  },
+  "output": {
+   "hubs": [
+    {
+     "hub_id": "phoenix",
+     "exposure": 6.3,
+     "exposure_days_per_year": 1.6,
+     "bad_year_days": 7.2,
+     "hurricane_10yr_probability_pct": 10.9,
+     "exposure_band": "low",
+     "families": {
+      "winter": {
+       "family": "winter",
+       "score": 0.7,
+       "days_per_year": 0.2,
+       "band": "low",
+       "bad_year_days": 0.3,
+       "signals": [
+        {
+         "name": "winter weather (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.567,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.283,
+         "weight": 0.6,
+         "contribution": 0.17,
+         "note": null
+        },
+        {
+         "name": "ice storm (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": null,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.6,
+         "contribution": 0.0,
+         "note": "missing in NRI"
+        },
+        {
+         "name": "cold wave (FEMA NRI, 1 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.0,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.6,
+         "contribution": 0.0,
+         "note": null
+        },
+        {
+         "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 0.0,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.4,
+         "contribution": 0.0,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "flood": {
+       "family": "flood",
+       "score": 4.7,
+       "days_per_year": 1.2,
+       "band": "low",
+       "bad_year_days": 4.6,
+       "signals": [
+        {
+         "name": "inland flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 8.464,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 1.817,
+         "weight": 0.6,
+         "contribution": 1.09,
+         "note": "area-adjusted x0.11 (county 9,319 sq mi)"
+        },
+        {
+         "name": "coastal flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": null,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.6,
+         "contribution": 0.0,
+         "note": "missing in NRI"
+        },
+        {
+         "name": "observed heavy-rain days (precipitation >= 50 mm)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 0.182,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 0.182,
+         "weight": 0.4,
+         "contribution": 0.073,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "hurricane": {
+       "family": "hurricane",
+       "score": 0.5,
+       "days_per_year": 0.1,
+       "band": "low",
+       "bad_year_days": 2.0,
+       "signals": [
+        {
+         "name": "hurricane (FEMA NRI, 10 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.012,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.115,
+         "weight": 1.0,
+         "contribution": 0.115,
+         "note": null
+        }
+       ]
+      },
+      "severe_storm": {
+       "family": "severe_storm",
+       "score": 0.5,
+       "days_per_year": 0.1,
+       "band": "low",
+       "bad_year_days": 0.2,
+       "signals": [
+        {
+         "name": "tornado (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.571,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.031,
+         "weight": 0.6,
+         "contribution": 0.018,
+         "note": "area-adjusted x0.11 (county 9,319 sq mi)"
+        },
+        {
+         "name": "strong wind (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 1.401,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.038,
+         "weight": 0.6,
+         "contribution": 0.023,
+         "note": "area-adjusted x0.11 (county 9,319 sq mi)"
+        },
+        {
+         "name": "hail (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.28,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.008,
+         "weight": 0.6,
+         "contribution": 0.005,
+         "note": "area-adjusted x0.11 (county 9,319 sq mi)"
+        },
+        {
+         "name": "observed high-gust days (gust >= 75 km/h)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 0.182,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 0.182,
+         "weight": 0.4,
+         "contribution": 0.073,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      }
+     },
+     "family_weights": {
+      "winter": 10.9,
+      "flood": 74.2,
+      "hurricane": 7.4,
+      "severe_storm": 7.5
+     },
+     "priority": 5.9,
+     "priority_band": "low",
+     "priority_signals": [
+      {
+       "name": "overall exposure (base share)",
+       "source": "scoring",
+       "raw": 6.264,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 6.26,
+       "weight": 0.6,
+       "contribution": 3.76,
+       "note": null
+      },
+      {
+       "name": "people served (county population)",
+       "source": "FEMA National Risk Index, population (county)",
+       "raw": 4418836.0,
+       "unit": "people",
+       "cap": 5000000.0,
+       "normalized": 88.38,
+       "weight": 0.25,
+       "contribution": 1.38,
+       "note": "multiplies exposure"
+      },
+      {
+       "name": "resilience gap (100 - FEMA community resilience score)",
+       "source": "FEMA National Risk Index, community resilience (county)",
+       "raw": 18.034,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 81.97,
+       "weight": 0.15,
+       "contribution": 0.77,
+       "note": "multiplies exposure"
+      }
+     ],
+     "top_driver": "flood",
+     "upgrade_categories": [
+      "drainage",
+      "raised docks",
+      "flood barriers"
+     ],
+     "band_thresholds": {
+      "medium_from": 35.0,
+      "high_from": 60.0,
+      "days_cap": 25.0,
+      "medium_from_days": 8.75,
+      "high_from_days": 15.0,
+      "family_medium_from_days": 2.0,
+      "family_high_from_days": 5.0,
+      "hurricane_medium_from_pct": 20.0,
+      "hurricane_high_from_pct": 50.0
+     },
+     "data_as_of": "2026-11-17"
+    },
+    {
+     "hub_id": "houston",
+     "exposure": 42.0,
+     "exposure_days_per_year": 10.5,
+     "bad_year_days": 38.2,
+     "hurricane_10yr_probability_pct": 84.1,
+     "exposure_band": "medium",
+     "families": {
+      "winter": {
+       "family": "winter",
+       "score": 7.0,
+       "days_per_year": 1.7,
+       "band": "low",
+       "bad_year_days": 2.3,
+       "signals": [
+        {
+         "name": "winter weather (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 1.121,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.56,
+         "weight": 0.6,
+         "contribution": 0.336,
+         "note": null
+        },
+        {
+         "name": "ice storm (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.905,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 1.81,
+         "weight": 0.6,
+         "contribution": 1.086,
+         "note": null
+        },
+        {
+         "name": "cold wave (FEMA NRI, 1 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.481,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.481,
+         "weight": 0.6,
+         "contribution": 0.289,
+         "note": null
+        },
+        {
+         "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 0.091,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 0.091,
+         "weight": 0.4,
+         "contribution": 0.036,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "flood": {
+       "family": "flood",
+       "score": 23.4,
+       "days_per_year": 5.9,
+       "band": "high",
+       "bad_year_days": 7.8,
+       "signals": [
+        {
+         "name": "inland flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 5.143,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 5.729,
+         "weight": 0.6,
+         "contribution": 3.437,
+         "note": "area-adjusted x0.56 (county 1,795 sq mi)"
+        },
+        {
+         "name": "coastal flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 3.761,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.689,
+         "weight": 0.6,
+         "contribution": 0.413,
+         "note": "9.2% of county area exposed to coastal flooding (NRI)"
+        },
+        {
+         "name": "observed heavy-rain days (precipitation >= 50 mm)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 5.0,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 5.0,
+         "weight": 0.4,
+         "contribution": 2.0,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "hurricane": {
+       "family": "hurricane",
+       "score": 7.3,
+       "days_per_year": 1.8,
+       "band": "high",
+       "bad_year_days": 27.0,
+       "signals": [
+        {
+         "name": "hurricane (FEMA NRI, 10 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.184,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 1.836,
+         "weight": 1.0,
+         "contribution": 1.836,
+         "note": null
+        }
+       ]
+      },
+      "severe_storm": {
+       "family": "severe_storm",
+       "score": 4.3,
+       "days_per_year": 1.1,
+       "band": "low",
+       "bad_year_days": 1.2,
+       "signals": [
+        {
+         "name": "tornado (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 1.61,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.448,
+         "weight": 0.6,
+         "contribution": 0.269,
+         "note": "area-adjusted x0.56 (county 1,795 sq mi)"
+        },
+        {
+         "name": "strong wind (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 1.523,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.212,
+         "weight": 0.6,
+         "contribution": 0.127,
+         "note": "area-adjusted x0.56 (county 1,795 sq mi)"
+        },
+        {
+         "name": "hail (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 2.35,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.327,
+         "weight": 0.6,
+         "contribution": 0.196,
+         "note": "area-adjusted x0.56 (county 1,795 sq mi)"
+        },
+        {
+         "name": "observed high-gust days (gust >= 75 km/h)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 1.182,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 1.182,
+         "weight": 0.4,
+         "contribution": 0.473,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      }
+     },
+     "family_weights": {
+      "winter": 16.6,
+      "flood": 55.7,
+      "hurricane": 17.5,
+      "severe_storm": 10.1
+     },
+     "priority": 40.3,
+     "priority_band": "medium",
+     "priority_signals": [
+      {
+       "name": "overall exposure (base share)",
+       "source": "scoring",
+       "raw": 41.998,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 42.0,
+       "weight": 0.6,
+       "contribution": 25.2,
+       "note": null
+      },
+      {
+       "name": "people served (county population)",
+       "source": "FEMA National Risk Index, population (county)",
+       "raw": 4726200.0,
+       "unit": "people",
+       "cap": 5000000.0,
+       "normalized": 94.52,
+       "weight": 0.25,
+       "contribution": 9.92,
+       "note": "multiplies exposure"
+      },
+      {
+       "name": "resilience gap (100 - FEMA community resilience score)",
+       "source": "FEMA National Risk Index, community resilience (county)",
+       "raw": 17.875,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 82.12,
+       "weight": 0.15,
+       "contribution": 5.17,
+       "note": "multiplies exposure"
+      }
+     ],
+     "top_driver": "flood",
+     "upgrade_categories": [
+      "drainage",
+      "raised docks",
+      "flood barriers"
+     ],
+     "band_thresholds": {
+      "medium_from": 35.0,
+      "high_from": 60.0,
+      "days_cap": 25.0,
+      "medium_from_days": 8.75,
+      "high_from_days": 15.0,
+      "family_medium_from_days": 2.0,
+      "family_high_from_days": 5.0,
+      "hurricane_medium_from_pct": 20.0,
+      "hurricane_high_from_pct": 50.0
+     },
+     "data_as_of": "2026-11-17"
+    },
+    {
+     "hub_id": "denver",
+     "exposure": 52.7,
+     "exposure_days_per_year": 13.2,
+     "bad_year_days": 20.6,
+     "hurricane_10yr_probability_pct": 0.0,
+     "exposure_band": "medium",
+     "families": {
+      "winter": {
+       "family": "winter",
+       "score": 40.4,
+       "days_per_year": 10.1,
+       "band": "high",
+       "bad_year_days": 15.3,
+       "signals": [
+        {
+         "name": "winter weather (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 13.738,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 6.869,
+         "weight": 0.6,
+         "contribution": 4.121,
+         "note": null
+        },
+        {
+         "name": "ice storm (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.016,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.031,
+         "weight": 0.6,
+         "contribution": 0.019,
+         "note": null
+        },
+        {
+         "name": "cold wave (FEMA NRI, 1 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 1.263,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 1.263,
+         "weight": 0.6,
+         "contribution": 0.758,
+         "note": null
+        },
+        {
+         "name": "observed winter disruption days (snow >= 5 cm or min temp <= -18 C)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 12.999,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 12.999,
+         "weight": 0.4,
+         "contribution": 5.2,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "flood": {
+       "family": "flood",
+       "score": 3.9,
+       "days_per_year": 1.0,
+       "band": "low",
+       "bad_year_days": 2.6,
+       "signals": [
+        {
+         "name": "inland flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.821,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 1.643,
+         "weight": 0.6,
+         "contribution": 0.986,
+         "note": null
+        },
+        {
+         "name": "coastal flood (FEMA NRI, 2 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": null,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.6,
+         "contribution": 0.0,
+         "note": "missing in NRI"
+        },
+        {
+         "name": "observed heavy-rain days (precipitation >= 50 mm)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 0.0,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 0.4,
+         "contribution": 0.0,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      },
+      "hurricane": {
+       "family": "hurricane",
+       "score": 0.0,
+       "days_per_year": 0.0,
+       "band": "low",
+       "bad_year_days": 0.0,
+       "signals": [
+        {
+         "name": "hurricane (FEMA NRI, 10 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": null,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.0,
+         "weight": 1.0,
+         "contribution": 0.0,
+         "note": "missing in NRI"
+        }
+       ]
+      },
+      "severe_storm": {
+       "family": "severe_storm",
+       "score": 8.4,
+       "days_per_year": 2.1,
+       "band": "medium",
+       "bad_year_days": 2.7,
+       "signals": [
+        {
+         "name": "tornado (FEMA NRI, 0.5 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 0.16,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.08,
+         "weight": 0.6,
+         "contribution": 0.048,
+         "note": null
+        },
+        {
+         "name": "strong wind (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 1.189,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 0.297,
+         "weight": 0.6,
+         "contribution": 0.178,
+         "note": null
+        },
+        {
+         "name": "hail (FEMA NRI, 0.25 days/event)",
+         "source": "FEMA National Risk Index, annualized frequency (county)",
+         "raw": 8.291,
+         "unit": "events/year",
+         "cap": null,
+         "normalized": 2.073,
+         "weight": 0.6,
+         "contribution": 1.244,
+         "note": null
+        },
+        {
+         "name": "observed high-gust days (gust >= 75 km/h)",
+         "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), hub point",
+         "raw": 1.545,
+         "unit": "days/year",
+         "cap": null,
+         "normalized": 1.545,
+         "weight": 0.4,
+         "contribution": 0.618,
+         "note": "average per year 2015-01-01 to 2025-12-31; 0 null values"
+        }
+       ]
+      }
+     },
+     "family_weights": {
+      "winter": 76.7,
+      "flood": 7.5,
+      "hurricane": 0.0,
+      "severe_storm": 15.9
+     },
+     "priority": 36.0,
+     "priority_band": "medium",
+     "priority_signals": [
+      {
+       "name": "overall exposure (base share)",
+       "source": "scoring",
+       "raw": 52.685,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 52.69,
+       "weight": 0.6,
+       "contribution": 31.61,
+       "note": null
+      },
+      {
+       "name": "people served (county population)",
+       "source": "FEMA National Risk Index, population (county)",
+       "raw": 715210.0,
+       "unit": "people",
+       "cap": 5000000.0,
+       "normalized": 14.3,
+       "weight": 0.25,
+       "contribution": 1.88,
+       "note": "multiplies exposure"
+      },
+      {
+       "name": "resilience gap (100 - FEMA community resilience score)",
+       "source": "FEMA National Risk Index, community resilience (county)",
+       "raw": 68.48,
+       "unit": "score 0-100",
+       "cap": null,
+       "normalized": 31.52,
+       "weight": 0.15,
+       "contribution": 2.49,
+       "note": "multiplies exposure"
+      }
+     ],
+     "top_driver": "winter",
+     "upgrade_categories": [
+      "winterized fleet",
+      "snow and ice removal",
+      "heated docks"
+     ],
+     "band_thresholds": {
+      "medium_from": 35.0,
+      "high_from": 60.0,
+      "days_cap": 25.0,
+      "medium_from_days": 8.75,
+      "high_from_days": 15.0,
+      "family_medium_from_days": 2.0,
+      "family_high_from_days": 5.0,
+      "hurricane_medium_from_pct": 20.0,
+      "hurricane_high_from_pct": 50.0
+     },
+     "data_as_of": "2026-11-17"
+    }
+   ],
+   "hazards": [
+    "winter",
+    "hurricane"
+   ],
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "minneapolis",
+   "metric": "snow_days_pct",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "minneapolis",
+   "metric": "snow_days_pct",
+   "year": 2024,
+   "value": 9.0,
+   "numerator": 33.0,
+   "denominator": 366.0,
+   "unit": "%",
+   "definition": "share of days with snowfall >= 0.1 cm (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "phoenix",
+   "metric": "snow_days_pct",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "phoenix",
+   "metric": "snow_days_pct",
+   "year": 2024,
+   "value": 0.3,
+   "numerator": 1.0,
+   "denominator": 366.0,
+   "unit": "%",
+   "definition": "share of days with snowfall >= 0.1 cm (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "minneapolis",
+   "metric": "heavy_rain_days",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "minneapolis",
+   "metric": "heavy_rain_days",
+   "year": 2024,
+   "value": 7.0,
+   "numerator": 7.0,
+   "denominator": 366.0,
+   "unit": "days",
+   "definition": "days with precipitation >= 25 mm (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "phoenix",
+   "metric": "heavy_rain_days",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "phoenix",
+   "metric": "heavy_rain_days",
+   "year": 2024,
+   "value": 1.0,
+   "numerator": 1.0,
+   "denominator": 366.0,
+   "unit": "days",
+   "definition": "days with precipitation >= 25 mm (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "minneapolis",
+   "metric": "freezing_days_pct",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "minneapolis",
+   "metric": "freezing_days_pct",
+   "year": 2024,
+   "value": 36.6,
+   "numerator": 134.0,
+   "denominator": 366.0,
+   "unit": "%",
+   "definition": "share of days with minimum temperature <= 0 C (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "phoenix",
+   "metric": "freezing_days_pct",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "phoenix",
+   "metric": "freezing_days_pct",
+   "year": 2024,
+   "value": 1.1,
+   "numerator": 4.0,
+   "denominator": 366.0,
+   "unit": "%",
+   "definition": "share of days with minimum temperature <= 0 C (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "minneapolis",
+   "metric": "high_wind_days",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "minneapolis",
+   "metric": "high_wind_days",
+   "year": 2024,
+   "value": 13.0,
+   "numerator": 13.0,
+   "denominator": 366.0,
+   "unit": "days",
+   "definition": "days with maximum wind gust >= 60 km/h (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "phoenix",
+   "metric": "high_wind_days",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "phoenix",
+   "metric": "high_wind_days",
+   "year": 2024,
+   "value": 7.0,
+   "numerator": 7.0,
+   "denominator": 366.0,
+   "unit": "days",
+   "definition": "days with maximum wind gust >= 60 km/h (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "minneapolis",
+   "metric": "total_snowfall_cm",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "minneapolis",
+   "metric": "total_snowfall_cm",
+   "year": 2024,
+   "value": 58.2,
+   "numerator": 58.2,
+   "denominator": 366.0,
+   "unit": "cm",
+   "definition": "total snowfall in the year (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "phoenix",
+   "metric": "total_snowfall_cm",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "phoenix",
+   "metric": "total_snowfall_cm",
+   "year": 2024,
+   "value": 0.4,
+   "numerator": 0.4,
+   "denominator": 366.0,
+   "unit": "cm",
+   "definition": "total snowfall in the year (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "minneapolis",
+   "metric": "total_precip_mm",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "minneapolis",
+   "metric": "total_precip_mm",
+   "year": 2024,
+   "value": 972.2,
+   "numerator": 972.2,
+   "denominator": 366.0,
+   "unit": "mm",
+   "definition": "total precipitation in the year (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "weather_stat",
+  "input": {
+   "hub_id": "phoenix",
+   "metric": "total_precip_mm",
+   "year": 2024
+  },
+  "output": {
+   "hub_id": "phoenix",
+   "metric": "total_precip_mm",
+   "year": 2024,
+   "value": 176.0,
+   "numerator": 176.0,
+   "denominator": 366.0,
+   "unit": "mm",
+   "definition": "total precipitation in the year (numerator over all days in 2024)",
+   "source": "Open-Meteo Historical Weather API (ERA5 reanalysis), https://archive-api.open-meteo.com/v1/archive",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "what_if",
+  "input": {
+   "family_weights": {
+    "hurricane": 3
+   }
+  },
+  "output": {
+   "kind": "priority",
+   "inputs_echo": {
+    "family_weights": {
+     "winter": null,
+     "flood": null,
+     "hurricane": 3.0,
+     "severe_storm": null
+    },
+    "upgrade_costs": null
+   },
+   "ranking": [
+    {
+     "rank": 1,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "value": 36.2,
+     "band": "medium"
+    },
+    {
+     "rank": 2,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 31.4,
+     "band": "low"
+    },
+    {
+     "rank": 3,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 21.5,
+     "band": "low"
+    },
+    {
+     "rank": 4,
+     "hub_id": "minneapolis",
+     "name": "Minneapolis Hub",
+     "value": 19.6,
+     "band": "low"
+    },
+    {
+     "rank": 5,
+     "hub_id": "chicago",
+     "name": "Chicago Hub",
+     "value": 18.2,
+     "band": "low"
+    },
+    {
+     "rank": 6,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 14.5,
+     "band": "low"
+    },
+    {
+     "rank": 7,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 13.7,
+     "band": "low"
+    },
+    {
+     "rank": 8,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 12.8,
+     "band": "low"
+    },
+    {
+     "rank": 9,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 12.4,
+     "band": "low"
+    },
+    {
+     "rank": 10,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 12.2,
+     "band": "low"
+    },
+    {
+     "rank": 11,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 12.2,
+     "band": "low"
+    },
+    {
+     "rank": 12,
+     "hub_id": "atlanta",
+     "name": "Atlanta Hub",
+     "value": 10.1,
+     "band": "low"
+    },
+    {
+     "rank": 13,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 9.6,
+     "band": "low"
+    },
+    {
+     "rank": 14,
+     "hub_id": "los_angeles",
+     "name": "Los Angeles Hub",
+     "value": 3.8,
+     "band": "low"
+    },
+    {
+     "rank": 15,
+     "hub_id": "phoenix",
+     "name": "Phoenix Hub",
+     "value": 2.9,
+     "band": "low"
+    }
+   ],
+   "per_million_ranking": null,
+   "note": "Recomputed investment priority with analyst-supplied inputs. Family weights set how much one disruption day from each family counts (renormalized: winter 0.067, flood 0.067, hurricane 0.8, severe_storm 0.067; default is equal). Upgrade costs are analyst-supplied, in USD millions.",
+   "data_as_of": "2026-11-17"
+  }
+ },
+ {
+  "tool": "what_if",
+  "input": {
+   "upgrade_costs": [
+    {
+     "hub_id": "miami",
+     "cost_musd": 12
+    }
+   ]
+  },
+  "output": {
+   "kind": "priority",
+   "inputs_echo": {
+    "family_weights": null,
+    "upgrade_costs": [
+     {
+      "hub_id": "miami",
+      "cost_musd": 12.0
+     }
+    ]
+   },
+   "ranking": [
+    {
+     "rank": 1,
+     "hub_id": "minneapolis",
+     "name": "Minneapolis Hub",
+     "value": 66.7,
+     "band": "high"
+    },
+    {
+     "rank": 2,
+     "hub_id": "chicago",
+     "name": "Chicago Hub",
+     "value": 64.5,
+     "band": "high"
+    },
+    {
+     "rank": 3,
+     "hub_id": "detroit",
+     "name": "Detroit Hub",
+     "value": 50.8,
+     "band": "medium"
+    },
+    {
+     "rank": 4,
+     "hub_id": "kansas_city",
+     "name": "Kansas City Hub",
+     "value": 47.8,
+     "band": "medium"
+    },
+    {
+     "rank": 5,
+     "hub_id": "dallas",
+     "name": "Dallas Hub",
+     "value": 47.1,
+     "band": "medium"
+    },
+    {
+     "rank": 6,
+     "hub_id": "newark",
+     "name": "Newark Hub",
+     "value": 45.2,
+     "band": "medium"
+    },
+    {
+     "rank": 7,
+     "hub_id": "columbus",
+     "name": "Columbus Hub",
+     "value": 44.1,
+     "band": "medium"
+    },
+    {
+     "rank": 8,
+     "hub_id": "indianapolis",
+     "name": "Indianapolis Hub",
+     "value": 43.3,
+     "band": "medium"
+    },
+    {
+     "rank": 9,
+     "hub_id": "houston",
+     "name": "Houston Hub",
+     "value": 40.3,
+     "band": "medium"
+    },
+    {
+     "rank": 10,
+     "hub_id": "memphis",
+     "name": "Memphis Hub",
+     "value": 39.0,
+     "band": "medium"
+    },
+    {
+     "rank": 11,
+     "hub_id": "denver",
+     "name": "Denver Hub",
+     "value": 36.0,
+     "band": "medium"
+    },
+    {
+     "rank": 12,
+     "hub_id": "atlanta",
+     "name": "Atlanta Hub",
+     "value": 26.3,
+     "band": "low"
+    },
+    {
+     "rank": 13,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "value": 25.6,
+     "band": "low"
+    },
+    {
+     "rank": 14,
+     "hub_id": "los_angeles",
+     "name": "Los Angeles Hub",
+     "value": 14.4,
+     "band": "low"
+    },
+    {
+     "rank": 15,
+     "hub_id": "phoenix",
+     "name": "Phoenix Hub",
+     "value": 5.9,
+     "band": "low"
+    }
+   ],
+   "per_million_ranking": [
+    {
+     "rank": 1,
+     "hub_id": "miami",
+     "name": "Miami Hub",
+     "priority": 25.6,
+     "cost_musd": 12.0,
+     "priority_per_million": 2.13
+    }
+   ],
+   "note": "Recomputed investment priority with analyst-supplied inputs. Family weights set how much one disruption day from each family counts (renormalized: winter 0.25, flood 0.25, hurricane 0.25, severe_storm 0.25; default is equal). Upgrade costs are analyst-supplied, in USD millions.",
+   "data_as_of": "2026-11-17"
+  }
+ }
+]

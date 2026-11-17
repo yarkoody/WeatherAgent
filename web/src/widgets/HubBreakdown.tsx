@@ -17,7 +17,14 @@ import {
   prioritySteps,
 } from '@/lib/explain'
 import { HazardIcon } from '@/components/HazardIcon'
-import { BAND_COLOR, BAND_LABEL_COLOR, FAMILIES, FAMILY_COLOR, FAMILY_LABEL, fmt, formatDate, hubName, pct } from '@/lib/format'
+import { ExportReportButton } from '@/components/PrintReport'
+import { HubReport } from '@/components/reports'
+import { Button } from '@/components/ui/button'
+import { useAsk } from '@/lib/ask'
+import { useMemo, useState } from 'react'
+import { HistoryCharts } from './HistoryWidget'
+import { BAND_COLOR, BAND_LABEL_COLOR, FAMILIES, FAMILY_COLOR, FAMILY_LABEL, fmt, formatDate, hubName, isNum, pct } from '@/lib/format'
+import { normalizeHub } from '@/lib/normalize'
 import { useCountUp, useReducedMotion } from '@/lib/motion'
 import type { HubScore } from '@/lib/types'
 import { BandText, WidgetFrame } from './WidgetFrame'
@@ -32,7 +39,8 @@ function CountUp({ value }: { value: number }) {
 }
 
 /** Typical year and bad year side by side; one (i) explains both. Saved pre-v2 data has no bad year. */
-export function Lenses({ data }: { data: HubScore }) {
+export function Lenses({ data: raw }: { data: HubScore }) {
+  const data = useMemo(() => normalizeHub(raw), [raw])
   const number = 'heading-tight text-3xl leading-none font-semibold tracking-tight tabular-nums'
   return (
     <div className="flex items-end gap-x-7 gap-y-2">
@@ -62,7 +70,8 @@ export function Lenses({ data }: { data: HubScore }) {
   )
 }
 
-export function HubBreakdown({ data }: { data: HubScore }) {
+export function HubBreakdown({ data: raw }: { data: HubScore }) {
+  const data = useMemo(() => normalizeHub(raw), [raw])
   const reduced = useReducedMotion()
   const t = data.band_thresholds
   const { days_cap: cap, medium_from_days: mediumDays, high_from_days: highDays } = t
@@ -70,18 +79,45 @@ export function HubBreakdown({ data }: { data: HubScore }) {
   const hasHurricanePct = typeof data.hurricane_10yr_probability_pct === 'number'
   // With each hazard's share of the bad year (TVaR), draw two stacked rows: typical year and bad year.
   // Older data has only the hub total: draw the typical year with a hatched bad-year extension.
-  const shares = hasBadYear && FAMILIES.every((f) => typeof data.families[f]?.bad_year_days === 'number')
-  const tail = hasBadYear && !shares ? Math.max(0, data.bad_year_days - data.exposure_days_per_year) : 0
+  const shares = hasBadYear && FAMILIES.every((f) => isNum(data.families[f]?.bad_year_days))
+  const tail = hasBadYear && !shares && isNum(data.exposure_days_per_year) ? Math.max(0, data.bad_year_days - data.exposure_days_per_year) : 0
   const typicalRow = { lens: 'Typical', ...Object.fromEntries(FAMILIES.map((f) => [f, data.families[f]?.days_per_year ?? 0])), tail }
   const rows = shares
     ? [typicalRow, { lens: 'Bad year', ...Object.fromEntries(FAMILIES.map((f) => [f, data.families[f]!.bad_year_days!])), tail: 0 }]
     : [typicalRow]
   const height = shares ? 92 : 58
-  const max = Math.max(cap, hasBadYear ? data.bad_year_days : 0, data.exposure_days_per_year)
+  const max = Math.max(...[cap, hasBadYear ? data.bad_year_days : 0, data.exposure_days_per_year].filter(isNum), 1)
+  const cutoffs = isNum(mediumDays) && isNum(highDays)
   const name = hubName(data.hub_id)
+  const [tab, setTab] = useState<'overview' | 'history'>('overview')
 
   return (
     <WidgetFrame label={`${name} risk breakdown`} title={`${name} risk breakdown`} note={`Data as of ${formatDate(data.data_as_of)}.`}>
+      <div className="-mt-1 mb-3 flex items-center justify-between gap-2">
+        <div role="tablist" aria-label={`${name} views`} className="inline-flex gap-1 rounded-xl bg-foreground/5 p-1">
+          {(['overview', 'history'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              id={`${data.hub_id}-tab-${v}`}
+              aria-selected={tab === v}
+              aria-controls={`${data.hub_id}-panel-${v}`}
+              onClick={() => setTab(v)}
+              className={`rounded-lg px-3 py-1 text-sm ${tab === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              {v === 'overview' ? 'Overview' : 'History'}
+            </button>
+          ))}
+        </div>
+        <ExportReportButton report={() => <HubReport hub={data} />} />
+      </div>
+      {tab === 'history' ? (
+        <div role="tabpanel" id={`${data.hub_id}-panel-history`} aria-labelledby={`${data.hub_id}-tab-history`}>
+          <HistoryTab hubId={data.hub_id} name={name} />
+        </div>
+      ) : (
+      <div role="tabpanel" id={`${data.hub_id}-panel-overview`} aria-labelledby={`${data.hub_id}-tab-overview`}>
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <Lenses data={data} />
         <dl className="flex gap-6 text-sm">
@@ -138,13 +174,13 @@ export function HubBreakdown({ data }: { data: HubScore }) {
             />
           ))}
           <Bar dataKey="tail" stackId="days" fill="url(#bad-year-hatch)" radius={[0, 3, 3, 0]} isAnimationActive={!reduced} animationDuration={400} />
-          <ReferenceLine x={mediumDays} stroke={BAND_COLOR.medium} strokeDasharray="3 3" label={{ value: `${fmt(mediumDays, 2)} d`, position: 'top', fill: BAND_LABEL_COLOR.medium, fontSize: 10 }} />
-          <ReferenceLine x={highDays} stroke={BAND_COLOR.high} strokeDasharray="3 3" label={{ value: `${fmt(highDays, 2)} d`, position: 'top', fill: BAND_LABEL_COLOR.high, fontSize: 10 }} />
+          {cutoffs && <ReferenceLine x={mediumDays} stroke={BAND_COLOR.medium} strokeDasharray="3 3" label={{ value: `${fmt(mediumDays, 2)} d`, position: 'top', fill: BAND_LABEL_COLOR.medium, fontSize: 10 }} />}
+          {cutoffs && <ReferenceLine x={highDays} stroke={BAND_COLOR.high} strokeDasharray="3 3" label={{ value: `${fmt(highDays, 2)} d`, position: 'top', fill: BAND_LABEL_COLOR.high, fontSize: 10 }} />}
         </BarChart>
       </ChartContainer>
       <p className="text-[0.7rem] text-muted-foreground">
-        Lost days by hazard{shares ? ', in a typical year and in the worst 1 year in 20' : ''}.{hasBadYear && !shares && ' Hatched: extra days in a bad year.'} Dashed lines: medium band from {fmt(mediumDays, 2)} days, high from{' '}
-        {fmt(highDays, 2)} days a year.
+        Lost days by hazard{shares ? ', in a typical year and in the worst 1 year in 20' : ''}.{hasBadYear && !shares && ' Hatched: extra days in a bad year.'}
+        {cutoffs && ` Dashed lines: medium band from ${fmt(mediumDays, 2)} days, high from ${fmt(highDays, 2)} days a year.`}
       </p>
 
       <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
@@ -185,7 +221,7 @@ export function HubBreakdown({ data }: { data: HubScore }) {
 
       {data.upgrade_categories.length > 0 && (
         <p className="mt-4 border-t border-border/60 pt-3 text-sm text-muted-foreground">
-          Upgrades that help most against {FAMILY_LABEL[data.top_driver].toLowerCase()}:{' '}
+          Upgrades that help most{data.top_driver ? ` against ${FAMILY_LABEL[data.top_driver].toLowerCase()}` : ''}:{' '}
           {data.upgrade_categories.map((u, i) => (
             <span key={u}>
               <span className="text-foreground">{u}</span>
@@ -194,6 +230,27 @@ export function HubBreakdown({ data }: { data: HubScore }) {
           ))}
         </p>
       )}
+      </div>
+      )}
     </WidgetFrame>
+  )
+}
+
+/** History tab: the observed history the agent fetched in this chat, or a button that asks for it. */
+function HistoryTab({ hubId, name }: { hubId: string; name: string }) {
+  const { ask, histories } = useAsk()
+  const history = histories[hubId]
+  if (history) return <HistoryCharts data={history} />
+  return (
+    <div className="flex flex-col items-start gap-2 py-2 text-sm text-muted-foreground">
+      <p>Observed lost days per year and by month, from daily weather at the hub.</p>
+      {ask ? (
+        <Button variant="outline" size="sm" onClick={() => ask(`Show the observed weather history for ${name}.`)}>
+          Show observed history
+        </Button>
+      ) : (
+        <p>Ask in chat for the observed history of {name}.</p>
+      )}
+    </div>
   )
 }
