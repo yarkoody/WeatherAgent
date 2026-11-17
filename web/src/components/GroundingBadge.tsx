@@ -5,21 +5,21 @@ import type { Grounding } from '@/lib/types'
 
 const VARIANTS = {
   pass: {
-    label: 'Numbers verified',
-    title: 'Every number in this answer matches a tool result.',
-    className: 'bg-band-low-soft text-[#2f6656]',
+    label: 'Figures checked',
+    title: 'Each figure in this answer was checked against the scoring data it cites.',
+    className: 'bg-band-low-soft text-band-low-text',
     Icon: CircleCheckIcon,
   },
   retried: {
-    label: 'Verified after retry',
-    title: 'The first draft cited a number no tool returned. It was corrected and then verified.',
+    label: 'Figures checked after retry',
+    title: 'The first draft cited a number no tool returned. It was corrected and then checked.',
     className: 'bg-isobar-soft text-isobar',
     Icon: RotateCwIcon,
   },
   failed: {
     label: 'Unverified',
     title: 'Some numbers could not be matched to tool results. Check them before use.',
-    className: 'bg-band-high-soft text-[#9b2f2a]',
+    className: 'bg-band-high-soft text-band-high-text',
     Icon: TriangleAlertIcon,
   },
 } as const

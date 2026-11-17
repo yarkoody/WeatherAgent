@@ -1,6 +1,6 @@
 {
-  "model": "jev-mock",
-  "run_at": "2026-11-17T19:30:00+00:00",
+  "model": "jev-1.14.0",
+  "run_at": "2026-11-17T12:26:52+00:00",
   "data_as_of": "2026-11-17",
   "hubs": [
     {
@@ -9,34 +9,34 @@
       "families": [
         {
           "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 11.5,
-          "our_band": "low",
+          "jev_band": "medium",
+          "jev_score_pct": 41.5,
+          "our_band": "medium",
           "agrees": true
         },
         {
           "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 11.1,
-          "our_band": "low",
+          "jev_band": "medium",
+          "jev_score_pct": 56.5,
+          "our_band": "medium",
           "agrees": true
         },
         {
           "family": "hurricane",
           "jev_band": "low",
-          "jev_score_pct": 1.5,
-          "our_band": "low",
-          "agrees": true
+          "jev_score_pct": 0.0,
+          "our_band": "medium",
+          "agrees": false
         },
         {
           "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 7.0,
-          "our_band": "low",
-          "agrees": true
+          "jev_band": "high",
+          "jev_score_pct": 69.5,
+          "our_band": "medium",
+          "agrees": false
         }
       ],
-      "agree_count": 4,
+      "agree_count": 2,
       "total": 4
     },
     {
@@ -46,51 +46,15 @@
         {
           "family": "winter",
           "jev_band": "high",
-          "jev_score_pct": 66.0,
+          "jev_score_pct": 81.0,
+          "our_band": "high",
+          "agrees": true
+        },
+        {
+          "family": "flood",
+          "jev_band": "medium",
+          "jev_score_pct": 57.0,
           "our_band": "medium",
-          "agrees": false
-        },
-        {
-          "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 15.3,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "hurricane",
-          "jev_band": "low",
-          "jev_score_pct": 0.4,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 7.5,
-          "our_band": "low",
-          "agrees": true
-        }
-      ],
-      "agree_count": 3,
-      "total": 4
-    },
-    {
-      "hub_id": "columbus",
-      "name": "Columbus Hub",
-      "families": [
-        {
-          "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 29.1,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 22.4,
-          "our_band": "low",
           "agrees": true
         },
         {
@@ -102,9 +66,45 @@
         },
         {
           "family": "severe_storm",
+          "jev_band": "high",
+          "jev_score_pct": 62.5,
+          "our_band": "medium",
+          "agrees": false
+        }
+      ],
+      "agree_count": 3,
+      "total": 4
+    },
+    {
+      "hub_id": "columbus",
+      "name": "Columbus Hub",
+      "families": [
+        {
+          "family": "winter",
+          "jev_band": "high",
+          "jev_score_pct": 71.5,
+          "our_band": "high",
+          "agrees": true
+        },
+        {
+          "family": "flood",
+          "jev_band": "medium",
+          "jev_score_pct": 47.5,
+          "our_band": "medium",
+          "agrees": true
+        },
+        {
+          "family": "hurricane",
           "jev_band": "low",
-          "jev_score_pct": 5.6,
+          "jev_score_pct": 0.0,
           "our_band": "low",
+          "agrees": true
+        },
+        {
+          "family": "severe_storm",
+          "jev_band": "medium",
+          "jev_score_pct": 54.5,
+          "our_band": "medium",
           "agrees": true
         }
       ],
@@ -117,160 +117,16 @@
       "families": [
         {
           "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 15.6,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 25.9,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "hurricane",
-          "jev_band": "low",
-          "jev_score_pct": 2.5,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 14.8,
-          "our_band": "low",
-          "agrees": true
-        }
-      ],
-      "agree_count": 4,
-      "total": 4
-    },
-    {
-      "hub_id": "denver",
-      "name": "Denver Hub",
-      "families": [
-        {
-          "family": "winter",
           "jev_band": "medium",
-          "jev_score_pct": 41.5,
-          "our_band": "low",
-          "agrees": false
-        },
-        {
-          "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 2.9,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "hurricane",
-          "jev_band": "low",
-          "jev_score_pct": 2.0,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 10.5,
-          "our_band": "low",
-          "agrees": true
-        }
-      ],
-      "agree_count": 3,
-      "total": 4
-    },
-    {
-      "hub_id": "detroit",
-      "name": "Detroit Hub",
-      "families": [
-        {
-          "family": "winter",
-          "jev_band": "medium",
-          "jev_score_pct": 35.7,
+          "jev_score_pct": 44.5,
           "our_band": "medium",
-          "agrees": true
-        },
-        {
-          "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 12.2,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "hurricane",
-          "jev_band": "low",
-          "jev_score_pct": 0.4,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 10.4,
-          "our_band": "low",
-          "agrees": true
-        }
-      ],
-      "agree_count": 4,
-      "total": 4
-    },
-    {
-      "hub_id": "houston",
-      "name": "Houston Hub",
-      "families": [
-        {
-          "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 7.4,
-          "our_band": "low",
           "agrees": true
         },
         {
           "family": "flood",
           "jev_band": "high",
-          "jev_score_pct": 66.0,
-          "our_band": "medium",
-          "agrees": false
-        },
-        {
-          "family": "hurricane",
-          "jev_band": "low",
-          "jev_score_pct": 7.3,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 3.4,
-          "our_band": "low",
-          "agrees": true
-        }
-      ],
-      "agree_count": 3,
-      "total": 4
-    },
-    {
-      "hub_id": "indianapolis",
-      "name": "Indianapolis Hub",
-      "families": [
-        {
-          "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 28.1,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 12.7,
-          "our_band": "low",
+          "jev_score_pct": 67.5,
+          "our_band": "high",
           "agrees": true
         },
         {
@@ -282,13 +138,157 @@
         },
         {
           "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 8.4,
-          "our_band": "low",
-          "agrees": true
+          "jev_band": "high",
+          "jev_score_pct": 78.0,
+          "our_band": "medium",
+          "agrees": false
         }
       ],
-      "agree_count": 4,
+      "agree_count": 3,
+      "total": 4
+    },
+    {
+      "hub_id": "denver",
+      "name": "Denver Hub",
+      "families": [
+        {
+          "family": "winter",
+          "jev_band": "high",
+          "jev_score_pct": 90.5,
+          "our_band": "high",
+          "agrees": true
+        },
+        {
+          "family": "flood",
+          "jev_band": "low",
+          "jev_score_pct": 17.5,
+          "our_band": "low",
+          "agrees": true
+        },
+        {
+          "family": "hurricane",
+          "jev_band": "low",
+          "jev_score_pct": 1.0,
+          "our_band": "low",
+          "agrees": true
+        },
+        {
+          "family": "severe_storm",
+          "jev_band": "high",
+          "jev_score_pct": 63.5,
+          "our_band": "medium",
+          "agrees": false
+        }
+      ],
+      "agree_count": 3,
+      "total": 4
+    },
+    {
+      "hub_id": "detroit",
+      "name": "Detroit Hub",
+      "families": [
+        {
+          "family": "winter",
+          "jev_band": "high",
+          "jev_score_pct": 82.0,
+          "our_band": "high",
+          "agrees": true
+        },
+        {
+          "family": "flood",
+          "jev_band": "medium",
+          "jev_score_pct": 45.5,
+          "our_band": "medium",
+          "agrees": true
+        },
+        {
+          "family": "hurricane",
+          "jev_band": "low",
+          "jev_score_pct": 0.0,
+          "our_band": "low",
+          "agrees": true
+        },
+        {
+          "family": "severe_storm",
+          "jev_band": "high",
+          "jev_score_pct": 62.0,
+          "our_band": "medium",
+          "agrees": false
+        }
+      ],
+      "agree_count": 3,
+      "total": 4
+    },
+    {
+      "hub_id": "houston",
+      "name": "Houston Hub",
+      "families": [
+        {
+          "family": "winter",
+          "jev_band": "low",
+          "jev_score_pct": 24.5,
+          "our_band": "low",
+          "agrees": true
+        },
+        {
+          "family": "flood",
+          "jev_band": "high",
+          "jev_score_pct": 84.5,
+          "our_band": "high",
+          "agrees": true
+        },
+        {
+          "family": "hurricane",
+          "jev_band": "low",
+          "jev_score_pct": 2.5,
+          "our_band": "high",
+          "agrees": false
+        },
+        {
+          "family": "severe_storm",
+          "jev_band": "medium",
+          "jev_score_pct": 57.0,
+          "our_band": "low",
+          "agrees": false
+        }
+      ],
+      "agree_count": 2,
+      "total": 4
+    },
+    {
+      "hub_id": "indianapolis",
+      "name": "Indianapolis Hub",
+      "families": [
+        {
+          "family": "winter",
+          "jev_band": "high",
+          "jev_score_pct": 75.0,
+          "our_band": "high",
+          "agrees": true
+        },
+        {
+          "family": "flood",
+          "jev_band": "medium",
+          "jev_score_pct": 47.0,
+          "our_band": "medium",
+          "agrees": true
+        },
+        {
+          "family": "hurricane",
+          "jev_band": "low",
+          "jev_score_pct": 0.0,
+          "our_band": "low",
+          "agrees": true
+        },
+        {
+          "family": "severe_storm",
+          "jev_band": "high",
+          "jev_score_pct": 64.0,
+          "our_band": "medium",
+          "agrees": false
+        }
+      ],
+      "agree_count": 3,
       "total": 4
     },
     {
@@ -297,34 +297,34 @@
       "families": [
         {
           "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 33.9,
-          "our_band": "low",
+          "jev_band": "high",
+          "jev_score_pct": 69.0,
+          "our_band": "high",
           "agrees": true
         },
         {
           "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 21.6,
-          "our_band": "low",
-          "agrees": true
+          "jev_band": "medium",
+          "jev_score_pct": 57.0,
+          "our_band": "high",
+          "agrees": false
         },
         {
           "family": "hurricane",
           "jev_band": "low",
-          "jev_score_pct": 1.0,
+          "jev_score_pct": 0.0,
           "our_band": "low",
           "agrees": true
         },
         {
           "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 15.9,
-          "our_band": "low",
-          "agrees": true
+          "jev_band": "high",
+          "jev_score_pct": 76.0,
+          "our_band": "medium",
+          "agrees": false
         }
       ],
-      "agree_count": 4,
+      "agree_count": 2,
       "total": 4
     },
     {
@@ -333,94 +333,22 @@
       "families": [
         {
           "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 9.0,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 18.2,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "hurricane",
-          "jev_band": "low",
-          "jev_score_pct": 1.0,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 1.7,
-          "our_band": "low",
-          "agrees": true
-        }
-      ],
-      "agree_count": 4,
-      "total": 4
-    },
-    {
-      "hub_id": "memphis",
-      "name": "Memphis Hub",
-      "families": [
-        {
-          "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 16.1,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 26.1,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "hurricane",
-          "jev_band": "low",
-          "jev_score_pct": 0.9,
-          "our_band": "low",
-          "agrees": true
-        },
-        {
-          "family": "severe_storm",
           "jev_band": "medium",
-          "jev_score_pct": 41.5,
-          "our_band": "low",
-          "agrees": false
-        }
-      ],
-      "agree_count": 3,
-      "total": 4
-    },
-    {
-      "hub_id": "miami",
-      "name": "Miami Hub",
-      "families": [
-        {
-          "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 7.1,
-          "our_band": "low",
+          "jev_score_pct": 35.5,
+          "our_band": "medium",
           "agrees": true
         },
         {
           "family": "flood",
-          "jev_band": "medium",
-          "jev_score_pct": 41.5,
+          "jev_band": "high",
+          "jev_score_pct": 71.5,
           "our_band": "low",
           "agrees": false
         },
         {
           "family": "hurricane",
           "jev_band": "low",
-          "jev_score_pct": 16.2,
+          "jev_score_pct": 0.0,
           "our_band": "low",
           "agrees": true
         },
@@ -436,22 +364,94 @@
       "total": 4
     },
     {
+      "hub_id": "memphis",
+      "name": "Memphis Hub",
+      "families": [
+        {
+          "family": "winter",
+          "jev_band": "medium",
+          "jev_score_pct": 52.0,
+          "our_band": "medium",
+          "agrees": true
+        },
+        {
+          "family": "flood",
+          "jev_band": "high",
+          "jev_score_pct": 69.5,
+          "our_band": "high",
+          "agrees": true
+        },
+        {
+          "family": "hurricane",
+          "jev_band": "low",
+          "jev_score_pct": 0.0,
+          "our_band": "medium",
+          "agrees": false
+        },
+        {
+          "family": "severe_storm",
+          "jev_band": "medium",
+          "jev_score_pct": 57.5,
+          "our_band": "medium",
+          "agrees": true
+        }
+      ],
+      "agree_count": 3,
+      "total": 4
+    },
+    {
+      "hub_id": "miami",
+      "name": "Miami Hub",
+      "families": [
+        {
+          "family": "winter",
+          "jev_band": "low",
+          "jev_score_pct": 2.5,
+          "our_band": "low",
+          "agrees": true
+        },
+        {
+          "family": "flood",
+          "jev_band": "high",
+          "jev_score_pct": 72.0,
+          "our_band": "medium",
+          "agrees": false
+        },
+        {
+          "family": "hurricane",
+          "jev_band": "low",
+          "jev_score_pct": 5.5,
+          "our_band": "high",
+          "agrees": false
+        },
+        {
+          "family": "severe_storm",
+          "jev_band": "medium",
+          "jev_score_pct": 48.0,
+          "our_band": "low",
+          "agrees": false
+        }
+      ],
+      "agree_count": 1,
+      "total": 4
+    },
+    {
       "hub_id": "minneapolis",
       "name": "Minneapolis Hub",
       "families": [
         {
           "family": "winter",
           "jev_band": "high",
-          "jev_score_pct": 86.3,
+          "jev_score_pct": 97.5,
           "our_band": "high",
           "agrees": true
         },
         {
           "family": "flood",
           "jev_band": "low",
-          "jev_score_pct": 8.0,
-          "our_band": "low",
-          "agrees": true
+          "jev_score_pct": 16.5,
+          "our_band": "medium",
+          "agrees": false
         },
         {
           "family": "hurricane",
@@ -462,13 +462,13 @@
         },
         {
           "family": "severe_storm",
-          "jev_band": "low",
-          "jev_score_pct": 10.8,
-          "our_band": "low",
+          "jev_band": "medium",
+          "jev_score_pct": 56.0,
+          "our_band": "medium",
           "agrees": true
         }
       ],
-      "agree_count": 4,
+      "agree_count": 3,
       "total": 4
     },
     {
@@ -477,34 +477,34 @@
       "families": [
         {
           "family": "winter",
-          "jev_band": "low",
-          "jev_score_pct": 24.2,
-          "our_band": "low",
+          "jev_band": "high",
+          "jev_score_pct": 69.0,
+          "our_band": "high",
           "agrees": true
         },
         {
           "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 33.4,
-          "our_band": "low",
-          "agrees": true
+          "jev_band": "high",
+          "jev_score_pct": 67.0,
+          "our_band": "medium",
+          "agrees": false
         },
         {
           "family": "hurricane",
           "jev_band": "low",
-          "jev_score_pct": 6.3,
-          "our_band": "low",
-          "agrees": true
+          "jev_score_pct": 1.0,
+          "our_band": "high",
+          "agrees": false
         },
         {
           "family": "severe_storm",
-          "jev_band": "medium",
-          "jev_score_pct": 41.5,
-          "our_band": "low",
+          "jev_band": "high",
+          "jev_score_pct": 63.0,
+          "our_band": "medium",
           "agrees": false
         }
       ],
-      "agree_count": 3,
+      "agree_count": 1,
       "total": 4
     },
     {
@@ -514,38 +514,44 @@
         {
           "family": "winter",
           "jev_band": "low",
-          "jev_score_pct": 0.7,
+          "jev_score_pct": 2.5,
           "our_band": "low",
           "agrees": true
         },
         {
           "family": "flood",
-          "jev_band": "low",
-          "jev_score_pct": 1.9,
+          "jev_band": "high",
+          "jev_score_pct": 82.5,
           "our_band": "low",
-          "agrees": true
+          "agrees": false
         },
         {
           "family": "hurricane",
           "jev_band": "low",
-          "jev_score_pct": 0.5,
+          "jev_score_pct": 0.0,
           "our_band": "low",
           "agrees": true
         },
         {
           "family": "severe_storm",
           "jev_band": "low",
-          "jev_score_pct": 0.7,
+          "jev_score_pct": 29.5,
           "our_band": "low",
           "agrees": true
         }
       ],
-      "agree_count": 4,
+      "agree_count": 3,
       "total": 4
     }
   ],
-  "agree_count": 54,
+  "agree_count": 39,
   "total": 60,
-  "agreement_pct": 90.0,
-  "note": "Independent rating by TypeSafe's JEV decision model on the same raw signals. It does not affect scores or rankings."
+  "agreement_pct": 65.0,
+  "rank_correlation": {
+    "winter": 0.98,
+    "flood": 0.22,
+    "hurricane": 0.35,
+    "severe_storm": 0.84
+  },
+  "note": "Independent rating by TypeSafe's JEV decision model on the same raw signals. It does not affect scores or rankings; disagreements are worth an analyst's review."
 }

@@ -1,12 +1,12 @@
-data: {"type": "start", "messageId": "msg_810c1a76d019"}
+data: {"type": "start", "messageId": "msg_5892fe4f58f4"}
 
 data: {"type": "start-step"}
 
 data: {"type": "finish-step"}
 
-data: {"data": {"session_id": "mock-outofscope", "answer": {"answer": "That's outside what I can help with. I analyze weather-disruption risk and investment priority for 15 US logistics hubs.", "hubs": [], "ranking": null, "figures": [], "assumptions": [], "uncertainty": "Not applicable.", "data_available": true, "in_scope": false}, "grounding": {"status": "pass", "errors": []}, "trace_id": "68ea455af70b44a1b64563df9b6a257d"}, "type": "data-answer"}
+data: {"data": {"session_id": "mock-outofscope", "answer": {"answer": "That's outside what I can help with. I analyze weather-disruption risk and investment priority for 15 US logistics hubs.", "hubs": [], "ranking": null, "figures": [], "assumptions": [], "uncertainty": "Not applicable.", "data_available": true, "in_scope": false}, "grounding": {"status": "pass", "errors": []}, "trace_id": "e170788a4a1f4b21aaefde722e50df6e", "follow_ups": ["Which hubs are most exposed to weather disruption?", "Which Midwest hubs are most exposed to winter disruption?", "Compare Miami and Houston in terms of hurricane and flood exposure."]}, "type": "data-answer"}
 
-data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_810c1a76d019", "role": "assistant", "turnId": null, "partIds": ["part_b45786e4f1e4"]}]}}}
+data: {"type": "finish", "finishReason": "stop", "messageMetadata": {"aiPython": {"sourceMessages": [{"id": "msg_5892fe4f58f4", "role": "assistant", "turnId": null, "partIds": ["part_1aefd97c57f4"]}]}}}
 
 data: [DONE]
 

@@ -8,6 +8,8 @@ import { useDictation } from '@/lib/voice'
 
 const MAX = 2000
 
+export const COMPOSER_INPUT_ID = 'chat-composer-input'
+
 export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (text: string) => void; onStop: () => void }) {
   const [text, setText] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
@@ -39,12 +41,13 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
 
   return (
     <form ref={formRef} onSubmit={submit} className="w-full">
-      <InputGroup className="bg-white">
+      <InputGroup className="glass rounded-2xl border-0 bg-transparent">
         <InputGroupTextarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKey}
           placeholder={dictation.listening ? 'Listening…' : 'Ask about a hub, a hazard or a ranking'}
+          id={COMPOSER_INPUT_ID}
           aria-label="Ask about hub weather risk"
           className="min-h-14 text-base"
         />
@@ -57,6 +60,7 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
                     type="button"
                     size="icon-sm"
                     variant={dictation.listening ? 'destructive' : 'ghost'}
+                    className={dictation.listening ? 'animate-pulse motion-reduce:animate-none' : undefined}
                     aria-pressed={dictation.listening}
                     aria-label={dictation.listening ? 'Stop dictation' : 'Dictate your question'}
                     onClick={dictation.listening ? dictation.stop : startDictation}
@@ -74,6 +78,16 @@ export function Composer({ busy, onSend, onStop }: { busy: boolean; onSend: (tex
               </TooltipTrigger>
               <TooltipContent>Voice input needs a browser with speech recognition, such as Chrome, Edge or Safari.</TooltipContent>
             </Tooltip>
+          )}
+          {dictation.listening && (
+            <InputGroupText className="text-band-high-text" aria-live="polite">
+              Listening…
+            </InputGroupText>
+          )}
+          {!dictation.listening && dictation.hint && (
+            <InputGroupText className="text-muted-foreground" aria-live="polite">
+              {dictation.hint}
+            </InputGroupText>
           )}
           {dictation.error && <InputGroupText className="text-destructive">{dictation.error}</InputGroupText>}
           {trimmed.length > MAX - 200 && (

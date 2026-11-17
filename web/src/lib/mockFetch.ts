@@ -3,16 +3,19 @@
 // The recorded data is loaded on first use, so it stays out of the production bundle.
 const loadMocks = () => import('./mockData')
 
-export type MockScenario = 'ranking' | 'compare' | 'weather' | 'alerts' | 'nodata' | 'outofscope' | 'failed'
+export type MockScenario = 'ranking' | 'compare' | 'weather' | 'alerts' | 'nodata' | 'outofscope' | 'failed' | 'resolution' | 'badyear' | 'history'
 
 const IN_SCOPE =
-  /hub|risk|expos|priorit|rank|weather|snow|rain|flood|storm|hurricane|winter|wind|freez|alert|invest|chicago|minneapolis|detroit|indianapolis|kansas|columbus|dallas|houston|miami|atlanta|memphis|denver|phoenix|los angeles|newark|midwest|south|west|northeast/i
+  /hub|risk|expos|new york|bad year|priorit|rank|weather|snow|rain|flood|storm|hurricane|winter|wind|freez|alert|invest|chicago|minneapolis|detroit|indianapolis|kansas|columbus|dallas|houston|miami|atlanta|memphis|denver|phoenix|los angeles|newark|midwest|south|west|northeast/i
 
 /** Picks the recorded scenario that best fits the question. */
 export function pickScenario(text: string): MockScenario {
   const t = text.toLowerCase()
   if (!IN_SCOPE.test(t)) return 'outofscope'
   if (/how exposed is houston|unverified/.test(t)) return 'failed' // demo of a failed grounding check
+  if (/history|historical|seasonal|by month|each year/.test(t)) return 'history'
+  if (/new york|nyc/.test(t)) return 'resolution' // a city resolved to a hub through its metro area
+  if (/bad[ -]year|worst year|1 in 20/.test(t)) return 'badyear'
   if (/alert|warning|right now|today/.test(t)) return 'alerts'
   if (/compare|\bvs\.?\b|versus/.test(t)) return 'compare'
   if (/20(2[6-9]|[3-9]\d)/.test(t)) return 'nodata'
@@ -43,6 +46,14 @@ function delayFor(event: string): number {
   if (event.includes('"tool-output-available"')) return 650
   if (event.includes('"data-answer"')) return 900
   return 40
+}
+
+let replays = 0
+
+/** Each replay gets its own assistant message id; reusing the recorded one would merge repeated answers into one message. */
+export function withFreshMessageId(raw: string): string {
+  replays += 1
+  return raw.replace(/"messageId": "[^"]+"/, `"messageId": "mock-msg-${replays}-${Date.now().toString(36)}"`)
 }
 
 export function replayStream(raw: string, signal?: AbortSignal | null, speed = 1): ReadableStream<Uint8Array> {
@@ -76,13 +87,21 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const body = init?.body ? JSON.parse(String(init.body)) : {}
     const scenario = pickScenario(lastUserText(body))
     const { MOCK_STREAMS } = await loadMocks()
-    return new Response(replayStream(MOCK_STREAMS[scenario], init?.signal), {
+    return new Response(replayStream(withFreshMessageId(MOCK_STREAMS[scenario]), init?.signal), {
       headers: { 'Content-Type': 'text/event-stream', 'x-vercel-ai-ui-message-stream': 'v1' },
     })
   }
   if (path === '/scores') {
     await sleep(250)
     return Response.json((await loadMocks()).scores)
+  }
+  if (path === '/what-if') {
+    // Mock: real what-if results recorded from the scoring code (baseline, and one analyst example).
+    await sleep(200)
+    const { whatIf } = await loadMocks()
+    const body = init?.body ? (JSON.parse(String(init.body)) as { family_weights?: object; upgrade_costs?: unknown[] }) : {}
+    const empty = !body.family_weights && !body.upgrade_costs?.length
+    return Response.json(empty ? whatIf.baseline : whatIf.example)
   }
   if (path === '/second-opinion' && (init?.method ?? 'GET') === 'GET') {
     await sleep(300)

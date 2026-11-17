@@ -24,9 +24,9 @@ FAMILY_WORDS = {
 JUDGE_PROMPT = """You grade one answer from a weather-risk assistant for logistics hubs.
 
 Hub: {hub_name}
-The scoring code says this hub's top driver (largest share of expected disruption days) is: {family} = {family_words}, {share}% of disruption days.
+The scoring code says this hub's top driver {lens_text} is: {family} = {family_words}, {share}% of those days.
 
-Rubric: does the answer name {family_words} as the main or largest driver of this hub's risk?
+Rubric: does the answer name {family_words} as the main or largest driver {lens_rubric}?
 - pass = true if the answer clearly identifies that hazard family (any clear synonym counts) as the main, largest or leading driver.
 - pass = false if it names a different family as the main driver, gives no main driver, or only lists families without saying which leads.
 Grade only this rubric, not style or other content. Reply with the JSON verdict.
@@ -37,6 +37,13 @@ Answer to grade:
 </answer>"""
 
 
+LENS = {
+    "typical": ("(largest share of expected disruption days in a typical year)", "of this hub's risk"),
+    "bad_year": ("in a bad year (largest share of its bad-year days, the worst 1 in 20 years)",
+                 "of this hub's bad year (the worst 1 in 20 years)"),
+}
+
+
 class Verdict(BaseModel):
     model_config = ConfigDict(extra="forbid")
     passed: bool = Field(description="True if the answer names the expected top driver as the main driver.")
@@ -44,11 +51,12 @@ class Verdict(BaseModel):
 
 
 async def judge_top_driver(
-    model: ai.Model, answer_text: str, hub_name: str, family: str, share: float
+    model: ai.Model, answer_text: str, hub_name: str, family: str, share: float, lens: str = "typical"
 ) -> dict[str, Any]:
     """Return {"passed", "reason", "input_tokens", "output_tokens"}; passed is None if the judge reply was invalid."""
     prompt = JUDGE_PROMPT.format(
-        hub_name=hub_name, family=family, family_words=FAMILY_WORDS[family], share=share, answer=answer_text
+        hub_name=hub_name, family=family, family_words=FAMILY_WORDS[family], share=share, answer=answer_text,
+        lens_text=LENS[lens][0], lens_rubric=LENS[lens][1],
     )
     async with ai.stream(model, [ai.user_message(prompt)], output_type=Verdict, params=build_params()) as stream:
         async for _ in stream:

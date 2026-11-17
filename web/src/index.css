@@ -1,13 +1,14 @@
-@import '@fontsource-variable/archivo/wdth.css';
+@import '@fontsource-variable/inter/opsz.css';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-@custom-variant dark (&:is(.dark *));
+/* Dark mode: the resolved theme is set on <html data-theme> (Settings: light / dark / system). */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 /* Chart-paper palette. Band colors carry meaning (low / medium / high) and are used nowhere else. */
 @theme {
-  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --color-paper: #eef2f4;
   --color-sheet: #f8fafb;
@@ -25,10 +26,20 @@
   --color-band-low-soft: #e1eeea;
   --color-band-medium-soft: #f7ecd5;
   --color-band-high-soft: #f6e0de;
+  /* band words as text: AA contrast on light glass */
+  --color-band-low-text: #2f6656;
+  --color-band-medium-text: #7a5612;
+  --color-band-high-text: #9b2f2a;
+  /* hazard family glyphs and chart series */
+  --color-hazard-winter: #6f98c2;
+  --color-hazard-flood: #2f5d8a;
+  --color-hazard-hurricane: #5b4e8c;
+  --color-hazard-severe_storm: #6b7a85;
 }
 
 @theme inline {
   --font-heading: var(--font-sans);
+  --color-header: var(--header);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -71,6 +82,13 @@
 
 /* shadcn/ui tokens mapped onto the palette above. */
 :root {
+  --header: rgb(241 245 248 / 0.92);
+  --sky-1: #d3e2ef;
+  --sky-2: #e2eee8;
+  --glass: rgb(255 255 255 / 0.58);
+  --glass-strong: rgb(255 255 255 / 0.78);
+  --glass-rim: rgb(255 255 255 / 0.7);
+  --glass-shadow: 0 12px 32px -14px rgb(27 42 53 / 0.22);
   --background: #eef2f4;
   --foreground: #1b2a35;
   --card: #f8fafb;
@@ -105,32 +123,129 @@
   --sidebar-ring: #2f5d8a;
 }
 
+/* Dark: same tokens, AA text contrast on the dark glass. */
+:root[data-theme='dark'] {
+  --color-paper: #0f1820;
+  --color-sheet: #16222c;
+  --color-ink: #e6edf2;
+  --color-ink-soft: #b4c2cc;
+  --color-ink-faint: #8f9fab;
+  --color-rule: rgb(255 255 255 / 0.16);
+  --color-rule-soft: rgb(255 255 255 / 0.09);
+  --color-isobar: #8ab4dc;
+  --color-isobar-soft: #1d3146;
+  --color-band-low-soft: #16302a;
+  --color-band-medium-soft: #33290f;
+  --color-band-high-soft: #3a1b1a;
+  --color-band-low-text: #8fd1bd;
+  --color-band-medium-text: #e8c170;
+  --color-band-high-text: #f2a39d;
+  --color-hazard-winter: #9cc3e6;
+  --color-hazard-flood: #6fa3d6;
+  --color-hazard-hurricane: #a99bdc;
+  --color-hazard-severe_storm: #a7b4bd;
+
+  --header: rgb(21 32 41 / 0.92);
+  --sky-1: #17283a;
+  --sky-2: #14262a;
+  --glass: rgb(26 38 49 / 0.62);
+  --glass-strong: rgb(24 36 46 / 0.86);
+  --glass-rim: rgb(255 255 255 / 0.09);
+  --glass-shadow: 0 14px 34px -16px rgb(0 0 0 / 0.6);
+  --background: #0f1820;
+  --foreground: #e6edf2;
+  --card: #182430;
+  --card-foreground: #e6edf2;
+  --popover: #16222c;
+  --popover-foreground: #e6edf2;
+  --primary: #e6edf2;
+  --primary-foreground: #0f1820;
+  --secondary: #1f3347;
+  --secondary-foreground: #b9d3ec;
+  --muted: #1c2a35;
+  --muted-foreground: #9fb0bd;
+  --accent: #1f3347;
+  --accent-foreground: #e6edf2;
+  --destructive: #f2a39d;
+  --border: rgb(255 255 255 / 0.12);
+  --input: rgb(255 255 255 / 0.16);
+  --ring: #8ab4dc;
+}
+
+/* Liquid glass: translucent, blurred surfaces with a light rim, over the sky gradient. */
+@layer components {
+  .glass,
+  .glass-bar {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    backdrop-filter: blur(20px) saturate(1.5);
+    box-shadow:
+      inset 0 1px 0 var(--glass-rim),
+      0 0 0 1px color-mix(in oklab, var(--foreground) 6%, transparent),
+      var(--glass-shadow);
+  }
+  .glass-bar {
+    background: var(--glass-strong);
+    box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 8%, transparent);
+  }
+  /* Solid fallback where blur is unsupported or reduced transparency is requested. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass,
+    .glass-bar {
+      background: var(--card);
+    }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .glass,
+    .glass-bar {
+      background: var(--card);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   html {
     font-variant-numeric: tabular-nums;
+    font-optical-sizing: auto;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     @apply font-sans;
   }
   body {
     margin: 0;
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background:
+      radial-gradient(1100px 620px at 8% -12%, var(--sky-1), transparent 62%),
+      radial-gradient(900px 560px at 100% 0%, var(--sky-2), transparent 60%),
+      var(--background);
+    background-attachment: fixed;
   }
-  summary {
+  /* Anything clickable shows a pointer (Tailwind 4 resets buttons to the default cursor). */
+  summary,
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='switch'],
+  [role='radio'],
+  label:has(> input[type='radio']),
+  select {
     cursor: pointer;
   }
 }
 
-@utility font-wide {
-  font-stretch: 125%;
-}
-@utility font-narrow {
-  font-stretch: 85%;
+/* Headings: Inter at 600 with slightly tighter tracking. */
+@utility heading-tight {
+  letter-spacing: -0.02em;
 }
 
 /* Answer markdown */
+.prose-answer {
+  line-height: 1.6;
+}
 .prose-answer p {
   margin: 0 0 0.65em;
   line-height: 1.6;
@@ -216,3 +331,68 @@
   }
 }
 
+
+/* Chart text (ticks, labels) uses the app font and tabular figures. */
+.recharts-wrapper,
+.recharts-text {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- print reports (Export report): paper only, no glass or motion ---------- */
+.print-report {
+  display: none;
+}
+@media print {
+  #root {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .print-report {
+    display: block !important;
+    font-family: var(--font-sans);
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #111;
+  }
+  .print-report h1 {
+    font-size: 16pt;
+    font-weight: 600;
+    margin: 0 0 6pt;
+  }
+  .print-report h2 {
+    font-size: 12pt;
+    font-weight: 600;
+    margin: 14pt 0 4pt;
+  }
+  .print-report table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 4pt 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .print-report th,
+  .print-report td {
+    border-bottom: 0.5pt solid #bbb;
+    padding: 3pt 6pt 3pt 0;
+    text-align: left;
+  }
+  .print-report .print-footer {
+    margin-top: 18pt;
+    font-size: 9pt;
+    color: #555;
+  }
+}

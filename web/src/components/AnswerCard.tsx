@@ -1,10 +1,13 @@
-import { TriangleAlertIcon } from 'lucide-react'
+import { ChevronRightIcon, TriangleAlertIcon } from 'lucide-react'
+import { useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDebug } from '@/lib/debug'
 import type { ChatResponse } from '@/lib/types'
 import { FiguresTable } from './FiguresTable'
+import { ExportReportButton } from './PrintReport'
+import { AnswerReport } from './reports'
 import { GroundingBadge } from './GroundingBadge'
 
 type Kind = 'answer' | 'out_of_scope' | 'no_data' | 'could_not_answer'
@@ -26,9 +29,9 @@ const ACCENT: Record<Kind, string> = {
 }
 
 /** Same shell as the widget cards (shadcn Card): radius, ring, shadow and 20 px padding. */
-export const CARD_SHELL = 'relative w-full overflow-hidden rounded-3xl bg-card p-5 text-card-foreground shadow-sm ring-1 ring-foreground/5'
+export const CARD_SHELL = 'glass relative w-full overflow-hidden rounded-3xl p-5 text-card-foreground'
 
-export function AnswerCard({ response }: { response: ChatResponse }) {
+export function AnswerCard({ response, dataAsOf, question }: { response: ChatResponse; dataAsOf?: string; question?: string }) {
   const { answer, grounding } = response
   const debug = useDebug()
   const kind = answerKind(response)
@@ -40,11 +43,11 @@ export function AnswerCard({ response }: { response: ChatResponse }) {
       {kind === 'out_of_scope' && (
         <p className="mb-2 text-sm font-semibold text-ink-soft">Outside what this assistant covers</p>
       )}
-      {kind === 'no_data' && <p className="mb-2 text-sm font-semibold text-[#7a5612]">No data for this question</p>}
-      {kind === 'could_not_answer' && <p className="mb-2 text-sm font-semibold text-[#9b2f2a]">Could not answer</p>}
+      {kind === 'no_data' && <p className="mb-2 text-sm font-semibold text-band-medium-text">No data for this question</p>}
+      {kind === 'could_not_answer' && <p className="mb-2 text-sm font-semibold text-band-high-text">Could not answer</p>}
 
       {failed && kind === 'answer' && (
-        <div className="mb-3 flex gap-2 rounded-md bg-band-high-soft px-3 py-2 text-sm text-[#7d2622]" role="alert">
+        <div className="mb-3 flex gap-2 rounded-md bg-band-high-soft px-3 py-2 text-sm text-band-high-text" role="alert">
           <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" />
           <span>These numbers could not be matched to the tool results. Check them before you use them.</span>
         </div>
@@ -67,11 +70,7 @@ export function AnswerCard({ response }: { response: ChatResponse }) {
         </p>
       )}
 
-      {answer.figures.length > 0 && (
-        <div className="mt-4">
-          <FiguresTable figures={answer.figures} verified={!failed} />
-        </div>
-      )}
+      {answer.figures.length > 0 && <Figures response={response} open={debug} failed={failed} />}
 
       {(answer.assumptions.length > 0 || (kind !== 'out_of_scope' && answer.uncertainty)) && (
         <div className="mt-4 space-y-1 border-t border-rule-soft pt-3 text-sm">
@@ -106,8 +105,11 @@ export function AnswerCard({ response }: { response: ChatResponse }) {
             </ul>
           </details>
         )}
+        {kind !== 'out_of_scope' && (
+          <ExportReportButton className="ml-auto text-muted-foreground" report={() => <AnswerReport response={response} dataAsOf={dataAsOf} question={question} />} />
+        )}
         {debug && (
-          <span className="ml-auto text-[0.7rem] text-muted-foreground" title="Trace id for debugging">
+          <span className="text-[0.7rem] text-muted-foreground" title="Trace id for debugging">
             trace {response.trace_id.slice(0, 8)}
           </span>
         )}
@@ -120,11 +122,35 @@ export function PendingAnswer() {
   return (
     <div className={CARD_SHELL} aria-live="polite">
       <span className="absolute inset-x-0 top-0 h-1 bg-muted" aria-hidden="true" />
-      <p className="text-sm text-ink-soft">Checking every number against the tool results before showing the answer.</p>
+      <p className="text-sm text-ink-soft">Validating figures…</p>
       <div className="mt-3 space-y-2" aria-hidden="true">
         <Skeleton className="h-2.5 w-11/12" />
         <Skeleton className="h-2.5 w-8/12" />
       </div>
+    </div>
+  )
+}
+
+/** The cited numbers, folded by default in the analyst view (the answer text comes first). */
+function Figures({ response, open, failed }: { response: ChatResponse; open: boolean; failed: boolean }) {
+  const [shown, setShown] = useState(open)
+  const n = response.answer.figures.length
+  return (
+    <div className="mt-4">
+      <button
+        type="button"
+        aria-expanded={shown}
+        onClick={() => setShown((v) => !v)}
+        className="group inline-flex items-center gap-1 rounded-md text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronRightIcon className={`size-4 transition-transform motion-reduce:transition-none ${shown ? 'rotate-90' : ''}`} />
+        Figures behind this answer ({n})
+      </button>
+      {shown && (
+        <div className="mt-2 animate-in fade-in duration-200 motion-reduce:animate-none">
+          <FiguresTable figures={response.answer.figures} verified={!failed} />
+        </div>
+      )}
     </div>
   )
 }

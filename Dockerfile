@@ -14,8 +14,8 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY app/ app/
-COPY data/hubs.json data/hubs.json
-COPY data/snapshot/ data/snapshot/
+# All committed data: hubs, snapshot, metro areas, nicknames, JEV second opinion (app.db is in .dockerignore).
+COPY data/ data/
 COPY --from=web /web/dist web/dist
 ENV PORT=8000
 EXPOSE 8000

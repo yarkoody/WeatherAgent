@@ -1,10 +1,15 @@
-# Scheduled score-change alert: fetch fresh weather for the last 36 complete months,
-# rescore, compare with the committed baseline, and post changes to the webhook.
+# Scheduled score-change alert: fetch weather after the snapshot end for the 132-month (11-year) window,
+# rescore, compare with the last alerted state (or the committed baseline), and post new changes to the webhook.
+# logs/alert_state.json (last alerted scores per hub, NWS alerts already sent) is kept between runs with
+# actions/cache, so a persisting deviation alerts once instead of every day.
 name: score-change-alerts
 on:
   schedule:
     - cron: "0 6 * * *"   # daily, 06:00 UTC
   workflow_dispatch:
+concurrency:
+  group: score-change-alerts   # one run at a time, so two runs never race on the state file
+  cancel-in-progress: false
 jobs:
   alerts:
     runs-on: ubuntu-latest
@@ -12,6 +17,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen --no-dev
+      - name: Restore alert state
+        uses: actions/cache/restore@v4
+        with:
+          path: logs/alert_state.json
+          key: alert-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: alert-state-
       - run: uv run python -m app.alerts
         env:
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      - name: Save alert state
+        if: always() && hashFiles('logs/alert_state.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: logs/alert_state.json
+          key: alert-state-${{ github.run_id }}-${{ github.run_attempt }}

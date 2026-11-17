@@ -42,7 +42,7 @@ function toSse(events: Record<string, unknown>[]): string {
 async function ask(text = 'Which Midwest hubs are most exposed to winter weather?', debug = false) {
   render(
     <DebugProvider debug={debug}>
-      <ChatView sessionId={`s-${Math.random()}`} speakAnswers={false} />
+      <ChatView sessionId={`s-${Math.random()}`} />
     </DebugProvider>,
   )
   fireEvent.change(screen.getByLabelText('Ask about hub weather risk'), { target: { value: text } })
@@ -74,7 +74,7 @@ describe('failed grounding (critical)', () => {
 
   it('changes the citation text by grounding status', () => {
     const f = response.answer.figures[0]
-    expect(citationText(f, true)).toMatch(/matched it to that tool's output/)
+    expect(citationText(f, true)).toMatch(/found it in that tool's output/)
     expect(citationText(f, false)).toMatch(/could not be matched/i)
     expect(citationText(f, false)).not.toMatch(/matched it to/)
   })
@@ -132,6 +132,7 @@ describe('streams that end without an answer', () => {
     serveChat({ sse: toSse(events) })
     await ask()
     await waitFor(() => expect(screen.getByLabelText('Answer')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Analysis steps/ }))
     expect(screen.getAllByText(/no result/).length).toBe(2)
     expect(screen.queryByLabelText('Ranking chart')).not.toBeInTheDocument()
   })
@@ -139,12 +140,19 @@ describe('streams that end without an answer', () => {
 
 describe('restored history', () => {
   it('drops malformed entries instead of crashing', () => {
-    localStorage.setItem('weather-risk.messages.bad', '{"not":"an array"}')
+    // chats live in one versioned key (lib/chats.ts); a chat's bad messages are dropped, bad JSON gives nothing
+    const chat = (id: string, messages: unknown) => ({ id, title: 't', createdAt: 1, updatedAt: 1, messages })
+    localStorage.setItem(
+      'weather-risk.chats.v1',
+      JSON.stringify({
+        version: 1,
+        chats: [chat('bad', { not: 'an array' }), chat('mixed', [null, { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] }, { id: 2 }])],
+      }),
+    )
     expect(loadMessages('bad')).toEqual([])
-    localStorage.setItem('weather-risk.messages.mixed', JSON.stringify([null, { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] }, { id: 2 }]))
     expect(loadMessages('mixed').map((m) => m.id)).toEqual(['u1'])
-    localStorage.setItem('weather-risk.messages.junk', 'not json')
-    expect(loadMessages('junk')).toEqual([])
+    localStorage.setItem('weather-risk.chats.v1', 'not json')
+    expect(loadMessages('mixed')).toEqual([])
   })
 
   it('does not restore spinners for a turn that never finished', () => {
@@ -154,7 +162,7 @@ describe('restored history', () => {
       parts: [{ type: 'tool-rank_hubs', toolCallId: 't1', state: 'input-available', input: { score: 'exposure' } } as UIMessage['parts'][number]],
     }
     saveMessages('restored', [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Rank hubs' }] }, half])
-    render(<ChatView sessionId="restored" speakAnswers={false} />)
+    render(<ChatView sessionId="restored" />)
     expect(document.querySelector('[data-status="running"]')).toBeNull()
     expect(screen.getByText(/No answer received/)).toBeInTheDocument()
   })
@@ -163,7 +171,7 @@ describe('restored history', () => {
 describe('stopped before the first chunk', () => {
   it('a question with no reply gets the no-answer notice', () => {
     saveMessages('orphan', [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Rank hubs' }] }])
-    render(<ChatView sessionId="orphan" speakAnswers={false} />)
+    render(<ChatView sessionId="orphan" />)
     expect(screen.getByText(/No answer received/)).toBeInTheDocument()
   })
 })

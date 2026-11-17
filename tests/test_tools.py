@@ -11,7 +11,8 @@ from openai.lib._pydantic import to_strict_json_schema
 from app import data, scoring, tools
 from app.data import NWS_URL
 
-EXPECTED_NAMES = ["list_hubs", "rank_hubs", "get_hub_risk", "compare_hubs", "weather_stat", "get_active_alerts", "what_if"]
+EXPECTED_NAMES = ["list_hubs", "rank_hubs", "get_hub_risk", "compare_hubs", "weather_stat", "get_active_alerts", "what_if",
+                  "get_hub_history"]
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +51,7 @@ def test_tool_schemas_are_strict():
         assert '"default"' not in json.dumps(schema), name  # OpenAI strict mode does not accept defaults
 
 
-@pytest.mark.parametrize("hub", ["atlantis", "KC"])
+@pytest.mark.parametrize("hub", ["atlantis", "Xanadu"])
 async def test_unknown_hub_returns_structured_error(hub):
     out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": hub}))
     assert set(out) == {"error", "retryable", "hint"}
@@ -166,3 +167,117 @@ async def test_get_active_alerts_client_error_is_not_retryable():
 async def test_what_if_tool_rejects_huge_weight():
     out = await tools.run_tool("what_if", json.dumps({"family_weights": {"winter": 1e9, "flood": None, "hurricane": None, "severe_storm": None}, "upgrade_costs": None}))
     assert set(out) == {"error", "retryable", "hint"}
+
+
+async def test_rank_hubs_bad_year_kind():
+    out = await tools.run_tool("rank_hubs", json.dumps({"score": "bad_year", "hazard": "overall", "region": None, "top_n": 3}))
+    assert out["kind"] == "bad_year" and len(out["items"]) == 3
+    assert all(i["band"] is None for i in out["items"])
+    values = [i["value"] for i in out["items"]]
+    assert values == sorted(values, reverse=True)
+
+
+
+# ---------- city -> hub through nicknames and OMB metro areas (data/metro_cities.json) ----------
+
+
+@pytest.mark.parametrize("typed,hub", [
+    ("New York", "newark"), ("Fort Worth", "dallas"), ("St. Paul", "minneapolis"), ("Saint Paul", "minneapolis"),
+    ("Kansas City, KS", "kansas_city"), ("Overland Park", "kansas_city"), ("Arlington, TX", "dallas"),
+    ("Portland OR", None),
+])
+async def test_metro_city_resolves_to_its_hub(typed, hub):
+    out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": typed}))
+    if hub is None:  # Portland, OR is a known city in a metro area without a hub
+        assert "no hub" in out["error"]
+        return
+    assert out["hub_id"] == hub
+    assert len(out["resolution_notes"]) == 1 and typed in out["resolution_notes"][0]
+    assert "OMB, July 2023" in out["resolution_notes"][0]
+
+
+async def test_new_york_note_names_the_metro_area():
+    out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": "New York"}))
+    assert out["resolution_notes"] == [
+        "Resolved 'New York' to the Newark Hub (Newark, NJ): both are in the New York-Newark-Jersey City, NY-NJ "
+        "metro area (OMB, July 2023)."]
+
+
+@pytest.mark.parametrize("typed,hub", [("NYC", "newark"), ("DFW", "dallas"), ("twin cities", "minneapolis"),
+                                       ("KC", "kansas_city"), ("the cities", "minneapolis")])
+async def test_nicknames_resolve(typed, hub):
+    out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": typed}))
+    assert out["hub_id"] == hub
+    assert typed in out["resolution_notes"][0]
+
+
+async def test_exact_hub_city_has_no_resolution_note():
+    out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": "Dallas"}))
+    assert "resolution_notes" not in out
+    out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": "Kansas City, MO"}))
+    assert out["hub_id"] == "kansas_city" and "resolution_notes" not in out
+
+
+async def test_city_in_metro_without_hub_is_error_naming_the_metro():
+    out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": "Boston"}))
+    assert set(out) == {"error", "retryable", "hint"}
+    assert "Boston-Cambridge-Newton, MA-NH" in out["error"] and "no hub" in out["error"]
+    assert "newark" in out["hint"]
+
+
+async def test_ambiguous_city_asks_which_state():
+    out = await tools.run_tool("weather_stat", json.dumps({"hub_id": "Portland", "metric": "snow_days_pct", "year": 2025}))
+    assert "Portland" in out["error"]
+    assert "OR" in out["error"] and "ME" in out["error"]
+    assert "state" in out["hint"].lower()
+
+
+async def test_ambiguous_city_with_a_hub_option_still_asks():
+    out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": "Arlington"}))  # TX (Dallas) or VA (no hub)
+    assert "error" in out and "TX" in out["error"] and "VA" in out["error"]
+
+
+async def test_unknown_place_keeps_the_unknown_hub_error():
+    out = await tools.run_tool("get_hub_risk", json.dumps({"hub_id": "Atlantis"}))
+    assert out["error"] == "unknown hub 'Atlantis'"
+
+
+async def test_compare_and_what_if_collect_notes():
+    out = await tools.run_tool("compare_hubs", json.dumps({"hub_ids": ["New York", "Fort Worth"], "hazards": ["overall"]}))
+    assert [h["hub_id"] for h in out["hubs"]] == ["newark", "dallas"]
+    assert len(out["resolution_notes"]) == 2
+    out = await tools.run_tool("what_if", json.dumps({"family_weights": None, "upgrade_costs": [{"hub_id": "St. Paul", "cost_musd": 5}]}))
+    assert out["per_million_ranking"][0]["hub_id"] == "minneapolis"
+    assert "St. Paul" in out["resolution_notes"][0]
+
+
+
+# ---------- get_hub_history ----------
+
+
+async def test_get_hub_history_returns_years_and_months():
+    out = await tools.run_tool("get_hub_history", json.dumps({"hub_id": "Minneapolis"}))
+    assert out["hub_id"] == "minneapolis"
+    assert [y["year"] for y in out["years"]] == list(range(2015, 2026))
+    assert len(out["months"]) == 12 and 1 <= len(out["peak_months"]) <= 3
+    assert out["worst_year"] in range(2015, 2026)
+    assert out["thresholds"]["winter"].startswith("snow >= 5 cm")
+    assert "resolution_notes" not in out
+
+
+async def test_get_hub_history_resolves_metro_cities_with_a_note():
+    out = await tools.run_tool("get_hub_history", json.dumps({"hub_id": "New York"}))
+    assert out["hub_id"] == "newark" and "New York" in out["resolution_notes"][0]
+
+
+async def test_get_hub_history_errors_are_structured():
+    for name in ("Atlantis", "Boston"):
+        out = await tools.run_tool("get_hub_history", json.dumps({"hub_id": name}))
+        assert set(out) == {"error", "retryable", "hint"}
+    assert (await tools.run_tool("get_hub_history", "{}"))["error"].startswith("invalid arguments")
+
+
+def test_get_hub_history_docstring_says_when_to_use_it():
+    doc = tools.get_hub_history.__doc__.lower()
+    for word in ("worst year", "peak", "season", "staffing", "trend", "resolution_notes"):
+        assert word in doc, word

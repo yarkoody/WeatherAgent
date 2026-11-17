@@ -10,8 +10,8 @@ const response = mock as ChatResponse
 
 describe('GroundingBadge', () => {
   it.each([
-    ['pass', 'Numbers verified'],
-    ['retried', 'Verified after retry'],
+    ['pass', 'Figures checked'],
+    ['retried', 'Figures checked after retry'],
     ['failed', 'Unverified'],
   ] as const)('shows %s as "%s"', (status, label) => {
     render(<GroundingBadge grounding={{ status, errors: [] }} />)
@@ -21,7 +21,7 @@ describe('GroundingBadge', () => {
 
   it('renders the mock answer with a verified badge', () => {
     render(<AnswerCard response={response} />)
-    expect(screen.getByText('Numbers verified')).toBeInTheDocument()
+    expect(screen.getByText('Figures checked')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -41,7 +41,7 @@ describe('GroundingBadge', () => {
     const { unmount } = render(<AnswerCard response={oos} />)
     expect(screen.getByLabelText('Answer')).toHaveAttribute('data-kind', 'out_of_scope')
     expect(screen.getByText('Outside what this assistant covers')).toBeInTheDocument()
-    expect(screen.queryByText('Numbers verified')).not.toBeInTheDocument()
+    expect(screen.queryByText('Figures checked')).not.toBeInTheDocument()
     unmount()
 
     const noData: ChatResponse = { ...response, answer: { ...response.answer, data_available: false, figures: [] } }
