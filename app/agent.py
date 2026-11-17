@@ -42,7 +42,7 @@ from openai.lib._pydantic import to_strict_json_schema
 
 from app import grounding
 from app.followups import suggest_follow_ups
-from app.schemas import AgentAnswer, ChatResponse, Grounding, ToolError
+from app.schemas import AgentAnswer, ChatResponse, Grounding, ToolError, TurnUsage
 from app.store import Store, Tracer
 
 SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "system.md").read_text(encoding="utf-8")
@@ -366,6 +366,17 @@ class WeatherAgent(ai.Agent):
         self.tracer.event(self.trace_id, "final_answer", answer=answer.model_dump(mode="json"))
 
 
+def turn_usage(model_id: str, input_tokens: int, output_tokens: int, tool_calls: int, started: float) -> TurnUsage:
+    """Wall time since `started` (perf_counter), the turn's tokens, the price-table cost estimate and tool calls."""
+    return TurnUsage(
+        latency_ms=round((time.perf_counter() - started) * 1000, 1),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cost_usd=_cost(model_id, input_tokens, output_tokens),
+        tool_calls=tool_calls,
+    )
+
+
 def _cost(model_id: str, input_tokens: int, output_tokens: int) -> float | None:
     price = PRICES_PER_MTOK.get(model_id)
     if price is None:
@@ -390,6 +401,7 @@ async def _turn_events(
     holder["trace_id"] = trace_id
     holder["session_id"] = session_id
     started = time.perf_counter()
+    holder["started"] = started
     tracer.event(trace_id, "user_message", session_id=session_id, text=message)
     try:
         history = [ai.messages.Message.model_validate(m) for m in store.get_messages(session_id)]
@@ -408,6 +420,7 @@ async def _turn_events(
             max_steps=max_steps,
             prior_tool_results=prior,
         )
+        holder["agent"] = agent  # read by stream_turn's failure path for the usage so far
         user = ai.user_message(message)
         async with agent.run(model, [ai.system_message(system_prompt(model.id)), *history, user]) as stream:
             async for event in stream:
@@ -428,14 +441,16 @@ async def _turn_events(
             user_message=message,
             used_bad_year=any(c.tool_name == "rank_hubs" and "bad_year" in (c.tool_args or "") for c in calls),
         ),
+        usage=(usage := turn_usage(model.id, agent.input_tokens, agent.output_tokens, len(calls), started)),
     )
     tracer.event(
         trace_id,
         "turn_end",
-        latency_ms=round((time.perf_counter() - started) * 1000, 1),
-        input_tokens=agent.input_tokens,
-        output_tokens=agent.output_tokens,
-        cost_usd=_cost(model.id, agent.input_tokens, agent.output_tokens),
+        latency_ms=usage.latency_ms,
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cost_usd=usage.cost_usd,
+        tool_calls=usage.tool_calls,
     )
 
 
@@ -590,6 +605,14 @@ async def stream_turn(
             answer=ERROR_ANSWER,
             grounding=Grounding(status="failed", errors=[f"{STREAM_ERROR_TEXT} ({type(exc).__name__})"]),
             trace_id=holder.get("trace_id") or uuid.uuid4().hex,
+            # what the turn used before it failed: tokens so far and the tool calls the client saw
+            usage=turn_usage(
+                model.id,
+                getattr(holder.get("agent"), "input_tokens", 0),
+                getattr(holder.get("agent"), "output_tokens", 0),
+                len(inputs_sent),
+                holder.get("started", time.perf_counter()),
+            ),
         )
         finish = []
         info["outcome"] = "error"

@@ -552,3 +552,53 @@ async def test_system_prompt_names_the_model_and_snapshot_date(store, tracer):
     model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(call("get_hub_risk", hub_id="houston")), ai.assistant_message(answer_json())])
     await turn(model, store, tracer)
     assert "fake-model" in model.calls[0][0].text  # the system message of the turn
+
+
+# ---------- per-turn usage (ChatResponse.usage) ----------
+
+
+def test_turn_usage_estimates_cost_from_the_price_table(monkeypatch):
+    from app import agent as agent_module
+    from app.agent import turn_usage
+
+    monkeypatch.setitem(agent_module.PRICES_PER_MTOK, "priced-model", (2.0, 10.0))
+    started = __import__("time").perf_counter()
+    usage = turn_usage("priced-model", 1_000_000, 100_000, 3, started)
+    assert usage.cost_usd == 3.0 and usage.input_tokens == 1_000_000 and usage.output_tokens == 100_000
+    assert usage.tool_calls == 3 and usage.latency_ms >= 0
+    assert turn_usage("unknown-model", 10, 10, 0, started).cost_usd is None
+
+
+async def test_run_turn_reports_usage(store, tracer):
+    tc = call("get_hub_risk", hub_id="houston")
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(tc), ai.assistant_message(answer_json())])
+    res = await turn(model, store, tracer)
+    assert res.usage is not None
+    assert res.usage.tool_calls == 1 and res.usage.latency_ms >= 0
+    assert res.usage.input_tokens == 0 and res.usage.output_tokens == 0  # FakeModel reports no tokens
+    assert res.usage.cost_usd is None  # fake-model has no price
+    end = next(t for t in traces(tracer) if t["kind"] == "turn_end")
+    assert end["latency_ms"] == res.usage.latency_ms and end["cost_usd"] == res.usage.cost_usd
+
+
+async def test_usage_counts_parallel_tool_calls(store, tracer):
+    a, b = call("get_hub_risk", hub_id="houston"), call("get_hub_risk", hub_id="dallas")
+    reply = answer_json("Houston 66, Dallas 41.7.", [("houston", "exposure", 66.0), ("dallas", "exposure", 41.7)], hubs=["houston", "dallas"])
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(a, b), ai.assistant_message(reply)])
+    assert (await turn(model, store, tracer)).usage.tool_calls == 2
+
+
+async def test_stream_turn_answer_carries_usage(store, tracer):
+    tc = call("get_hub_risk", hub_id="houston")
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(tc), ai.assistant_message(answer_json())])
+    chunks = [c async for c in stream_turn(Q, "s1", model=model, store=store, tracer=tracer, registry=fakes)]
+    data = json.loads(next(c for c in chunks if '"data-answer"' in c)[6:])["data"]
+    assert data["usage"]["tool_calls"] == 1 and data["usage"]["latency_ms"] >= 0
+
+
+async def test_failed_stream_answer_carries_usage_so_far(store, tracer):
+    model = ai.testing.FakeModel([ai.user_message(Q), ai.assistant_message(call("get_hub_risk", hub_id="houston"))])
+    chunks = [c async for c in stream_turn(Q, "s1", model=model, store=store, tracer=tracer, registry=fakes)]
+    data = json.loads(next(c for c in chunks if '"data-answer"' in c)[6:])["data"]
+    assert data["grounding"]["status"] == "failed"
+    assert data["usage"]["tool_calls"] == 1 and data["usage"]["latency_ms"] >= 0
