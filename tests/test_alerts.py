@@ -369,3 +369,28 @@ def test_nws_dedup_is_unaffected_by_a_reset(tmp_path, monkeypatch):
     assert "Tornado Warning" in jsonl(tmp_path)[-1]["text"]
     assert run(tmp_path, [row()], nws=[tornado])["nws"] == []
 
+
+
+def test_weather_outage_skips_scores_but_still_sends_nws(tmp_path):
+    """Open-Meteo down (as on the GitHub runner): no crash, no score change, NWS alerts still go out."""
+    from app.data import UpstreamError
+
+    run(tmp_path, [row(exposure=50.0)])  # baseline
+    state_before = json.loads((tmp_path / "alert_state.json").read_text())
+
+    def outage():
+        raise UpstreamError("https://archive-api.open-meteo.com/v1/archive failed after 3 attempts: handshake timed out")
+
+    nws = [{"hub_id": "dallas", "event": "Tornado Warning", "severity": "Extreme", "headline": "h", "expires": "2099-01-01T00:00:00+00:00"}]
+    result = check_alerts(
+        Store(tmp_path / "app.db"), outage, None, lambda: nws,
+        baseline_path=tmp_path / "score_baseline.json", log_path=tmp_path / "alerts.jsonl",
+        state_path=tmp_path / "alert_state.json",
+    )
+    assert result["scores_skipped"].startswith("UpstreamError")
+    assert result["changes"] == [] and len(result["nws"]) == 1 and result["delivered"] == "jsonl"
+    state_after = json.loads((tmp_path / "alert_state.json").read_text())
+    assert state_after["hubs"] == state_before["hubs"]
+    assert state_after["scoring_version"] == state_before["scoring_version"]
+    # The next run, with weather back, still compares against the old reference.
+    assert run(tmp_path, [row(exposure=56.0)])["changes"]
