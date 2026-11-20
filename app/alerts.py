@@ -233,16 +233,28 @@ def check_alerts(
     current = formula_version()
     now = datetime.now(UTC)
     computed_at = now.isoformat(timespec="seconds")
-    rows = compute_rows()
-    store.record_scores(rows, computed_at)
+    from app.data import UpstreamError
+
+    scores_skipped: str | None = None
+    rows: list[ScoreRow] | None
+    try:
+        rows = compute_rows()
+    except UpstreamError as exc:
+        # The weather source is down (Open-Meteo timed out on the GitHub runner): skip the score check this run
+        # and keep the score state, so the next run compares against the same reference. NWS alerts still go out.
+        rows = None
+        scores_skipped = f"{type(exc).__name__}: {exc}"
+        print(f"Score check skipped: {scores_skipped}", file=sys.stderr)
+    else:
+        store.record_scores(rows, computed_at)
     state = load_state(state_path)
     alerted_hubs: dict[str, dict] = {}
 
     baseline = load_baseline(baseline_path)
-    baseline_created = baseline is None
+    baseline_created = baseline is None and rows is not None
     changes: list[dict] = []
     reset: dict[str, str] | None = None
-    if baseline is not None and not update_baseline:
+    if rows is not None and baseline is not None and not update_baseline:
         # The reference is the state for hubs alerted before and the baseline for the rest: both must
         # come from the current formula, or a method change would show up as score changes.
         old_baseline = baseline_version(baseline_path)
@@ -250,7 +262,9 @@ def check_alerts(
             reset = {"old": state["scoring_version"] or "unknown", "new": current}
         elif old_baseline != current and any(r.hub_id not in state["hubs"] for r in rows):
             reset = {"old": old_baseline or "unknown", "new": current}
-    if baseline is None or update_baseline:
+    if rows is None:
+        pass  # no scores this run: nothing to compare, the baseline stays as it is
+    elif baseline is None or update_baseline:
         write_baseline(baseline_path, rows, computed_at)
     elif reset is not None:
         alerted_hubs = {r.hub_id: r.model_dump(mode="json") for r in rows}
@@ -299,7 +313,9 @@ def check_alerts(
     # Subscribers get an alert only once it counts as sent: a failed main webhook keeps the state, the next run
     # sends the same alert again, and subscribers then get it once instead of twice.
     subscribers = fan_out(store, text) if sent and delivered else dict(NO_FAN_OUT)
-    if update_baseline:
+    if rows is None:
+        pass  # keep the score state and its formula version for the next run
+    elif update_baseline:
         state["hubs"] = {}  # the new baseline is the reference again
         state["scoring_version"] = current
     elif reset is not None:
@@ -319,6 +335,7 @@ def check_alerts(
         "baseline_created": baseline_created,
         "formula_reset": reset,
         "subscribers": subscribers,
+        "scores_skipped": scores_skipped,
     }
 
 
